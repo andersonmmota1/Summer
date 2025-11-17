@@ -16,14 +16,19 @@ interface ExcelImportButtonProps {
 
 // Helper function to parse various date formats, including Brazilian and Excel numbers
 const parseDateFromExcel = (excelDate: any): string => {
-  if (typeof excelDate === 'number') {
-    // Excel stores dates as days since 1900-01-01 (or 1904-01-01 for Mac)
-    // We'll assume 1900-01-01 base for simplicity, adjust if needed for specific Excel files
+  // 1. Check if it's already a valid Date object (from cellDates: true)
+  if (excelDate instanceof Date && !isNaN(excelDate.getTime())) {
+    return format(excelDate, "yyyy-MM-dd");
+  }
+  // 2. Check if it's an Excel date number
+  else if (typeof excelDate === 'number') {
     const date = XLSX.SSF.parse_date_code(excelDate);
     if (date) {
       return format(new Date(date.y, date.m - 1, date.d), "yyyy-MM-dd");
     }
-  } else if (typeof excelDate === 'string') {
+  }
+  // 3. Check if it's a string in Brazilian or ISO format
+  else if (typeof excelDate === 'string') {
     // Try parsing Brazilian format DD/MM/YYYY
     let parsedDate = parse(excelDate, "dd/MM/yyyy", new Date());
     if (isValid(parsedDate)) {
