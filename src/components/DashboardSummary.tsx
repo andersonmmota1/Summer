@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
 import { Transaction } from "./TransactionForm";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // Added import
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface DashboardSummaryProps {
   transactions: Transaction[];
@@ -64,15 +64,15 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
   return (
     <div className="grid gap-4">
       <div className="flex items-center gap-4">
-        <Label htmlFor="summaryFilterMonth">Summary Month:</Label>
+        <Label htmlFor="summaryFilterMonth">Mês do Resumo:</Label>
         <Select value={filterMonth} onValueChange={setFilterMonth}>
           <SelectTrigger id="summaryFilterMonth" className="w-[180px]">
-            <SelectValue placeholder="Select month" />
+            <SelectValue placeholder="Selecionar mês" />
           </SelectTrigger>
           <SelectContent>
             {availableMonths.map(month => (
               <SelectItem key={month} value={month}>
-                {format(new Date(month + "-01"), "MMMM yyyy")}
+                {format(parseISO(month + "-01"), "MMMM yyyy")}
               </SelectItem>
             ))}
           </SelectContent>
@@ -81,25 +81,25 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Summary ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
+          <CardTitle>Resumo Mensal ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-sm text-muted-foreground">Total Sales</p>
+            <p className="text-sm text-muted-foreground">Total de Vendas</p>
             <p className="text-2xl font-bold text-green-600">
-              {monthlySummary.sales.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              {monthlySummary.sales.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Total Expenses</p>
+            <p className="text-sm text-muted-foreground">Total de Despesas</p>
             <p className="text-2xl font-bold text-red-600">
-              {monthlySummary.expenses.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              {monthlySummary.expenses.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Net Balance</p>
+            <p className="text-sm text-muted-foreground">Saldo Líquido</p>
             <p className={`text-2xl font-bold ${monthlySummary.net >= 0 ? "text-blue-600" : "text-red-600"}`}>
-              {monthlySummary.net.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              {monthlySummary.net.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </p>
           </div>
         </CardContent>
@@ -107,23 +107,23 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
 
       <Card>
         <CardHeader>
-          <CardTitle>Daily Summary ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
+          <CardTitle>Resumo Diário ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
         </CardHeader>
         <CardContent className="max-h-60 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Sales</TableHead>
-                <TableHead className="text-right">Expenses</TableHead>
-                <TableHead className="text-right">Net</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Vendas</TableHead>
+                <TableHead className="text-right">Despesas</TableHead>
+                <TableHead className="text-right">Líquido</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {Object.entries(dailySummary).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    No daily data for this month.
+                    Nenhum dado diário para este mês.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -131,15 +131,15 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
                   .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
                   .map(([date, summary]) => (
                     <TableRow key={date}>
-                      <TableCell>{format(parseISO(date), "MMM dd")}</TableCell>
+                      <TableCell>{format(parseISO(date), "dd/MM")}</TableCell>
                       <TableCell className="text-right text-green-600">
-                        {summary.sales.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                        {summary.sales.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                       </TableCell>
                       <TableCell className="text-right text-red-600">
-                        {summary.expenses.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                        {summary.expenses.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                       </TableCell>
                       <TableCell className={`text-right ${summary.net >= 0 ? "text-blue-600" : "text-red-600"}`}>
-                        {summary.net.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                        {summary.net.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                       </TableCell>
                     </TableRow>
                   ))

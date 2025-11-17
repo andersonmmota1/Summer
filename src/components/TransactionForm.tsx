@@ -36,13 +36,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
     e.preventDefault();
 
     if (!category || !cashAccount || !value || !date) {
-      toast.error("Please fill in all fields.");
+      toast.error("Por favor, preencha todos os campos.");
       return;
     }
 
     const parsedValue = parseFloat(value);
     if (isNaN(parsedValue) || parsedValue <= 0) {
-      toast.error("Please enter a valid positive value.");
+      toast.error("Por favor, insira um valor positivo válido.");
       return;
     }
 
@@ -56,7 +56,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
     };
 
     onAddTransaction(newTransaction);
-    toast.success("Transaction added successfully!");
+    toast.success("Transação adicionada com sucesso!");
 
     // Reset form
     setCategory("");
@@ -68,37 +68,37 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg shadow-sm bg-card">
       <div>
-        <Label htmlFor="type">Type</Label>
+        <Label htmlFor="type">Tipo</Label>
         <Select value={type} onValueChange={(value: "sale" | "expense") => setType(value)}>
           <SelectTrigger id="type">
-            <SelectValue placeholder="Select type" />
+            <SelectValue placeholder="Selecionar tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="sale">Sale</SelectItem>
-            <SelectItem value="expense">Expense</SelectItem>
+            <SelectItem value="sale">Venda</SelectItem>
+            <SelectItem value="expense">Despesa</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div>
-        <Label htmlFor="category">Category</Label>
+        <Label htmlFor="category">Categoria</Label>
         <Input
           id="category"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          placeholder="e.g., Food, Salary, Rent"
+          placeholder="Ex: Alimentação, Salário, Aluguel"
         />
       </div>
       <div>
-        <Label htmlFor="cashAccount">Cash Account</Label>
+        <Label htmlFor="cashAccount">Conta Caixa</Label>
         <Input
           id="cashAccount"
           value={cashAccount}
           onChange={(e) => setCashAccount(e.target.value)}
-          placeholder="e.g., Bank, Cash, Credit Card"
+          placeholder="Ex: Banco, Dinheiro, Cartão de Crédito"
         />
       </div>
       <div>
-        <Label htmlFor="value">Value</Label>
+        <Label htmlFor="value">Valor</Label>
         <Input
           id="value"
           type="number"
@@ -110,7 +110,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
         />
       </div>
       <div>
-        <Label htmlFor="date">Date</Label>
+        <Label htmlFor="date">Data</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -121,7 +121,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
+              {date ? format(date, "dd/MM/yyyy") : <span>Selecione uma data</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0">
@@ -135,7 +135,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
         </Popover>
       </div>
       <div className="col-span-full flex justify-end">
-        <Button type="submit">Add Transaction</Button>
+        <Button type="submit">Adicionar Transação</Button>
       </div>
     </form>
   );
