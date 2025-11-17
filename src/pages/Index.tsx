@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import TransactionForm, { Transaction } from "@/components/TransactionForm";
+import TransactionForm, { Transaction } from "@/components/TransactionForm"; // Manter import para tipo Transaction
 import TransactionTable from "@/components/TransactionTable";
 import DashboardSummary from "@/components/DashboardSummary";
 import CashFlowChart from "@/components/CashFlowChart";
 import ExcelImportButton from "@/components/ExcelImportButton";
 import { Button } from "@/components/ui/button";
-import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport"; // Import exportTemplateToExcel
-import { Download, FileText } from "lucide-react"; // Import FileText icon
+import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport";
+import { Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -29,14 +29,12 @@ const Index = () => {
     }
   }, [transactions]);
 
-  const handleAddTransaction = (newTransaction: Transaction) => {
-    setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
-  };
+  // A função handleAddTransaction não é mais necessária, pois o formulário foi removido.
+  // const handleAddTransaction = (newTransaction: Transaction) => {
+  //   setTransactions((prevTransactions) => [...prevTransactions, newTransaction]);
+  // };
 
   const handleImportTransactions = (importedTransactions: Transaction[]) => {
-    // You might want to merge or replace existing transactions
-    // For now, let's replace them to keep it simple.
-    // A more advanced solution would involve checking for duplicates or asking the user.
     setTransactions(importedTransactions);
     toast.info("Transações importadas substituíram as transações existentes.");
   };
@@ -69,10 +67,11 @@ const Index = () => {
           </Button>
         </div>
 
-        <section>
+        {/* A seção de adicionar transação manual foi removida */}
+        {/* <section>
           <h2 className="text-2xl font-semibold mb-4">Adicionar Nova Transação</h2>
           <TransactionForm onAddTransaction={handleAddTransaction} />
-        </section>
+        </section> */}
 
         <section>
           <h2 className="text-2xl font-semibold mb-4">Resumo do Dashboard</h2>
