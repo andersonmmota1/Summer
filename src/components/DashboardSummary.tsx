@@ -61,6 +61,42 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
     return summaryMap;
   }, [transactions, filterMonth]);
 
+  const categorySummary = useMemo(() => {
+    const summaryMap: { [key: string]: { sales: number; expenses: number; net: number } } = {};
+    transactions.forEach(t => {
+      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
+        if (!summaryMap[t.category]) {
+          summaryMap[t.category] = { sales: 0, expenses: 0, net: 0 };
+        }
+        if (t.type === "sale") {
+          summaryMap[t.category].sales += t.value;
+        } else {
+          summaryMap[t.category].expenses += t.value;
+        }
+        summaryMap[t.category].net = summaryMap[t.category].sales - summaryMap[t.category].expenses;
+      }
+    });
+    return summaryMap;
+  }, [transactions, filterMonth]);
+
+  const cashAccountSummary = useMemo(() => {
+    const summaryMap: { [key: string]: { sales: number; expenses: number; net: number } } = {};
+    transactions.forEach(t => {
+      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
+        if (!summaryMap[t.cashAccount]) {
+          summaryMap[t.cashAccount] = { sales: 0, expenses: 0, net: 0 };
+        }
+        if (t.type === "sale") {
+          summaryMap[t.cashAccount].sales += t.value;
+        } else {
+          summaryMap[t.cashAccount].expenses += t.value;
+        }
+        summaryMap[t.cashAccount].net = summaryMap[t.cashAccount].sales - summaryMap[t.cashAccount].expenses;
+      }
+    });
+    return summaryMap;
+  }, [transactions, filterMonth]);
+
   return (
     <div className="grid gap-4">
       <div className="flex items-center gap-4">
@@ -132,6 +168,94 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
                   .map(([date, summary]) => (
                     <TableRow key={date}>
                       <TableCell>{format(parseISO(date), "dd/MM")}</TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {summary.sales.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600">
+                        {summary.expenses.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                      <TableCell className={`text-right ${summary.net >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                        {summary.net.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumo por Categoria ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
+        </CardHeader>
+        <CardContent className="max-h-60 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoria</TableHead>
+                <TableHead className="text-right">Vendas</TableHead>
+                <TableHead className="text-right">Despesas</TableHead>
+                <TableHead className="text-right">Líquido</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(categorySummary).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    Nenhum dado por categoria para este mês.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                Object.entries(categorySummary)
+                  .sort(([catA], [catB]) => catA.localeCompare(catB))
+                  .map(([category, summary]) => (
+                    <TableRow key={category}>
+                      <TableCell>{category}</TableCell>
+                      <TableCell className="text-right text-green-600">
+                        {summary.sales.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                      <TableCell className="text-right text-red-600">
+                        {summary.expenses.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                      <TableCell className={`text-right ${summary.net >= 0 ? "text-blue-600" : "text-red-600"}`}>
+                        {summary.net.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      </TableCell>
+                    </TableRow>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumo por Conta Caixa ({format(parseISO(filterMonth + "-01"), "MMMM yyyy")})</CardTitle>
+        </CardHeader>
+        <CardContent className="max-h-60 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Conta Caixa</TableHead>
+                <TableHead className="text-right">Vendas</TableHead>
+                <TableHead className="text-right">Despesas</TableHead>
+                <TableHead className="text-right">Líquido</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(cashAccountSummary).length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-muted-foreground">
+                    Nenhum dado por conta caixa para este mês.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                Object.entries(cashAccountSummary)
+                  .sort(([accA], [accB]) => accA.localeCompare(accB))
+                  .map(([account, summary]) => (
+                    <TableRow key={account}>
+                      <TableCell>{account}</TableCell>
                       <TableCell className="text-right text-green-600">
                         {summary.sales.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                       </TableCell>
