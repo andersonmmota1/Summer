@@ -1,0 +1,87 @@
+"use client";
+
+import React, { useState, useMemo } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { format } from "date-fns";
+import { Transaction } from "./TransactionForm";
+
+interface TransactionTableProps {
+  transactions: Transaction[];
+}
+
+const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => {
+  const [filterMonth, setFilterMonth] = useState<string>(format(new Date(), "yyyy-MM"));
+
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    transactions.forEach(t => months.add(format(new Date(t.date), "yyyy-MM")));
+    return Array.from(months).sort((a, b) => b.localeCompare(a)); // Sort descending
+  }, [transactions]);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => format(new Date(t.date), "yyyy-MM") === filterMonth)
+                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date descending
+  }, [transactions, filterMonth]);
+
+  return (
+    <div className="p-4 border rounded-lg shadow-sm bg-card">
+      <div className="flex items-center gap-4 mb-4">
+        <Label htmlFor="filterMonth">Filter by Month:</Label>
+        <Select value={filterMonth} onValueChange={setFilterMonth}>
+          <SelectTrigger id="filterMonth" className="w-[180px]">
+            <SelectValue placeholder="Select month" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableMonths.map(month => (
+              <SelectItem key={month} value={month}>
+                {format(new Date(month + "-01"), "MMMM yyyy")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="max-h-96 overflow-y-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Cash Account</TableHead>
+              <TableHead className="text-right">Value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredTransactions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  No transactions for this month.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredTransactions.map((transaction) => (
+                <TableRow key={transaction.id}>
+                  <TableCell>{format(new Date(transaction.date), "PPP")}</TableCell>
+                  <TableCell>
+                    <span className={`font-medium ${transaction.type === "sale" ? "text-green-600" : "text-red-600"}`}>
+                      {transaction.type === "sale" ? "Sale" : "Expense"}
+                    </span>
+                  </TableCell>
+                  <TableCell>{transaction.category}</TableCell>
+                  <TableCell>{transaction.cashAccount}</TableCell>
+                  <TableCell className="text-right">
+                    {transaction.value.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};
+
+export default TransactionTable;
