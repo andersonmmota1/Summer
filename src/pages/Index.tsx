@@ -2,19 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { Transaction } from "@/components/TransactionForm"; // Manter import para tipo Transaction
+import { Transaction } from "@/components/TransactionForm";
 import TransactionTable from "@/components/TransactionTable";
 import DashboardSummary from "@/components/DashboardSummary";
-import CashFlowChart from "@/components/CashFlowChart";
+import CashFlowTable from "@/components/CashFlowTable"; // Importar o novo componente
 import ExcelImportButton from "@/components/ExcelImportButton";
 import { Button } from "@/components/ui/button";
 import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport";
-import { Download, FileText, Trash2 } from "lucide-react"; // Importar Trash2
+import { Download, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    // Load transactions from local storage on initial render
     if (typeof window !== "undefined") {
       const savedTransactions = localStorage.getItem("transactions");
       return savedTransactions ? JSON.parse(savedTransactions) : [];
@@ -22,7 +21,6 @@ const Index = () => {
     return [];
   });
 
-  // Save transactions to local storage whenever they change
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem("transactions", JSON.stringify(transactions));
@@ -79,8 +77,8 @@ const Index = () => {
         </section>
 
         <section>
-          <h2 className="text-2xl font-semibold mb-4">Projeção de Fluxo de Caixa</h2>
-          <CashFlowChart transactions={transactions} />
+          <h2 className="text-2xl font-semibold mb-4">Fluxo de Caixa Diário</h2>
+          <CashFlowTable transactions={transactions} /> {/* Usando o novo componente de tabela */}
         </section>
 
         <section>
