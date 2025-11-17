@@ -26,7 +26,7 @@ const CashFlowChart: React.FC<CashFlowChartProps> = ({ transactions }) => {
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    transactions.forEach(t => months.add(format(new Date(t.date), "yyyy-MM")));
+    transactions.forEach(t => months.add(format(parseISO(t.date), "yyyy-MM")));
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
@@ -41,8 +41,8 @@ const CashFlowChart: React.FC<CashFlowChartProps> = ({ transactions }) => {
     });
 
     transactions.forEach(t => {
-      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
-        const value = t.type === "receita" ? t.value : -t.value; // Alterado de "sale" para "receita"
+      if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
+        const value = t.type === "receita" ? t.value : -t.value;
         dailyBalances[t.date] = (dailyBalances[t.date] || 0) + value;
       }
     });

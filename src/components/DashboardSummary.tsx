@@ -17,15 +17,15 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    transactions.forEach(t => months.add(format(new Date(t.date), "yyyy-MM")));
+    transactions.forEach(t => months.add(format(parseISO(t.date), "yyyy-MM")));
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
   const monthlySummary = useMemo(() => {
-    const summary = { revenues: 0, expenses: 0, net: 0 }; // Alterado de sales para revenues
+    const summary = { revenues: 0, expenses: 0, net: 0 };
     transactions.forEach(t => {
-      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
-        if (t.type === "receita") { // Alterado de "sale" para "receita"
+      if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
+        if (t.type === "receita") {
           summary.revenues += t.value;
         } else {
           summary.expenses += t.value;
@@ -37,20 +37,20 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
   }, [transactions, filterMonth]);
 
   const dailySummary = useMemo(() => {
-    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {}; // Alterado de sales para revenues
+    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {};
     const start = startOfMonth(parseISO(filterMonth + "-01"));
     const end = endOfMonth(parseISO(filterMonth + "-01"));
     const daysInMonth = eachDayOfInterval({ start, end });
 
     daysInMonth.forEach(day => {
       const dateStr = format(day, "yyyy-MM-dd");
-      summaryMap[dateStr] = { revenues: 0, expenses: 0, net: 0 }; // Alterado de sales para revenues
+      summaryMap[dateStr] = { revenues: 0, expenses: 0, net: 0 };
     });
 
     transactions.forEach(t => {
       const dateStr = t.date;
       if (summaryMap[dateStr]) {
-        if (t.type === "receita") { // Alterado de "sale" para "receita"
+        if (t.type === "receita") {
           summaryMap[dateStr].revenues += t.value;
         } else {
           summaryMap[dateStr].expenses += t.value;
@@ -62,13 +62,13 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
   }, [transactions, filterMonth]);
 
   const categorySummary = useMemo(() => {
-    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {}; // Alterado de sales para revenues
+    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {};
     transactions.forEach(t => {
-      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
+      if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
         if (!summaryMap[t.category]) {
-          summaryMap[t.category] = { revenues: 0, expenses: 0, net: 0 }; // Alterado de sales para revenues
+          summaryMap[t.category] = { revenues: 0, expenses: 0, net: 0 };
         }
-        if (t.type === "receita") { // Alterado de "sale" para "receita"
+        if (t.type === "receita") {
           summaryMap[t.category].revenues += t.value;
         } else {
           summaryMap[t.category].expenses += t.value;
@@ -80,13 +80,13 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
   }, [transactions, filterMonth]);
 
   const cashAccountSummary = useMemo(() => {
-    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {}; // Alterado de sales para revenues
+    const summaryMap: { [key: string]: { revenues: number; expenses: number; net: number } } = {};
     transactions.forEach(t => {
-      if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
+      if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
         if (!summaryMap[t.cashAccount]) {
-          summaryMap[t.cashAccount] = { revenues: 0, expenses: 0, net: 0 }; // Alterado de sales para revenues
+          summaryMap[t.cashAccount] = { revenues: 0, expenses: 0, net: 0 };
         }
-        if (t.type === "receita") { // Alterado de "sale" para "receita"
+        if (t.type === "receita") {
           summaryMap[t.cashAccount].revenues += t.value;
         } else {
           summaryMap[t.cashAccount].expenses += t.value;
@@ -121,7 +121,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
         </CardHeader>
         <CardContent className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <p className="text-sm text-muted-foreground">Total de Receitas</p> {/* Alterado de "Vendas" para "Receitas" */}
+            <p className="text-sm text-muted-foreground">Total de Receitas</p>
             <p className="text-2xl font-bold text-green-600">
               {monthlySummary.revenues.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </p>
@@ -150,7 +150,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
-                <TableHead className="text-right">Receitas</TableHead> {/* Alterado de "Vendas" para "Receitas" */}
+                <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Líquido</TableHead>
               </TableRow>
@@ -194,7 +194,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
             <TableHeader>
               <TableRow>
                 <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Receitas</TableHead> {/* Alterado de "Vendas" para "Receitas" */}
+                <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Líquido</TableHead>
               </TableRow>
@@ -238,7 +238,7 @@ const DashboardSummary: React.FC<DashboardSummaryProps> = ({ transactions }) => 
             <TableHeader>
               <TableRow>
                 <TableHead>Conta Caixa</TableHead>
-                <TableHead className="text-right">Receitas</TableHead> {/* Alterado de "Vendas" para "Receitas" */}
+                <TableHead className="text-right">Receitas</TableHead>
                 <TableHead className="text-right">Despesas</TableHead>
                 <TableHead className="text-right">Líquido</TableHead>
               </TableRow>

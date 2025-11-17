@@ -16,12 +16,12 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => 
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    transactions.forEach(t => months.add(format(new Date(t.date), "yyyy-MM")));
+    transactions.forEach(t => months.add(format(parseISO(t.date), "yyyy-MM")));
     return Array.from(months).sort((a, b) => b.localeCompare(a)); // Sort descending
   }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => format(new Date(t.date), "yyyy-MM") === filterMonth)
+    return transactions.filter(t => format(parseISO(t.date), "yyyy-MM") === filterMonth)
                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Sort by date descending
   }, [transactions, filterMonth]);
 
@@ -65,8 +65,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => 
                 <TableRow key={transaction.id}>
                   <TableCell>{format(parseISO(transaction.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>
-                    <span className={`font-medium ${transaction.type === "receita" ? "text-green-600" : "text-red-600"}`}> {/* Alterado de "sale" para "receita" */}
-                      {transaction.type === "receita" ? "Receita" : "Despesa"} {/* Alterado de "Venda" para "Receita" */}
+                    <span className={`font-medium ${transaction.type === "receita" ? "text-green-600" : "text-red-600"}`}>
+                      {transaction.type === "receita" ? "Receita" : "Despesa"}
                     </span>
                   </TableCell>
                   <TableCell>{transaction.category}</TableCell>
