@@ -28,3 +28,36 @@ export const exportToExcel = (data: Transaction[], fileName: string) => {
   const dataBlob = new Blob([excelBuffer], { type: "application/octet-stream" });
   saveAs(dataBlob, `${fileName}.xlsx`);
 };
+
+export const exportTemplateToExcel = (fileName: string = "Template_Transacoes") => {
+  const templateData = [
+    {
+      Data: format(new Date(), "dd/MM/yyyy"),
+      Tipo: "Venda",
+      Categoria: "Salário",
+      "Conta Caixa": "Banco",
+      Valor: 2500.00,
+    },
+    {
+      Data: format(new Date(), "dd/MM/yyyy"),
+      Tipo: "Despesa",
+      Categoria: "Alimentação",
+      "Conta Caixa": "Dinheiro",
+      Valor: 150.50,
+    },
+    {
+      Data: format(new Date(), "dd/MM/yyyy"),
+      Tipo: "Venda",
+      Categoria: "Serviços",
+      "Conta Caixa": "Cartão de Crédito",
+      Valor: 500.00,
+    },
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(templateData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  const dataBlob = new Blob([excelBuffer], { type: "application/octet-stream" });
+  saveAs(dataBlob, `${fileName}.xlsx`);
+};

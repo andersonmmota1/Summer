@@ -6,10 +6,10 @@ import TransactionForm, { Transaction } from "@/components/TransactionForm";
 import TransactionTable from "@/components/TransactionTable";
 import DashboardSummary from "@/components/DashboardSummary";
 import CashFlowChart from "@/components/CashFlowChart";
-import ExcelImportButton from "@/components/ExcelImportButton"; // Import the new component
+import ExcelImportButton from "@/components/ExcelImportButton";
 import { Button } from "@/components/ui/button";
-import { exportToExcel } from "@/utils/excelExport";
-import { Download } from "lucide-react";
+import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport"; // Import exportTemplateToExcel
+import { Download, FileText } from "lucide-react"; // Import FileText icon
 import { toast } from "sonner";
 
 const Index = () => {
@@ -49,6 +49,11 @@ const Index = () => {
     exportToExcel(transactions, "Relatorio_Financeiro_Mensal");
   };
 
+  const handleDownloadTemplate = () => {
+    exportTemplateToExcel();
+    toast.info("Template de Excel baixado.");
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -56,6 +61,9 @@ const Index = () => {
 
         <div className="flex flex-col sm:flex-row justify-end gap-4 mb-4">
           <ExcelImportButton onImportTransactions={handleImportTransactions} />
+          <Button onClick={handleDownloadTemplate} className="flex items-center gap-2">
+            <FileText className="h-4 w-4" /> Baixar Template
+          </Button>
           <Button onClick={handleExport} className="flex items-center gap-2">
             <Download className="h-4 w-4" /> Exportar para Excel
           </Button>
