@@ -65,8 +65,8 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => 
                 <TableRow key={transaction.id}>
                   <TableCell>{format(parseISO(transaction.date), "dd/MM/yyyy")}</TableCell>
                   <TableCell>
-                    <span className={`font-medium ${transaction.type === "sale" ? "text-green-600" : "text-red-600"}`}>
-                      {transaction.type === "sale" ? "Venda" : "Despesa"}
+                    <span className={`font-medium ${transaction.type === "receita" ? "text-green-600" : "text-red-600"}`}> {/* Alterado de "sale" para "receita" */}
+                      {transaction.type === "receita" ? "Receita" : "Despesa"} {/* Alterado de "Venda" para "Receita" */}
                     </span>
                   </TableCell>
                   <TableCell>{transaction.category}</TableCell>

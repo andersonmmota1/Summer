@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 export interface Transaction {
   id: string;
-  type: "sale" | "expense";
+  type: "receita" | "despesa"; // Alterado de "sale" para "receita"
   category: string;
   cashAccount: string;
   value: number;
@@ -26,7 +26,7 @@ interface TransactionFormProps {
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) => {
-  const [type, setType] = useState<"sale" | "expense">("sale");
+  const [type, setType] = useState<"receita" | "despesa">("receita"); // Alterado de "sale" para "receita"
   const [category, setCategory] = useState("");
   const [cashAccount, setCashAccount] = useState("");
   const [value, setValue] = useState<string>("");
@@ -69,13 +69,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg shadow-sm bg-card">
       <div>
         <Label htmlFor="type">Tipo</Label>
-        <Select value={type} onValueChange={(value: "sale" | "expense") => setType(value)}>
+        <Select value={type} onValueChange={(value: "receita" | "despesa") => setType(value)}> {/* Alterado de "sale" para "receita" */}
           <SelectTrigger id="type">
             <SelectValue placeholder="Selecionar tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="sale">Venda</SelectItem>
-            <SelectItem value="expense">Despesa</SelectItem>
+            <SelectItem value="receita">Receita</SelectItem> {/* Alterado de "Venda" para "Receita" */}
+            <SelectItem value="despesa">Despesa</SelectItem>
           </SelectContent>
         </Select>
       </div>

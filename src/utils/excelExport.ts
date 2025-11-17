@@ -17,7 +17,7 @@ const formatToBrazilianDate = (dateString: string) => {
 export const exportToExcel = (data: Transaction[], fileName: string) => {
   const worksheet = XLSX.utils.json_to_sheet(data.map(t => ({
     Data: formatToBrazilianDate(t.date), // Format date for Excel export
-    Tipo: t.type === "sale" ? "Venda" : "Despesa",
+    Tipo: t.type === "receita" ? "Receita" : "Despesa", // Alterado de "sale" para "receita" e "Venda" para "Receita"
     Categoria: t.category,
     "Conta Caixa": t.cashAccount,
     Valor: t.value,
@@ -33,7 +33,7 @@ export const exportTemplateToExcel = (fileName: string = "Template_Transacoes") 
   const templateData = [
     {
       Data: format(new Date(), "dd/MM/yyyy"),
-      Tipo: "Venda",
+      Tipo: "Receita", // Alterado de "Venda" para "Receita"
       Categoria: "Salário",
       "Conta Caixa": "Banco",
       Valor: 2500.00,
@@ -47,7 +47,7 @@ export const exportTemplateToExcel = (fileName: string = "Template_Transacoes") 
     },
     {
       Data: format(new Date(), "dd/MM/yyyy"),
-      Tipo: "Venda",
+      Tipo: "Receita", // Alterado de "Venda" para "Receita"
       Categoria: "Serviços",
       "Conta Caixa": "Cartão de Crédito",
       Valor: 500.00,

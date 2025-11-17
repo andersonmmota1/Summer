@@ -68,9 +68,15 @@ const ExcelImportButton: React.FC<ExcelImportButtonProps> = ({ onImportTransacti
             throw new Error("Invalid date format in Excel.");
           }
 
-          const type = (row.Tipo || row.Type)?.toLowerCase();
-          if (type !== "venda" && type !== "despesa" && type !== "sale" && type !== "expense") {
-            toast.error(`Erro na linha ${index + 2}: Tipo de transação inválido. Use 'Venda' ou 'Despesa'.`);
+          const typeRaw = (row.Tipo || row.Type)?.toLowerCase();
+          let type: "receita" | "despesa";
+
+          if (typeRaw === "receita" || typeRaw === "venda" || typeRaw === "sale") {
+            type = "receita";
+          } else if (typeRaw === "despesa" || typeRaw === "expense") {
+            type = "despesa";
+          } else {
+            toast.error(`Erro na linha ${index + 2}: Tipo de transação inválido. Use 'Receita' ou 'Despesa'.`);
             throw new Error("Invalid transaction type in Excel.");
           }
 
@@ -82,7 +88,7 @@ const ExcelImportButton: React.FC<ExcelImportButtonProps> = ({ onImportTransacti
 
           return {
             id: Date.now().toString() + index, // Unique ID for each imported transaction
-            type: (type === "venda" || type === "sale") ? "sale" : "expense",
+            type: type,
             category: row.Categoria || row.Category || "Não Categorizado",
             cashAccount: row["Conta Caixa"] || row["Cash Account"] || "Não Definido",
             value: value,

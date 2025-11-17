@@ -42,7 +42,7 @@ const CashFlowChart: React.FC<CashFlowChartProps> = ({ transactions }) => {
 
     transactions.forEach(t => {
       if (format(new Date(t.date), "yyyy-MM") === filterMonth) {
-        const value = t.type === "sale" ? t.value : -t.value;
+        const value = t.type === "receita" ? t.value : -t.value; // Alterado de "sale" para "receita"
         dailyBalances[t.date] = (dailyBalances[t.date] || 0) + value;
       }
     });
@@ -89,7 +89,7 @@ const CashFlowChart: React.FC<CashFlowChartProps> = ({ transactions }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip formatter={(value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" })} />
+              <Tooltip formatter={(value: number) => value.toLocaleString("en-US", { style: "currency", currency: "BRL" })} />
               <Line
                 type="monotone"
                 dataKey="balance"
