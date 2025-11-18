@@ -9,7 +9,6 @@ import CashFlowTable from "@/components/CashFlowTable";
 import DRETable from "@/components/DRETable";
 import CashAccountSummary from "@/components/CashAccountSummary";
 import ExcelImportButton from "@/components/ExcelImportButton";
-import XMLUploadButton from "@/components/XMLUploadButton"; // Importar o novo componente
 import { Button } from "@/components/ui/button";
 import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport";
 import { Download, FileText, Trash2 } from "lucide-react";
@@ -30,15 +29,13 @@ const Index = () => {
     }
   }, [transactions]);
 
+  const handleAddTransaction = (newTransaction: Transaction) => {
+    setTransactions((prev) => [...prev, newTransaction]);
+  };
+
   const handleImportTransactions = (importedTransactions: Transaction[]) => {
     setTransactions(importedTransactions);
     toast.info("Transações importadas substituíram as transações existentes.");
-  };
-
-  const handleXMLUploadSuccess = () => {
-    // Aqui você pode adicionar lógica para recarregar dados do Supabase, se necessário
-    // Por enquanto, apenas informamos o sucesso.
-    console.log("Upload de XML concluído com sucesso na Edge Function.");
   };
 
   const handleExport = () => {
@@ -68,7 +65,6 @@ const Index = () => {
         <h1 className="text-4xl font-bold text-center mb-8">Dashboard Financeiro</h1>
 
         <div className="flex flex-col sm:flex-row justify-end gap-4 mb-4">
-          <XMLUploadButton onUploadSuccess={handleXMLUploadSuccess} /> {/* Adicionado o botão de upload de XML */}
           <ExcelImportButton onImportTransactions={handleImportTransactions} />
           <Button onClick={handleDownloadTemplate} className="flex items-center gap-2">
             <FileText className="h-4 w-4" /> Baixar Template
