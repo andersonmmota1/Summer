@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.83.0'; // Corrigido para a versão 2.83.0
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'; // Tentando a versão 2.39.0
 // You would typically import an XML parser here, e.g.,
 // import { parse } from "https://deno.land/x/xml_parser@v0.2.1/mod.ts";
 
