@@ -6,7 +6,8 @@ import { Transaction } from "@/components/TransactionForm";
 import TransactionTable from "@/components/TransactionTable";
 import DashboardSummary from "@/components/DashboardSummary";
 import CashFlowTable from "@/components/CashFlowTable";
-import DRETable from "@/components/DRETable"; // Importar o novo componente DRETable
+import DRETable from "@/components/DRETable";
+import CashAccountSummary from "@/components/CashAccountSummary"; // Importar o novo componente
 import ExcelImportButton from "@/components/ExcelImportButton";
 import { Button } from "@/components/ui/button";
 import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport";
@@ -78,8 +79,13 @@ const Index = () => {
         </section>
 
         <section>
+          <h2 className="text-2xl font-semibold mb-4">Resumo por Conta Caixa</h2>
+          <CashAccountSummary transactions={transactions} /> {/* Novo componente */}
+        </section>
+
+        <section>
           <h2 className="text-2xl font-semibold mb-4">Demonstrativo de Resultado (DRE)</h2>
-          <DRETable transactions={transactions} /> {/* Usando o novo componente DRETable */}
+          <DRETable transactions={transactions} />
         </section>
 
         <section>
