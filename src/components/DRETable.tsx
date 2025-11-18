@@ -24,7 +24,7 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
   const dreSummary = useMemo(() => {
     let revenues = 0;
     let cmvExpenses = 0;
-    let payrollExpenses = 0; // Nova variável para despesas de folha
+    let payrollExpenses = 0;
 
     transactions.forEach(t => {
       if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
@@ -33,7 +33,7 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
         } else if (t.type === "despesa") {
           if (t.category.toLowerCase() === "cmv") {
             cmvExpenses += t.value;
-          } else if (t.category.toLowerCase() === "folha") { // Identifica despesas de folha
+          } else if (t.category.toLowerCase() === "folha") {
             payrollExpenses += t.value;
           }
         }
@@ -41,10 +41,25 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
     });
 
     const grossOperatingResult = revenues - cmvExpenses;
-    const grossOperatingResultPercentage = revenues > 0 ? (grossOperatingResult / revenues) * 100 : 0;
     const netOperatingResultAfterPayroll = grossOperatingResult - payrollExpenses;
 
-    return { revenues, cmvExpenses, grossOperatingResult, grossOperatingResultPercentage, payrollExpenses, netOperatingResultAfterPayroll };
+    // Calculate percentages relative to revenues
+    const cmvPercentage = revenues > 0 ? (cmvExpenses / revenues) * 100 : 0;
+    const grossOperatingResultPercentage = revenues > 0 ? (grossOperatingResult / revenues) * 100 : 0;
+    const payrollPercentage = revenues > 0 ? (payrollExpenses / revenues) * 100 : 0;
+    const netOperatingResultAfterPayrollPercentage = revenues > 0 ? (netOperatingResultAfterPayroll / revenues) * 100 : 0;
+
+    return {
+      revenues,
+      cmvExpenses,
+      grossOperatingResult,
+      grossOperatingResultPercentage,
+      payrollExpenses,
+      netOperatingResultAfterPayroll,
+      cmvPercentage,
+      payrollPercentage,
+      netOperatingResultAfterPayrollPercentage,
+    };
   }, [transactions, filterMonth]);
 
   return (
@@ -80,6 +95,11 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
               <TableCell className="font-medium">(-) CMV (Custo de Mercadoria Vendida)</TableCell>
               <TableCell className="text-right text-red-600">
                 {(-dreSummary.cmvExpenses).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.cmvPercentage.toFixed(2)}%)
+                  </span>
+                )}
               </TableCell>
             </TableRow>
             <TableRow className="font-bold">
@@ -97,12 +117,22 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
               <TableCell className="font-medium">(-) Despesas de Folha</TableCell>
               <TableCell className="text-right text-red-600">
                 {(-dreSummary.payrollExpenses).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.payrollPercentage.toFixed(2)}%)
+                  </span>
+                )}
               </TableCell>
             </TableRow>
             <TableRow className="font-bold">
               <TableCell>Resultado Bruto Pós Folha</TableCell>
               <TableCell className={`text-right ${dreSummary.netOperatingResultAfterPayroll < 0 ? "text-red-600" : "text-blue-600"}`}>
                 {dreSummary.netOperatingResultAfterPayroll.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.netOperatingResultAfterPayrollPercentage.toFixed(2)}%)
+                  </span>
+                )}
               </TableCell>
             </TableRow>
           </TableBody>
