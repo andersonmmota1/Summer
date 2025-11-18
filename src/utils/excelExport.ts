@@ -17,10 +17,11 @@ const formatToBrazilianDate = (dateString: string) => {
 export const exportToExcel = (data: Transaction[], fileName: string) => {
   const worksheet = XLSX.utils.json_to_sheet(data.map(t => ({
     Data: formatToBrazilianDate(t.date), // Format date for Excel export
-    Tipo: t.type === "receita" ? "Receita" : "Despesa", // Alterado de "sale" para "receita" e "Venda" para "Receita"
+    Tipo: t.type === "receita" ? "Receita" : "Despesa",
     Categoria: t.category,
     "Conta Caixa": t.cashAccount,
     Valor: t.value,
+    Descricao: t.description, // Incluir descrição
   })));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Transacoes");
@@ -33,10 +34,11 @@ export const exportTemplateToExcel = (fileName: string = "Template_Transacoes") 
   const templateData = [
     {
       Data: format(new Date(), "dd/MM/yyyy"),
-      Tipo: "Receita", // Alterado de "Venda" para "Receita"
+      Tipo: "Receita",
       Categoria: "Salário",
       "Conta Caixa": "Banco",
       Valor: 2500.00,
+      Descricao: "Salário mensal", // Incluir descrição no template
     },
     {
       Data: format(new Date(), "dd/MM/yyyy"),
@@ -44,13 +46,15 @@ export const exportTemplateToExcel = (fileName: string = "Template_Transacoes") 
       Categoria: "Alimentação",
       "Conta Caixa": "Dinheiro",
       Valor: 150.50,
+      Descricao: "Compras no supermercado", // Incluir descrição no template
     },
     {
       Data: format(new Date(), "dd/MM/yyyy"),
-      Tipo: "Receita", // Alterado de "Venda" para "Receita"
+      Tipo: "Receita",
       Categoria: "Serviços",
       "Conta Caixa": "Cartão de Crédito",
       Valor: 500.00,
+      Descricao: "Pagamento por consultoria", // Incluir descrição no template
     },
   ];
 

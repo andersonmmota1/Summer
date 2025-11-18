@@ -14,11 +14,12 @@ import { toast } from "sonner";
 
 export interface Transaction {
   id: string;
-  type: "receita" | "despesa"; // Alterado de "sale" para "receita"
+  type: "receita" | "despesa";
   category: string;
   cashAccount: string;
   value: number;
   date: string; // YYYY-MM-DD
+  description: string; // Novo campo
 }
 
 interface TransactionFormProps {
@@ -26,16 +27,17 @@ interface TransactionFormProps {
 }
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) => {
-  const [type, setType] = useState<"receita" | "despesa">("receita"); // Alterado de "sale" para "receita"
+  const [type, setType] = useState<"receita" | "despesa">("receita");
   const [category, setCategory] = useState("");
   const [cashAccount, setCashAccount] = useState("");
   const [value, setValue] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [description, setDescription] = useState(""); // Novo estado
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!category || !cashAccount || !value || !date) {
+    if (!category || !cashAccount || !value || !date || !description) { // Validar descrição
       toast.error("Por favor, preencha todos os campos.");
       return;
     }
@@ -53,6 +55,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
       cashAccount,
       value: parsedValue,
       date: format(date, "yyyy-MM-dd"),
+      description, // Incluir descrição
     };
 
     onAddTransaction(newTransaction);
@@ -63,18 +66,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
     setCashAccount("");
     setValue("");
     setDate(new Date());
+    setDescription(""); // Resetar descrição
   };
 
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 border rounded-lg shadow-sm bg-card">
       <div>
         <Label htmlFor="type">Tipo</Label>
-        <Select value={type} onValueChange={(value: "receita" | "despesa") => setType(value)}> {/* Alterado de "sale" para "receita" */}
+        <Select value={type} onValueChange={(value: "receita" | "despesa") => setType(value)}>
           <SelectTrigger id="type">
             <SelectValue placeholder="Selecionar tipo" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="receita">Receita</SelectItem> {/* Alterado de "Venda" para "Receita" */}
+            <SelectItem value="receita">Receita</SelectItem>
             <SelectItem value="despesa">Despesa</SelectItem>
           </SelectContent>
         </Select>
@@ -133,6 +137,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransaction }) =
             />
           </PopoverContent>
         </Popover>
+      </div>
+      <div className="col-span-full"> {/* Ocupa a largura total para a descrição */}
+        <Label htmlFor="description">Descrição</Label>
+        <Input
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Ex: Compra de supermercado, Pagamento de salário"
+        />
       </div>
       <div className="col-span-full flex justify-end">
         <Button type="submit">Adicionar Transação</Button>

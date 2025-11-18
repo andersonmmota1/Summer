@@ -86,6 +86,8 @@ const ExcelImportButton: React.FC<ExcelImportButtonProps> = ({ onImportTransacti
             throw new Error("Invalid value in Excel.");
           }
 
+          const description = row.Descricao || row.Description || ""; // Capturar descrição
+
           return {
             id: Date.now().toString() + index, // Unique ID for each imported transaction
             type: type,
@@ -93,6 +95,7 @@ const ExcelImportButton: React.FC<ExcelImportButtonProps> = ({ onImportTransacti
             cashAccount: row["Conta Caixa"] || row["Cash Account"] || "Não Definido",
             value: value,
             date: date,
+            description: description, // Incluir descrição
           };
         });
 

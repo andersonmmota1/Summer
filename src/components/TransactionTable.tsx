@@ -50,13 +50,14 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => 
               <TableHead>Tipo</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Conta Caixa</TableHead>
+              <TableHead>Descrição</TableHead> {/* Nova coluna */}
               <TableHead className="text-right">Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground"> {/* Colspan ajustado */}
                   Nenhuma transação para este mês.
                 </TableCell>
               </TableRow>
@@ -71,6 +72,7 @@ const TransactionTable: React.FC<TransactionTableProps> = ({ transactions }) => 
                   </TableCell>
                   <TableCell>{transaction.category}</TableCell>
                   <TableCell>{transaction.cashAccount}</TableCell>
+                  <TableCell>{transaction.description}</TableCell> {/* Exibir descrição */}
                   <TableCell className="text-right">
                     {transaction.value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </TableCell>
