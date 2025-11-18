@@ -5,7 +5,8 @@ import { MadeWithDyad } from "@/components/made-with-dyad";
 import { Transaction } from "@/components/TransactionForm";
 import TransactionTable from "@/components/TransactionTable";
 import DashboardSummary from "@/components/DashboardSummary";
-import CashFlowTable from "@/components/CashFlowTable"; // Importar o novo componente
+import CashFlowTable from "@/components/CashFlowTable";
+import DRETable from "@/components/DRETable"; // Importar o novo componente DRETable
 import ExcelImportButton from "@/components/ExcelImportButton";
 import { Button } from "@/components/ui/button";
 import { exportToExcel, exportTemplateToExcel } from "@/utils/excelExport";
@@ -77,8 +78,13 @@ const Index = () => {
         </section>
 
         <section>
+          <h2 className="text-2xl font-semibold mb-4">Demonstrativo de Resultado (DRE)</h2>
+          <DRETable transactions={transactions} /> {/* Usando o novo componente DRETable */}
+        </section>
+
+        <section>
           <h2 className="text-2xl font-semibold mb-4">Fluxo de Caixa Diário</h2>
-          <CashFlowTable transactions={transactions} /> {/* Usando o novo componente de tabela */}
+          <CashFlowTable transactions={transactions} />
         </section>
 
         <section>
