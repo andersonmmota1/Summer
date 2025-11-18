@@ -25,16 +25,26 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
     let revenues = 0;
     let cmvExpenses = 0;
     let payrollExpenses = 0;
+    let operationExpenses = 0; // Nova variável para despesas de operação
+    let maintenanceExpenses = 0; // Nova variável para despesas de manutenção
+    let rentExpenses = 0; // Nova variável para despesas de aluguel
 
     transactions.forEach(t => {
       if (format(parseISO(t.date), "yyyy-MM") === filterMonth) {
         if (t.type === "receita") {
           revenues += t.value;
         } else if (t.type === "despesa") {
-          if (t.category.toLowerCase() === "cmv") {
+          const categoryLower = t.category.toLowerCase();
+          if (categoryLower === "cmv") {
             cmvExpenses += t.value;
-          } else if (t.category.toLowerCase() === "folha") {
+          } else if (categoryLower === "folha") {
             payrollExpenses += t.value;
+          } else if (categoryLower === "operacao") { // Identifica despesas de operação
+            operationExpenses += t.value;
+          } else if (categoryLower === "manutencao") { // Identifica despesas de manutenção
+            maintenanceExpenses += t.value;
+          } else if (categoryLower === "aluguel") { // Identifica despesas de aluguel
+            rentExpenses += t.value;
           }
         }
       }
@@ -42,12 +52,19 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
 
     const grossOperatingResult = revenues - cmvExpenses;
     const netOperatingResultAfterPayroll = grossOperatingResult - payrollExpenses;
+    const totalOperatingExpenses = operationExpenses + maintenanceExpenses + rentExpenses;
+    const operatingResult = netOperatingResultAfterPayroll - totalOperatingExpenses; // Novo cálculo
 
     // Calculate percentages relative to revenues
     const cmvPercentage = revenues > 0 ? (cmvExpenses / revenues) * 100 : 0;
     const grossOperatingResultPercentage = revenues > 0 ? (grossOperatingResult / revenues) * 100 : 0;
     const payrollPercentage = revenues > 0 ? (payrollExpenses / revenues) * 100 : 0;
     const netOperatingResultAfterPayrollPercentage = revenues > 0 ? (netOperatingResultAfterPayroll / revenues) * 100 : 0;
+    const operationExpensesPercentage = revenues > 0 ? (operationExpenses / revenues) * 100 : 0;
+    const maintenanceExpensesPercentage = revenues > 0 ? (maintenanceExpenses / revenues) * 100 : 0;
+    const rentExpensesPercentage = revenues > 0 ? (rentExpenses / revenues) * 100 : 0;
+    const operatingResultPercentage = revenues > 0 ? (operatingResult / revenues) * 100 : 0;
+
 
     return {
       revenues,
@@ -59,6 +76,14 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
       cmvPercentage,
       payrollPercentage,
       netOperatingResultAfterPayrollPercentage,
+      operationExpenses,
+      maintenanceExpenses,
+      rentExpenses,
+      operatingResult,
+      operationExpensesPercentage,
+      maintenanceExpensesPercentage,
+      rentExpensesPercentage,
+      operatingResultPercentage,
     };
   }, [transactions, filterMonth]);
 
@@ -131,6 +156,50 @@ const DRETable: React.FC<DRETableProps> = ({ transactions }) => {
                 {dreSummary.revenues > 0 && (
                   <span className="ml-2 text-sm text-muted-foreground">
                     ({dreSummary.netOperatingResultAfterPayrollPercentage.toFixed(2)}%)
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">(-) Despesas de Operação</TableCell>
+              <TableCell className="text-right text-red-600">
+                {(-dreSummary.operationExpenses).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.operationExpensesPercentage.toFixed(2)}%)
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">(-) Despesas de Manutenção</TableCell>
+              <TableCell className="text-right text-red-600">
+                {(-dreSummary.maintenanceExpenses).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.maintenanceExpensesPercentage.toFixed(2)}%)
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell className="font-medium">(-) Despesas de Aluguel</TableCell>
+              <TableCell className="text-right text-red-600">
+                {(-dreSummary.rentExpenses).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.rentExpensesPercentage.toFixed(2)}%)
+                  </span>
+                )}
+              </TableCell>
+            </TableRow>
+            <TableRow className="font-bold">
+              <TableCell>Resultado Operacional</TableCell>
+              <TableCell className={`text-right ${dreSummary.operatingResult < 0 ? "text-red-600" : "text-blue-600"}`}>
+                {dreSummary.operatingResult.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                {dreSummary.revenues > 0 && (
+                  <span className="ml-2 text-sm text-muted-foreground">
+                    ({dreSummary.operatingResultPercentage.toFixed(2)}%)
                   </span>
                 )}
               </TableCell>
