@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0'; // Tentando a versão 2.39.0
-// You would typically import an XML parser here, e.g.,
-// import { parse } from "https://deno.land/x/xml_parser@v0.2.1/mod.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'; // Usando a versão 2.45.0 conforme exemplo
+import { parse } from "https://deno.land/x/xml_parser@v0.2.1/mod.ts"; // Importando o parser XML
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,29 +42,44 @@ serve(async (req) => {
       });
     }
 
-    // --- Placeholder for XML Parsing Logic ---
-    // In a real scenario, you would parse the xmlContent here.
-    // For example, using a Deno-compatible XML parser:
-    // const parsedXml = parse(xmlContent);
-    // Then extract data like:
-    // const invoiceNumber = parsedXml.NFe.infNFe.ide.nNF;
-    // const supplierName = parsedXml.NFe.infNFe.emit.xNome;
-    // const purchaseDate = parsedXml.NFe.infNFe.ide.dhEmi;
-    // const items = parsedXml.NFe.infNFe.det; // Array of items
+    // --- XML Parsing Logic ---
+    const parsedXml = parse(xmlContent);
 
-    // For demonstration, let's assume we extract some dummy data
-    // You will replace this with actual XML parsing logic
-    const dummyExtractedData = {
-      invoiceNumber: "INV-2024-001",
-      supplierName: "Fornecedor Exemplo",
-      purchaseDate: "2024-07-26",
-      items: [
-        { name: "Farinha de Trigo", quantity: 10, unit: "kg", unitCost: 2.50 },
-        { name: "Açúcar", quantity: 5, unit: "kg", unitCost: 3.00 },
-      ],
-    };
+    // Assuming a simplified XML structure for a purchase invoice
+    // Example structure:
+    // <Invoice>
+    //   <Header>
+    //     <InvoiceNumber>INV-2024-001</InvoiceNumber>
+    //     <PurchaseDate>2024-07-26</PurchaseDate>
+    //   </Header>
+    //   <Supplier>
+    //     <Name>Fornecedor Exemplo</Name>
+    //   </Supplier>
+    //   <Items>
+    //     <Item>
+    //       <Name>Farinha de Trigo</Name>
+    //       <Quantity>10</Quantity>
+    //       <Unit>kg</Unit>
+    //       <UnitCost>2.50</UnitCost>
+    //     </Item>
+    //   </Items>
+    // </Invoice>
 
-    const { invoiceNumber, supplierName, purchaseDate, items } = dummyExtractedData;
+    const invoiceNumber = parsedXml.Invoice?.Header?.InvoiceNumber?.[0]?.content;
+    const purchaseDate = parsedXml.Invoice?.Header?.PurchaseDate?.[0]?.content;
+    const supplierName = parsedXml.Invoice?.Supplier?.Name?.[0]?.content;
+    const xmlItems = parsedXml.Invoice?.Items?.[0]?.Item || [];
+
+    if (!invoiceNumber || !purchaseDate || !supplierName) {
+      throw new Error('Missing essential data in XML (InvoiceNumber, PurchaseDate, or SupplierName).');
+    }
+
+    const items = xmlItems.map((item: any) => ({
+      name: item.Name?.[0]?.content,
+      quantity: parseFloat(item.Quantity?.[0]?.content || '0'),
+      unit: item.Unit?.[0]?.content,
+      unitCost: parseFloat(item.UnitCost?.[0]?.content || '0'),
+    }));
 
     // 1. Find or Create Supplier
     let { data: supplier, error: supplierError } = await supabaseClient
@@ -92,6 +106,11 @@ serve(async (req) => {
 
     const purchaseRecords = [];
     for (const item of items) {
+      if (!item.name || !item.unit || isNaN(item.quantity) || isNaN(item.unitCost) || item.quantity <= 0 || item.unitCost <= 0) {
+        console.warn(`Skipping invalid item: ${JSON.stringify(item)}`);
+        continue; // Skip items with invalid data
+      }
+
       // 2. Find or Create Ingredient
       let { data: ingredient, error: ingredientError } = await supabaseClient
         .from('ingredients')
@@ -129,7 +148,6 @@ serve(async (req) => {
           .single();
 
         if (conversionError && conversionError.code === 'PGRST116') {
-          // No direct conversion found, you might want to log this or throw an error
           console.warn(`No direct conversion found for ${item.unit} to ${ingredient.unit} for ingredient ${item.name}. Using original quantity.`);
         } else if (conversionError) {
           throw conversionError;
