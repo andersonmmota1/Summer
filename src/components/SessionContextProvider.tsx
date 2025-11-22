@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { showLoading, dismissToast, showError } from '@/utils/toast';
+import { Loader2 } from 'lucide-react'; // Importando Loader2
 
 interface SessionContextType {
   session: Session | null;
