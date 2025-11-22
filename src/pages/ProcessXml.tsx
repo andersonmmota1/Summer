@@ -42,6 +42,16 @@ const ProcessXml = () => {
 
     const globalToastId = showLoading("Iniciando processamento de arquivos XML...");
 
+    // Obter a sessão do usuário
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      showError("Você precisa estar logado para processar arquivos XML.");
+      setOverallLoading(false);
+      dismissToast(globalToastId);
+      return;
+    }
+
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
       const currentResult: FileProcessingResult = {
@@ -56,6 +66,9 @@ const ProcessXml = () => {
 
         const { data, error } = await supabase.functions.invoke('process-xml', {
           body: { xmlContent },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`, // Adiciona o token de autenticação
+          },
         });
 
         if (error) {
