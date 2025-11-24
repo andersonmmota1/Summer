@@ -45,6 +45,8 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase.from('purchased_items').insert(formattedData);
 
       if (error) {
+        // Log do erro completo para depuração
+        console.error('Erro detalhado do Supabase:', error);
         throw new Error(error.message);
       }
 
