@@ -30,7 +30,6 @@ const CargaDeDados: React.FC = () => {
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
 
   const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
-  // Novos cabeçalhos para produtos vendidos
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
 
@@ -221,11 +220,15 @@ const CargaDeDados: React.FC = () => {
           saleDate = new Date().toISOString(); // Padrão para a data atual
         }
 
+        // Garante que quantity_sold e unit_price sejam números válidos, com fallback para 0
+        const quantitySold = Number(row['Quantidade']) || 0;
+        const unitPrice = Number(row['Valor']) || 0;
+
         return {
           user_id: user.id,
-          product_name: String(row['Produto']), // Mapeado para 'Produto'
-          quantity_sold: parseFloat(row['Quantidade']), // Mapeado para 'Quantidade'
-          unit_price: parseFloat(row['Valor']), // Mapeado para 'Valor'
+          product_name: String(row['Produto']),
+          quantity_sold: quantitySold,
+          unit_price: unitPrice,
           sale_date: saleDate,
         };
       });
@@ -494,10 +497,10 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'ficha_tecnica_detalhada.xlsx';
       document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao baixar fichas técnicas de produtos:', error);
       showError(`Erro ao baixar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
