@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel'; // Importar createExcelFile e createEmptyExcelTemplate
+import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
 import { readXmlFile } from '@/utils/xml';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Label } from '@/components/ui/label'; // Importar Label
+import { Label } from '@/components/ui/label';
 
 const CargaDeDados: React.FC = () => {
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
-  const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]); // Alterado para array de arquivos
+  const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const templateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,7 +23,7 @@ const CargaDeDados: React.FC = () => {
 
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedXmlFiles(Array.from(event.target.files)); // Armazena todos os arquivos selecionados
+      setSelectedXmlFiles(Array.from(event.target.files));
     } else {
       setSelectedXmlFiles([]);
     }
@@ -123,7 +123,7 @@ const CargaDeDados: React.FC = () => {
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
-    setSelectedXmlFiles([]); // Limpa a seleção após o upload
+    setSelectedXmlFiles([]);
   };
 
   const handleDownloadTemplate = () => {
@@ -155,7 +155,7 @@ const CargaDeDados: React.FC = () => {
 
       const headers = [
         'Código Fornecedor',
-        'Nome Fornecedor',
+        'Descrição do Produto', // Alterado aqui
         'Unidade',
         'Quantidade',
         'Valor Unitário',
@@ -165,7 +165,7 @@ const CargaDeDados: React.FC = () => {
 
       const formattedData = data.map(item => ({
         'Código Fornecedor': item.c_prod,
-        'Nome Fornecedor': item.x_prod,
+        'Descrição do Produto': item.x_prod, // Alterado aqui
         'Unidade': item.u_com,
         'Quantidade': item.q_com,
         'Valor Unitário': item.v_un_com,
@@ -210,7 +210,7 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um arquivo Excel (.xlsx) contendo os itens comprados.
-              O arquivo deve conter as colunas: <code>ns1:cProd</code>, <code>ns1:xProd</code>, <code>ns1:uCom</code>, <code>ns1:qCom</code>, <code>ns1:vUnCom</code>.
+              O arquivo deve conter as colunas: <code>ns1:cProd</code>, <code>ns1:xProd</code> (Descrição do Produto), <code>ns1:uCom</code>, <code>ns1:qCom</code>, <code>ns1:vUnCom</code>.
             </p>
 
             <div className="flex items-center space-x-2">
@@ -236,7 +236,7 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (XML)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados.
-              O sistema tentará extrair dados de tags como <code>&lt;det&gt;</code> ou elementos que contenham <code>&lt;cProd&gt;</code>, <code>&lt;xProd&gt;</code>, <code>&lt;uCom&gt;</code>, <code>&lt;qCom&gt;</code>, <code>&lt;vUnCom&gt;</code>.
+              O sistema tentará extrair dados de tags como <code>&lt;det&gt;</code> ou elementos que contenham <code>&lt;cProd&gt;</code>, <code>&lt;xProd&gt;</code> (Descrição do Produto), <code>&lt;uCom&gt;</code>, <code>&lt;qCom&gt;</code>, <code>&lt;vUnCom&gt;</code>.
             </p>
 
             <div className="flex flex-col space-y-2">
@@ -245,7 +245,7 @@ const CargaDeDados: React.FC = () => {
                 id="xml-file-upload"
                 type="file"
                 accept=".xml"
-                multiple // Permite múltiplos arquivos
+                multiple
                 onChange={handleXmlFileChange}
                 className="flex-grow"
               />
