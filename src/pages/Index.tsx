@@ -11,7 +11,7 @@ const Index = () => {
           Comece a construir seu incrível projeto aqui!
         </p>
         <Button asChild className="px-8 py-4 text-lg">
-          <Link to="/process-xml">Processar Fatura XML</Link>
+          <Link to="/">Começar</Link>
         </Button>
       </div>
       <MadeWithDyad />
