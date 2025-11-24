@@ -220,15 +220,17 @@ const CargaDeDados: React.FC = () => {
           saleDate = new Date().toISOString(); // Padrão para a data atual
         }
 
-        // Garante que quantity_sold e unit_price sejam números válidos, com fallback para 0
-        const quantitySold = Number(row['Quantidade']) || 0;
-        const unitPrice = Number(row['Valor']) || 0;
+        const totalValue = Number(row['Valor']) || 0;
+        const quantity = Number(row['Quantidade']) || 0;
+        
+        // Calcula o preço unitário médio: Valor Total / Quantidade
+        const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
         return {
           user_id: user.id,
           product_name: String(row['Produto']),
-          quantity_sold: quantitySold,
-          unit_price: unitPrice,
+          quantity_sold: quantity, // Quantidade vendida
+          unit_price: calculatedUnitPrice, // Preço unitário médio calculado
           sale_date: saleDate,
         };
       });
@@ -655,6 +657,7 @@ const CargaDeDados: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um arquivo Excel (.xlsx) contendo os produtos vendidos.
               O arquivo deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
+              A coluna <code>Valor</code> será tratada como o valor total da venda para a <code>Quantidade</code> informada, e o preço unitário será calculado como <code>Valor / Quantidade</code>.
               A data da venda será extraída do nome do arquivo (formato <code>DD.MM.YYYY</code>, ex: "VENDAS 01.11.2025"). Se nenhuma data for encontrada no nome do arquivo, a data atual será usada.
             </p>
 
