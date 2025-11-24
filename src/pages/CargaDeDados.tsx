@@ -24,10 +24,12 @@ const CargaDeDados: React.FC = () => {
   const { user } = useSession(); // Obter o usuário logado
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null); // Novo estado para arquivo de produtos vendidos
+  const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
+  const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null); // Novo estado para arquivo de ficha técnica
 
   const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
   const soldItemsTemplateHeaders = ['Nome do Produto', 'Quantidade Vendida', 'Preço Unitário', 'Data da Venda (YYYY-MM-DD)'];
+  const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária']; // Novos cabeçalhos
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -50,6 +52,14 @@ const CargaDeDados: React.FC = () => {
       setSelectedSoldItemsExcelFile(event.target.files[0]);
     } else {
       setSelectedSoldItemsExcelFile(null);
+    }
+  };
+
+  const handleProductRecipeExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedProductRecipeExcelFile(event.target.files[0]);
+    } else {
+      setSelectedProductRecipeExcelFile(null);
     }
   };
 
@@ -205,6 +215,53 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleUploadProductRecipeExcel = async () => {
+    if (!selectedProductRecipeExcelFile) {
+      showError('Por favor, selecione um arquivo Excel para carregar a ficha técnica de produtos.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar a ficha técnica.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando dados da ficha técnica de produtos do Excel...');
+
+    try {
+      const data = await readExcelFile(selectedProductRecipeExcelFile);
+
+      if (!data || data.length === 0) {
+        showError('O arquivo Excel da ficha técnica está vazio ou não contém dados válidos.');
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        sold_product_name: String(row['Produto Vendido']),
+        internal_product_name: String(row['Nome Interno']),
+        quantity_needed: parseFloat(row['Quantidade Necessária']),
+      }));
+
+      const { error } = await supabase
+        .from('product_recipes')
+        .insert(formattedData);
+
+      if (error) {
+        console.error('Erro detalhado do Supabase (Ficha Técnica Excel):', error);
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} fichas técnicas de produtos do Excel carregados com sucesso!`);
+      setSelectedProductRecipeExcelFile(null);
+    } catch (error: any) {
+      console.error('Erro ao carregar dados da ficha técnica de produtos do Excel:', error);
+      showError(`Erro ao carregar dados da ficha técnica de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   const handleDownloadPurchasedItemsTemplate = () => {
     const blob = createEmptyExcelTemplate(purchasedItemsTemplateHeaders, 'Template_ItensComprados');
     const url = URL.createObjectURL(blob);
@@ -229,6 +286,19 @@ const CargaDeDados: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showSuccess('Template de produtos vendidos baixado com sucesso!');
+  };
+
+  const handleDownloadProductRecipeTemplate = () => {
+    const blob = createEmptyExcelTemplate(productRecipeTemplateHeaders, 'Template_FichaTecnica');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_ficha_tecnica.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Template de ficha técnica de produtos baixado com sucesso!');
   };
 
   const handleDownloadAllPurchasedItems = async () => {
@@ -348,6 +418,60 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleDownloadAllProductRecipes = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível baixar fichas técnicas.');
+      return;
+    }
+    const loadingToastId = showLoading('Baixando todas as fichas técnicas de produtos...');
+    try {
+      const { data, error } = await supabase
+        .from('product_recipes')
+        .select('*')
+        .eq('user_id', user.id) // Filtrar por user_id
+        .order('sold_product_name', { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        showError('Nenhuma ficha técnica de produto encontrada para baixar.');
+        return;
+      }
+
+      const headers = [
+        'ID da Ficha Técnica',
+        'Produto Vendido',
+        'Nome Interno',
+        'Quantidade Necessária',
+        'Data de Registro',
+      ];
+
+      const formattedData = data.map(item => ({
+        'ID da Ficha Técnica': item.id,
+        'Produto Vendido': item.sold_product_name,
+        'Nome Interno': item.internal_product_name,
+        'Quantidade Necessária': item.quantity_needed,
+        'Data de Registro': new Date(item.created_at).toLocaleString(),
+      }));
+
+      const blob = createExcelFile(formattedData, headers, 'FichaTecnicaDetalhada');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ficha_tecnica_detalhada.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
+    } catch (error: any) {
+      console.error('Erro ao baixar fichas técnicas de produtos:', error);
+      showError(`Erro ao baixar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   const handleClearPurchasedItems = async () => {
     const loadingToastId = showLoading('Limpando todos os itens comprados...');
     try {
@@ -390,6 +514,29 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleClearProductRecipes = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível limpar fichas técnicas.');
+      return;
+    }
+    const loadingToastId = showLoading('Limpando todas as fichas técnicas de produtos...');
+    try {
+      const { error } = await supabase
+        .from('product_recipes')
+        .delete()
+        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+
+      if (error) throw error;
+
+      showSuccess('Todas as fichas técnicas de produtos foram removidas com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao limpar fichas técnicas de produtos:', error);
+      showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -400,10 +547,11 @@ const CargaDeDados: React.FC = () => {
       </p>
 
       <Tabs defaultValue="excel-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-3"> {/* Ajustado para 3 abas */}
+        <TabsList className="grid w-full grid-cols-4"> {/* Ajustado para 4 abas */}
           <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger>
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
-          <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger> {/* Nova aba */}
+          <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
+          <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger> {/* Nova aba */}
         </TabsList>
 
         <TabsContent value="excel-purchased" className="mt-4">
@@ -464,7 +612,7 @@ const CargaDeDados: React.FC = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="excel-sold" className="mt-4"> {/* Nova aba de conteúdo */}
+        <TabsContent value="excel-sold" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
@@ -491,12 +639,40 @@ const CargaDeDados: React.FC = () => {
             </Button>
           </div>
         </TabsContent>
+
+        <TabsContent value="excel-product-recipe" className="mt-4"> {/* Nova aba de conteúdo */}
+          <div className="space-y-4">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Ficha Técnica de Produtos (Excel)</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Faça o upload de um arquivo Excel (.xlsx) contendo a ficha técnica dos seus produtos.
+              O arquivo deve conter as colunas: <code>Produto Vendido</code>, <code>Nome Interno</code> e <code>Quantidade Necessária</code>.
+              Isso define quais produtos internos compõem um produto vendido e em que quantidade.
+            </p>
+
+            <div className="flex items-center space-x-2">
+              <Input
+                id="product-recipe-excel-file-upload"
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleProductRecipeExcelFileChange}
+                className="flex-grow"
+              />
+              <Button onClick={handleUploadProductRecipeExcel} disabled={!selectedProductRecipeExcelFile}>
+                Carregar Ficha Técnica
+              </Button>
+            </div>
+
+            <Button variant="outline" onClick={handleDownloadProductRecipeTemplate}>
+              Baixar Template de Ficha Técnica (Excel)
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Exportar Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Baixe todos os itens comprados ou vendidos atualmente no sistema para arquivos Excel.
+          Baixe todos os itens comprados, vendidos ou fichas técnicas atualmente no sistema para arquivos Excel.
         </p>
         <div className="flex flex-wrap gap-4">
           <Button onClick={handleDownloadAllPurchasedItems}>
@@ -504,6 +680,9 @@ const CargaDeDados: React.FC = () => {
           </Button>
           <Button onClick={handleDownloadAllSoldItems}>
             Baixar Produtos Vendidos (Excel)
+          </Button>
+          <Button onClick={handleDownloadAllProductRecipes}>
+            Baixar Fichas Técnicas (Excel)
           </Button>
         </div>
       </div>
@@ -548,6 +727,26 @@ const CargaDeDados: React.FC = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleClearSoldItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Limpar Todas as Fichas Técnicas</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente todas as fichas técnicas de produtos do seu banco de dados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearProductRecipes} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Sim, Limpar Dados
                 </AlertDialogAction>
               </AlertDialogFooter>
