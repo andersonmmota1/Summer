@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
 import { readXmlFile } from '@/utils/xml';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast'; // Adicionado showWarning
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -18,18 +18,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
+import { useSession } from '@/components/SessionContextProvider';
+import { format } from 'date-fns'; // Importar format
+import { ptBR } from 'date-fns/locale'; // Importar ptBR
 
 const CargaDeDados: React.FC = () => {
-  const { user } = useSession(); // Obter o usuário logado
+  const { user } = useSession();
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
-  const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null); // Novo estado para arquivo de ficha técnica
+  const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
 
   const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
   const soldItemsTemplateHeaders = ['Nome do Produto', 'Quantidade Vendida', 'Preço Unitário', 'Data da Venda (YYYY-MM-DD)'];
-  const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária']; // Novos cabeçalhos
+  const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -188,13 +190,46 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        product_name: String(row['Nome do Produto']),
-        quantity_sold: parseFloat(row['Quantidade Vendida']),
-        unit_price: parseFloat(row['Preço Unitário']),
-        sale_date: row['Data da Venda (YYYY-MM-DD)'] ? new Date(row['Data da Venda (YYYY-MM-DD)']).toISOString() : new Date().toISOString(),
-      }));
+      let fileDate: Date | null = null;
+      const fileName = selectedSoldItemsExcelFile.name;
+      // Regex para encontrar DD.MM.YYYY no nome do arquivo
+      const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const month = parseInt(dateMatch[2], 10) - 1; // Mês é 0-indexado em JS Date
+        const year = parseInt(dateMatch[3], 10);
+        const parsedDate = new Date(year, month, day);
+
+        // Validação básica para garantir que é uma data válida
+        if (!isNaN(parsedDate.getTime()) && parsedDate.getDate() === day && parsedDate.getMonth() === month && parsedDate.getFullYear() === year) {
+          fileDate = parsedDate;
+          showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo e será usada para as vendas.`);
+        } else {
+          showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar datas do Excel ou data atual.`);
+        }
+      } else {
+        showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Tentando usar datas do Excel ou data atual.`);
+      }
+
+      const formattedData = data.map((row: any) => {
+        let saleDate: string;
+        if (fileDate) {
+          saleDate = fileDate.toISOString(); // Prioriza a data do nome do arquivo
+        } else if (row['Data da Venda (YYYY-MM-DD)']) {
+          saleDate = new Date(row['Data da Venda (YYYY-MM-DD)']).toISOString(); // Usa a data da coluna do Excel
+        } else {
+          saleDate = new Date().toISOString(); // Padrão para a data atual
+        }
+
+        return {
+          user_id: user.id,
+          product_name: String(row['Nome do Produto']),
+          quantity_sold: parseFloat(row['Quantidade Vendida']),
+          unit_price: parseFloat(row['Preço Unitário']),
+          sale_date: saleDate,
+        };
+      });
 
       const { error } = await supabase
         .from('sold_items')
@@ -547,11 +582,11 @@ const CargaDeDados: React.FC = () => {
       </p>
 
       <Tabs defaultValue="excel-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-4"> {/* Ajustado para 4 abas */}
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger>
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
-          <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger> {/* Nova aba */}
+          <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="excel-purchased" className="mt-4">
@@ -618,7 +653,8 @@ const CargaDeDados: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um arquivo Excel (.xlsx) contendo os produtos vendidos.
               O arquivo deve conter as colunas: <code>Nome do Produto</code>, <code>Quantidade Vendida</code>, <code>Preço Unitário</code> e opcionalmente <code>Data da Venda (YYYY-MM-DD)</code>.
-              Se a data não for fornecida, a data atual será usada.
+              Se uma data no formato <code>DD.MM.YYYY</code> for encontrada no nome do arquivo, ela terá prioridade sobre a coluna do Excel.
+              Se a data não for fornecida (nem no nome do arquivo, nem na coluna), a data atual será usada.
             </p>
 
             <div className="flex items-center space-x-2">
@@ -640,7 +676,7 @@ const CargaDeDados: React.FC = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="excel-product-recipe" className="mt-4"> {/* Nova aba de conteúdo */}
+        <TabsContent value="excel-product-recipe" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Ficha Técnica de Produtos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
