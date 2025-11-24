@@ -64,12 +64,16 @@ const CargaDeDados: React.FC = () => {
         u_com: String(row['ns1:uCom']),
         q_com: parseFloat(row['ns1:qCom']),
         v_un_com: parseFloat(row['ns1:vUnCom']),
+        // Para Excel, não temos invoice_id ou item_sequence_number por padrão.
+        // Cada linha será inserida como um novo registro.
       }));
 
-      // Usar upsert para evitar duplicações
+      // Para Excel, sem um identificador único de nota/item, inserimos como novos registros.
+      // Se a intenção for evitar duplicações de produtos (c_prod, x_prod, u_com, v_un_com)
+      // para Excel, precisaríamos de uma estratégia diferente ou de um campo de ID no Excel.
       const { error, count } = await supabase
         .from('purchased_items')
-        .upsert(formattedData, { onConflict: 'c_prod,x_prod,u_com,v_un_com', ignoreDuplicates: true });
+        .insert(formattedData); // Usando insert em vez de upsert para Excel sem onConflict
 
       if (error) {
         console.error('Erro detalhado do Supabase (Excel):', error);
@@ -112,12 +116,14 @@ const CargaDeDados: React.FC = () => {
           u_com: String(row['ns1:uCom']),
           q_com: parseFloat(row['ns1:qCom']),
           v_un_com: parseFloat(row['ns1:vUnCom']),
+          invoice_id: row.invoice_id, // Usar o ID da nota extraído
+          item_sequence_number: row.item_sequence_number, // Usar o número sequencial do item extraído
         }));
 
-        // Usar upsert para evitar duplicações
+        // Usar upsert com onConflict em invoice_id e item_sequence_number para XML
         const { error, count } = await supabase
           .from('purchased_items')
-          .upsert(formattedData, { onConflict: 'c_prod,x_prod,u_com,v_un_com', ignoreDuplicates: true });
+          .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
 
         if (error) {
           console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (XML):`, error);
@@ -160,10 +166,11 @@ const CargaDeDados: React.FC = () => {
   const handleDownloadAllPurchasedItems = async () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
+      // Agora buscando diretamente da tabela 'purchased_items' para incluir invoice_id e item_sequence_number
       const { data, error } = await supabase
-        .from('aggregated_purchased_items')
+        .from('purchased_items')
         .select('*')
-        .order('x_prod', { ascending: true });
+        .order('created_at', { ascending: false }); // Ordenar por data de criação para ver os mais recentes
 
       if (error) throw error;
 
@@ -173,35 +180,41 @@ const CargaDeDados: React.FC = () => {
       }
 
       const headers = [
+        'ID do Item', // Adicionado
         'Código Fornecedor',
         'Descrição do Produto',
         'Unidade',
-        'Quantidade Total',
+        'Quantidade', // Não é mais 'Quantidade Total' aqui, pois são itens individuais
         'Valor Unitário',
         'Nome Interno',
-        'Última Compra',
+        'Data da Compra', // Não é mais 'Última Compra'
+        'ID da Nota',
+        'Número do Item na Nota',
       ];
 
       const formattedData = data.map(item => ({
+        'ID do Item': item.id,
         'Código Fornecedor': item.c_prod,
         'Descrição do Produto': item.x_prod,
         'Unidade': item.u_com,
-        'Quantidade Total': item.total_q_com,
+        'Quantidade': item.q_com,
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Última Compra': new Date(item.latest_created_at).toLocaleString(),
+        'Data da Compra': new Date(item.created_at).toLocaleString(),
+        'ID da Nota': item.invoice_id || 'N/A',
+        'Número do Item na Nota': item.item_sequence_number || 'N/A',
       }));
 
-      const blob = createExcelFile(formattedData, headers, 'ItensCompradosAgregados');
+      const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'itens_comprados_agregados.xlsx';
+      a.download = 'itens_comprados_detalhado.xlsx';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccess(`Dados de ${data.length} itens comprados agregados baixados com sucesso!`);
+      showSuccess(`Dados de ${data.length} itens comprados detalhados baixados com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao baixar itens comprados:', error);
       showError(`Erro ao baixar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -249,6 +262,7 @@ const CargaDeDados: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um arquivo Excel (.xlsx) contendo os itens comprados.
               O arquivo deve conter as colunas: <code>ns1:cProd</code>, <code>ns1:xProd</code> (Descrição do Produto), <code>ns1:uCom</code>, <code>ns1:qCom</code>, <code>ns1:vUnCom</code>.
+              Atualmente, cada linha do Excel será inserida como um novo registro.
             </p>
 
             <div className="flex items-center space-x-2">
@@ -274,7 +288,7 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (XML)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados.
-              O sistema tentará extrair dados de tags como <code>&lt;det&gt;</code> ou elementos que contenham <code>&lt;cProd&gt;</code>, <code>&lt;xProd&gt;</code> (Descrição do Produto), <code>&lt;uCom&gt;</code>, <code>&lt;qCom&gt;</code>, <code>&lt;vUnCom&gt;</code>.
+              O sistema tentará extrair o ID da nota fiscal e o número do item para evitar duplicações.
             </p>
 
             <div className="flex flex-col space-y-2">
