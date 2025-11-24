@@ -22,6 +22,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Fluxo de Caixa', path: '/fluxo-de-caixa' },
     { name: 'Carga de Dados', path: '/carga-de-dados' },
     { name: 'Mapeamento de Produtos', path: '/mapeamento-de-produtos' },
+    { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {

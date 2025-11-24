@@ -9,9 +9,10 @@ import Estoque from "./pages/Estoque";
 import FluxoDeCaixa from "./pages/FluxoDeCaixa";
 import CargaDeDados from "./pages/CargaDeDados";
 import MapeamentoDeProdutos from "./pages/MapeamentoDeProdutos";
-import Login from "./pages/Login"; // Importar a página de Login
+import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor"; // Importar a nova página
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
-import { SessionContextProvider, useSession } from "./components/SessionContextProvider"; // Importar SessionContextProvider e useSession
+import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
 
 const queryClient = new QueryClient();
 
@@ -40,9 +41,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <SessionContextProvider> {/* Envolve o aplicativo com o provedor de sessão */}
+        <SessionContextProvider>
           <Routes>
-            <Route path="/login" element={<Login />} /> {/* Rota pública para login */}
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={<ProtectedRoute><DashboardShell /></ProtectedRoute>}>
               <Route index element={<Navigate to="/inicio" replace />} />
               <Route path="inicio" element={<Inicio />} />
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
               <Route path="carga-de-dados" element={<CargaDeDados />} />
               <Route path="mapeamento-de-produtos" element={<MapeamentoDeProdutos />} />
+              <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} /> {/* Nova rota */}
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
