@@ -28,10 +28,16 @@ const CargaDeDados: React.FC = () => {
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
+  const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
+  const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
+
 
   const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
+  const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
+  const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
+
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -62,6 +68,22 @@ const CargaDeDados: React.FC = () => {
       setSelectedProductRecipeExcelFile(event.target.files[0]);
     } else {
       setSelectedProductRecipeExcelFile(null);
+    }
+  };
+
+  const handleProductNameConversionExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedProductNameConversionExcelFile(event.target.files[0]);
+    } else {
+      setSelectedProductNameConversionExcelFile(null);
+    }
+  };
+
+  const handleUnitConversionExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedUnitConversionExcelFile(event.target.files[0]);
+    } else {
+      setSelectedUnitConversionExcelFile(null);
     }
   };
 
@@ -301,6 +323,103 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleUploadProductNameConversionExcel = async () => {
+    if (!selectedProductNameConversionExcelFile) {
+      showError('Por favor, selecione um arquivo Excel para carregar as conversões de nomes de produtos.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar conversões de nomes de produtos.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando conversões de nomes de produtos do Excel...');
+
+    try {
+      const data = await readExcelFile(selectedProductNameConversionExcelFile);
+
+      if (!data || data.length === 0) {
+        showError('O arquivo Excel de conversões de nomes de produtos está vazio ou não contém dados válidos.');
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        supplier_product_code: String(row['Código Fornecedor']),
+        supplier_name: String(row['Nome Fornecedor']),
+        supplier_product_name: String(row['Descrição Produto Fornecedor']),
+        internal_product_name: String(row['Nome Interno do Produto']),
+      }));
+
+      const { error } = await supabase
+        .from('product_name_conversions')
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name' }); // Upsert para evitar duplicatas
+
+      if (error) {
+        console.error('Erro detalhado do Supabase (Conversão de Nomes Excel):', error);
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos do Excel carregados com sucesso!`);
+      setSelectedProductNameConversionExcelFile(null);
+    } catch (error: any) {
+      console.error('Erro ao carregar conversões de nomes de produtos do Excel:', error);
+      showError(`Erro ao carregar conversões de nomes de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleUploadUnitConversionExcel = async () => {
+    if (!selectedUnitConversionExcelFile) {
+      showError('Por favor, selecione um arquivo Excel para carregar as conversões de unidades.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar conversões de unidades.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando conversões de unidades do Excel...');
+
+    try {
+      const data = await readExcelFile(selectedUnitConversionExcelFile);
+
+      if (!data || data.length === 0) {
+        showError('O arquivo Excel de conversões de unidades está vazio ou não contém dados válidos.');
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        supplier_product_code: String(row['Código Fornecedor']),
+        supplier_name: String(row['Nome Fornecedor']),
+        supplier_unit: String(row['Unidade Fornecedor']),
+        internal_unit: String(row['Unidade Interna']),
+        conversion_factor: parseFloat(row['Fator de Conversão']),
+      }));
+
+      const { error } = await supabase
+        .from('unit_conversions')
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit' }); // Upsert para evitar duplicatas
+
+      if (error) {
+        console.error('Erro detalhado do Supabase (Conversão de Unidades Excel):', error);
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} conversões de unidades do Excel carregados com sucesso!`);
+      setSelectedUnitConversionExcelFile(null);
+    } catch (error: any) {
+      console.error('Erro ao carregar conversões de unidades do Excel:', error);
+      showError(`Erro ao carregar conversões de unidades do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   const handleDownloadPurchasedItemsTemplate = () => {
     const blob = createEmptyExcelTemplate(purchasedItemsTemplateHeaders, 'Template_ItensComprados');
     const url = URL.createObjectURL(blob);
@@ -338,6 +457,32 @@ const CargaDeDados: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showSuccess('Template de ficha técnica de produtos baixado com sucesso!');
+  };
+
+  const handleDownloadProductNameConversionTemplate = () => {
+    const blob = createEmptyExcelTemplate(productNameConversionTemplateHeaders, 'Template_ConversaoNomes');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_conversao_nomes_produtos.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Template de conversão de nomes de produtos baixado com sucesso!');
+  };
+
+  const handleDownloadUnitConversionTemplate = () => {
+    const blob = createEmptyExcelTemplate(unitConversionTemplateHeaders, 'Template_ConversaoUnidades');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_conversao_unidades.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Template de conversão de unidades baixado com sucesso!');
   };
 
   const handleDownloadAllPurchasedItems = async () => {
@@ -511,6 +656,123 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleDownloadAllProductNameConversions = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível baixar conversões de nomes de produtos.');
+      return;
+    }
+    const loadingToastId = showLoading('Baixando todas as conversões de nomes de produtos...');
+    try {
+      const { data, error } = await supabase
+        .from('product_name_conversions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('supplier_name', { ascending: true })
+        .order('supplier_product_code', { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        showError('Nenhuma conversão de nome de produto encontrada para baixar.');
+        return;
+      }
+
+      const headers = [
+        'ID da Conversão',
+        'Código Fornecedor',
+        'Nome Fornecedor',
+        'Descrição Produto Fornecedor',
+        'Nome Interno do Produto',
+        'Data de Registro',
+      ];
+
+      const formattedData = data.map(item => ({
+        'ID da Conversão': item.id,
+        'Código Fornecedor': item.supplier_product_code,
+        'Nome Fornecedor': item.supplier_name,
+        'Descrição Produto Fornecedor': item.supplier_product_name,
+        'Nome Interno do Produto': item.internal_product_name,
+        'Data de Registro': new Date(item.created_at).toLocaleString(),
+      }));
+
+      const blob = createExcelFile(formattedData, headers, 'ConversaoNomesProdutosDetalhada');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'conversao_nomes_produtos_detalhada.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} conversões de nomes de produtos detalhadas baixados com sucesso!`);
+    } catch (error: any) {
+      console.error('Erro ao baixar conversões de nomes de produtos:', error);
+      showError(`Erro ao baixar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleDownloadAllUnitConversions = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível baixar conversões de unidades.');
+      return;
+    }
+    const loadingToastId = showLoading('Baixando todas as conversões de unidades...');
+    try {
+      const { data, error } = await supabase
+        .from('unit_conversions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('supplier_name', { ascending: true })
+        .order('supplier_product_code', { ascending: true })
+        .order('supplier_unit', { ascending: true });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        showError('Nenhuma conversão de unidade encontrada para baixar.');
+        return;
+      }
+
+      const headers = [
+        'ID da Conversão',
+        'Código Fornecedor',
+        'Nome Fornecedor',
+        'Unidade Fornecedor',
+        'Unidade Interna',
+        'Fator de Conversão',
+        'Data de Registro',
+      ];
+
+      const formattedData = data.map(item => ({
+        'ID da Conversão': item.id,
+        'Código Fornecedor': item.supplier_product_code,
+        'Nome Fornecedor': item.supplier_name,
+        'Unidade Fornecedor': item.supplier_unit,
+        'Unidade Interna': item.internal_unit,
+        'Fator de Conversão': item.conversion_factor,
+        'Data de Registro': new Date(item.created_at).toLocaleString(),
+      }));
+
+      const blob = createExcelFile(formattedData, headers, 'ConversaoUnidadesDetalhada');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'conversao_unidades_detalhada.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} conversões de unidades detalhadas baixados com sucesso!`);
+    } catch (error: any) {
+      console.error('Erro ao baixar conversões de unidades:', error);
+      showError(`Erro ao baixar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   const handleClearPurchasedItems = async () => {
     const loadingToastId = showLoading('Limpando todos os itens comprados...');
     try {
@@ -576,6 +838,52 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleClearProductNameConversions = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível limpar conversões de nomes de produtos.');
+      return;
+    }
+    const loadingToastId = showLoading('Limpando todas as conversões de nomes de produtos...');
+    try {
+      const { error } = await supabase
+        .from('product_name_conversions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      showSuccess('Todas as conversões de nomes de produtos foram removidas com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao limpar conversões de nomes de produtos:', error);
+      showError(`Erro ao limpar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleClearUnitConversions = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível limpar conversões de unidades.');
+      return;
+    }
+    const loadingToastId = showLoading('Limpando todas as conversões de unidades...');
+    try {
+      const { error } = await supabase
+        .from('unit_conversions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      showSuccess('Todas as conversões de unidades foram removidas com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao limpar conversões de unidades:', error);
+      showError(`Erro ao limpar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -586,11 +894,12 @@ const CargaDeDados: React.FC = () => {
       </p>
 
       <Tabs defaultValue="excel-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger>
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
+          <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
         </TabsList>
 
         <TabsContent value="excel-purchased" className="mt-4">
@@ -707,12 +1016,69 @@ const CargaDeDados: React.FC = () => {
             </Button>
           </div>
         </TabsContent>
+
+        <TabsContent value="excel-conversions" className="mt-4">
+          <div className="space-y-6">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Conversões (Excel)</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Gerencie as regras de conversão para nomes de produtos e unidades de fornecedores para seus padrões internos.
+            </p>
+
+            {/* Seção de Conversão de Nomes de Produtos */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Nomes de Produtos</h4>
+              <p className="text-gray-600 dark:text-gray-400">
+                Mapeie o código do produto do fornecedor e o nome do fornecedor para um nome de produto interno.
+                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code> e <code>Nome Interno do Produto</code>.
+              </p>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="product-name-conversion-excel-file-upload"
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleProductNameConversionExcelFileChange}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUploadProductNameConversionExcel} disabled={!selectedProductNameConversionExcelFile}>
+                  Carregar Conversões de Nomes
+                </Button>
+              </div>
+              <Button variant="outline" onClick={handleDownloadProductNameConversionTemplate}>
+                Baixar Template de Conversão de Nomes
+              </Button>
+            </div>
+
+            {/* Seção de Conversão de Unidades */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Unidades</h4>
+              <p className="text-gray-600 dark:text-gray-400">
+                Mapeie a unidade do fornecedor para uma unidade interna, com um fator de conversão.
+                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Unidade Fornecedor</code>, <code>Unidade Interna</code> e <code>Fator de Conversão</code>.
+              </p>
+              <div className="flex items-center space-x-2">
+                <Input
+                  id="unit-conversion-excel-file-upload"
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleUnitConversionExcelFileChange}
+                  className="flex-grow"
+                />
+                <Button onClick={handleUploadUnitConversionExcel} disabled={!selectedUnitConversionExcelFile}>
+                  Carregar Conversões de Unidades
+                </Button>
+              </div>
+              <Button variant="outline" onClick={handleDownloadUnitConversionTemplate}>
+                Baixar Template de Conversão de Unidades
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Exportar Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Baixe todos os itens comprados, vendidos ou fichas técnicas atualmente no sistema para arquivos Excel.
+          Baixe todos os itens comprados, vendidos, fichas técnicas ou conversões atualmente no sistema para arquivos Excel.
         </p>
         <div className="flex flex-wrap gap-4">
           <Button onClick={handleDownloadAllPurchasedItems}>
@@ -723,6 +1089,12 @@ const CargaDeDados: React.FC = () => {
           </Button>
           <Button onClick={handleDownloadAllProductRecipes}>
             Baixar Fichas Técnicas (Excel)
+          </Button>
+          <Button onClick={handleDownloadAllProductNameConversions}>
+            Baixar Conversões de Nomes (Excel)
+          </Button>
+          <Button onClick={handleDownloadAllUnitConversions}>
+            Baixar Conversões de Unidades (Excel)
           </Button>
         </div>
       </div>
@@ -787,6 +1159,46 @@ const CargaDeDados: React.FC = () => {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleClearProductRecipes} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Limpar Conversões de Nomes</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente todas as conversões de nomes de produtos do seu banco de dados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearProductNameConversions} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Limpar Conversões de Unidades</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente todas as conversões de unidades do seu banco de dados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearUnitConversions} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Sim, Limpar Dados
                 </AlertDialogAction>
               </AlertDialogFooter>
