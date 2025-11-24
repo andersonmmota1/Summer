@@ -171,10 +171,6 @@ const MapeamentoDeProdutos: React.FC = () => {
                 <TableRow>
                   <TableHead>Código Fornecedor</TableHead>
                   <TableHead>Descrição do Produto</TableHead>
-                  <TableHead>Unidade (Min)</TableHead>
-                  <TableHead className="text-right">Qtd. Total Comprada</TableHead>
-                  <TableHead className="text-right">Valor Total Gasto</TableHead>
-                  <TableHead className="text-right">Valor Unitário Médio</TableHead>
                   <TableHead className="w-[200px]">Nome Interno</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -186,10 +182,6 @@ const MapeamentoDeProdutos: React.FC = () => {
                     <TableRow key={itemKey}>
                       <TableCell>{item.c_prod}</TableCell>
                       <TableCell>{item.descricao_do_produto}</TableCell>
-                      <TableCell>{item.u_com}</TableCell>
-                      <TableCell className="text-right">{item.total_quantity_purchased.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.average_unit_value.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           value={newMappingInput[itemKey] || ''}
