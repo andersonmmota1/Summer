@@ -25,10 +25,22 @@ export const readExcelFile = (file: File): Promise<any[]> => {
   });
 };
 
-export const createExcelTemplate = (headers: string[], sheetName: string = 'Sheet1'): Blob => {
-  const ws = XLSX.utils.json_to_sheet([], { header: headers });
+/**
+ * Cria um arquivo Excel (.xlsx) a partir de um array de objetos.
+ * @param data Array de objetos a serem exportados.
+ * @param headers Array de strings para os cabeçalhos da planilha.
+ * @param sheetName Nome da planilha.
+ * @returns Um Blob contendo o arquivo Excel.
+ */
+export const createExcelFile = (data: any[], headers: string[], sheetName: string = 'Sheet1'): Blob => {
+  const ws = XLSX.utils.json_to_sheet(data, { header: headers });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   return new Blob([wbout], { type: 'application/octet-stream' });
+};
+
+// Função auxiliar para criar um template vazio, se ainda for necessário
+export const createEmptyExcelTemplate = (headers: string[], sheetName: string = 'Sheet1'): Blob => {
+  return createExcelFile([], headers, sheetName);
 };
