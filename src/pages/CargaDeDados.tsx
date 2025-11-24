@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
 import { readXmlFile } from '@/utils/xml';
-import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast'; // Adicionado showWarning
+import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
@@ -19,8 +19,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from '@/components/SessionContextProvider';
-import { format } from 'date-fns'; // Importar format
-import { ptBR } from 'date-fns/locale'; // Importar ptBR
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
@@ -30,7 +30,8 @@ const CargaDeDados: React.FC = () => {
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
 
   const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
-  const soldItemsTemplateHeaders = ['Nome do Produto', 'Quantidade Vendida', 'Preço Unitário', 'Data da Venda (YYYY-MM-DD)'];
+  // Novos cabeçalhos para produtos vendidos
+  const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,27 +207,25 @@ const CargaDeDados: React.FC = () => {
           fileDate = parsedDate;
           showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo e será usada para as vendas.`);
         } else {
-          showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar datas do Excel ou data atual.`);
+          showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar a data atual.`);
         }
       } else {
-        showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Tentando usar datas do Excel ou data atual.`);
+        showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Usando a data atual.`);
       }
 
       const formattedData = data.map((row: any) => {
         let saleDate: string;
         if (fileDate) {
           saleDate = fileDate.toISOString(); // Prioriza a data do nome do arquivo
-        } else if (row['Data da Venda (YYYY-MM-DD)']) {
-          saleDate = new Date(row['Data da Venda (YYYY-MM-DD)']).toISOString(); // Usa a data da coluna do Excel
         } else {
           saleDate = new Date().toISOString(); // Padrão para a data atual
         }
 
         return {
           user_id: user.id,
-          product_name: String(row['Nome do Produto']),
-          quantity_sold: parseFloat(row['Quantidade Vendida']),
-          unit_price: parseFloat(row['Preço Unitário']),
+          product_name: String(row['Produto']), // Mapeado para 'Produto'
+          quantity_sold: parseFloat(row['Quantidade']), // Mapeado para 'Quantidade'
+          unit_price: parseFloat(row['Valor']), // Mapeado para 'Valor'
           sale_date: saleDate,
         };
       });
@@ -495,10 +494,10 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'ficha_tecnica_detalhada.xlsx';
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao baixar fichas técnicas de produtos:', error);
       showError(`Erro ao baixar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -652,9 +651,8 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um arquivo Excel (.xlsx) contendo os produtos vendidos.
-              O arquivo deve conter as colunas: <code>Nome do Produto</code>, <code>Quantidade Vendida</code>, <code>Preço Unitário</code> e opcionalmente <code>Data da Venda (YYYY-MM-DD)</code>.
-              Se uma data no formato <code>DD.MM.YYYY</code> for encontrada no nome do arquivo, ela terá prioridade sobre a coluna do Excel.
-              Se a data não for fornecida (nem no nome do arquivo, nem na coluna), a data atual será usada.
+              O arquivo deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
+              A data da venda será extraída do nome do arquivo (formato <code>DD.MM.YYYY</code>, ex: "VENDAS 01.11.2025"). Se nenhuma data for encontrada no nome do arquivo, a data atual será usada.
             </p>
 
             <div className="flex items-center space-x-2">
