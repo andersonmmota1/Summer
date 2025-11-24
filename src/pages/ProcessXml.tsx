@@ -52,6 +52,15 @@ const ProcessXml = () => {
       return;
     }
 
+    // Obter a chave anon (apikey) do cliente Supabase
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseAnonKey) {
+      showError("Chave Supabase Anon não encontrada. Verifique suas variáveis de ambiente.");
+      setOverallLoading(false);
+      dismissToast(globalToastId);
+      return;
+    }
+
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i];
       const currentResult: FileProcessingResult = {
@@ -68,6 +77,7 @@ const ProcessXml = () => {
           body: { xmlContent },
           headers: {
             Authorization: `Bearer ${session.access_token}`, // Adiciona o token de autenticação
+            apikey: supabaseAnonKey, // Adiciona explicitamente a apikey
           },
         });
 
