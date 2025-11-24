@@ -18,12 +18,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
+import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
 
 const CargaDeDados: React.FC = () => {
+  const { user } = useSession(); // Obter o usuário logado
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const templateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom']; // Mantém ns1:xProd para o template de entrada
+  const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null); // Novo estado para arquivo de produtos vendidos
+
+  const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
+  const soldItemsTemplateHeaders = ['Nome do Produto', 'Quantidade Vendida', 'Preço Unitário', 'Data da Venda (YYYY-MM-DD)'];
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -38,6 +42,14 @@ const CargaDeDados: React.FC = () => {
       setSelectedXmlFiles(Array.from(event.target.files));
     } else {
       setSelectedXmlFiles([]);
+    }
+  };
+
+  const handleSoldItemsExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedSoldItemsExcelFile(event.target.files[0]);
+    } else {
+      setSelectedSoldItemsExcelFile(null);
     }
   };
 
@@ -60,13 +72,13 @@ const CargaDeDados: React.FC = () => {
 
       const formattedData = data.map((row: any) => ({
         c_prod: String(row['ns1:cProd']),
-        descricao_do_produto: String(row['ns1:xProd']), // Usando o novo nome da coluna
+        descricao_do_produto: String(row['ns1:xProd']),
         u_com: String(row['ns1:uCom']),
         q_com: parseFloat(row['ns1:qCom']),
         v_un_com: parseFloat(row['ns1:vUnCom']),
       }));
 
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from('purchased_items')
         .insert(formattedData);
 
@@ -107,7 +119,7 @@ const CargaDeDados: React.FC = () => {
 
         const formattedData = data.map((row: any) => ({
           c_prod: String(row['ns1:cProd']),
-          descricao_do_produto: String(row['descricao_do_produto']), // Usando o novo nome da coluna
+          descricao_do_produto: String(row['descricao_do_produto']),
           u_com: String(row['ns1:uCom']),
           q_com: parseFloat(row['ns1:qCom']),
           v_un_com: parseFloat(row['ns1:vUnCom']),
@@ -116,7 +128,7 @@ const CargaDeDados: React.FC = () => {
           x_fant: row.x_fant,
         }));
 
-        const { error, count } = await supabase
+        const { error } = await supabase
           .from('purchased_items')
           .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
 
@@ -145,8 +157,56 @@ const CargaDeDados: React.FC = () => {
     setSelectedXmlFiles([]);
   };
 
-  const handleDownloadTemplate = () => {
-    const blob = createEmptyExcelTemplate(templateHeaders, 'Template_ItensComprados');
+  const handleUploadSoldItemsExcel = async () => {
+    if (!selectedSoldItemsExcelFile) {
+      showError('Por favor, selecione um arquivo Excel para carregar produtos vendidos.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar produtos vendidos.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando dados de produtos vendidos do Excel...');
+
+    try {
+      const data = await readExcelFile(selectedSoldItemsExcelFile);
+
+      if (!data || data.length === 0) {
+        showError('O arquivo Excel de produtos vendidos está vazio ou não contém dados válidos.');
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        product_name: String(row['Nome do Produto']),
+        quantity_sold: parseFloat(row['Quantidade Vendida']),
+        unit_price: parseFloat(row['Preço Unitário']),
+        sale_date: row['Data da Venda (YYYY-MM-DD)'] ? new Date(row['Data da Venda (YYYY-MM-DD)']).toISOString() : new Date().toISOString(),
+      }));
+
+      const { error } = await supabase
+        .from('sold_items')
+        .insert(formattedData);
+
+      if (error) {
+        console.error('Erro detalhado do Supabase (Produtos Vendidos Excel):', error);
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} produtos vendidos do Excel carregados com sucesso!`);
+      setSelectedSoldItemsExcelFile(null);
+    } catch (error: any) {
+      console.error('Erro ao carregar dados de produtos vendidos do Excel:', error);
+      showError(`Erro ao carregar dados de produtos vendidos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleDownloadPurchasedItemsTemplate = () => {
+    const blob = createEmptyExcelTemplate(purchasedItemsTemplateHeaders, 'Template_ItensComprados');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -156,6 +216,19 @@ const CargaDeDados: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showSuccess('Template de itens comprados baixado com sucesso!');
+  };
+
+  const handleDownloadSoldItemsTemplate = () => {
+    const blob = createEmptyExcelTemplate(soldItemsTemplateHeaders, 'Template_ProdutosVendidos');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template_produtos_vendidos.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Template de produtos vendidos baixado com sucesso!');
   };
 
   const handleDownloadAllPurchasedItems = async () => {
@@ -176,7 +249,7 @@ const CargaDeDados: React.FC = () => {
       const headers = [
         'ID do Item',
         'Código Fornecedor',
-        'Descrição do Produto', // Usando o novo nome
+        'Descrição do Produto',
         'Unidade',
         'Quantidade',
         'Valor Unitário',
@@ -190,7 +263,7 @@ const CargaDeDados: React.FC = () => {
       const formattedData = data.map(item => ({
         'ID do Item': item.id,
         'Código Fornecedor': item.c_prod,
-        'Descrição do Produto': item.descricao_do_produto, // Usando o novo nome
+        'Descrição do Produto': item.descricao_do_produto,
         'Unidade': item.u_com,
         'Quantidade': item.q_com,
         'Valor Unitário': item.v_un_com,
@@ -219,13 +292,69 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleDownloadAllSoldItems = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível baixar produtos vendidos.');
+      return;
+    }
+    const loadingToastId = showLoading('Baixando todos os produtos vendidos...');
+    try {
+      const { data, error } = await supabase
+        .from('sold_items')
+        .select('*')
+        .eq('user_id', user.id) // Filtrar por user_id
+        .order('sale_date', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        showError('Nenhum produto vendido encontrado para baixar.');
+        return;
+      }
+
+      const headers = [
+        'ID da Venda',
+        'Nome do Produto',
+        'Quantidade Vendida',
+        'Preço Unitário',
+        'Data da Venda',
+        'Data de Registro',
+      ];
+
+      const formattedData = data.map(item => ({
+        'ID da Venda': item.id,
+        'Nome do Produto': item.product_name,
+        'Quantidade Vendida': item.quantity_sold,
+        'Preço Unitário': item.unit_price,
+        'Data da Venda': new Date(item.sale_date).toLocaleString(),
+        'Data de Registro': new Date(item.created_at).toLocaleString(),
+      }));
+
+      const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'produtos_vendidos_detalhado.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} produtos vendidos detalhados baixados com sucesso!`);
+    } catch (error: any) {
+      console.error('Erro ao baixar produtos vendidos:', error);
+      showError(`Erro ao baixar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   const handleClearPurchasedItems = async () => {
     const loadingToastId = showLoading('Limpando todos os itens comprados...');
     try {
       const { error } = await supabase
         .from('purchased_items')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000');
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos os registros
 
       if (error) throw error;
 
@@ -238,21 +367,46 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  const handleClearSoldItems = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível limpar produtos vendidos.');
+      return;
+    }
+    const loadingToastId = showLoading('Limpando todos os produtos vendidos...');
+    try {
+      const { error } = await supabase
+        .from('sold_items')
+        .delete()
+        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+
+      if (error) throw error;
+
+      showSuccess('Todos os produtos vendidos foram removidos com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao limpar produtos vendidos:', error);
+      showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Carga de Dados
       </h2>
       <p className="text-gray-700 dark:text-gray-300 mb-6">
-        Gerencie a importação de dados para o sistema através de arquivos Excel ou XML.
+        Gerencie a importação e exportação de dados para o sistema através de arquivos Excel ou XML.
       </p>
 
-      <Tabs defaultValue="excel" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="excel">Carga de Excel</TabsTrigger>
-          <TabsTrigger value="xml">Carga de XML</TabsTrigger>
+      <Tabs defaultValue="excel-purchased" className="w-full">
+        <TabsList className="grid w-full grid-cols-3"> {/* Ajustado para 3 abas */}
+          <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger>
+          <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
+          <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger> {/* Nova aba */}
         </TabsList>
-        <TabsContent value="excel" className="mt-4">
+
+        <TabsContent value="excel-purchased" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
@@ -274,12 +428,13 @@ const CargaDeDados: React.FC = () => {
               </Button>
             </div>
 
-            <Button variant="outline" onClick={handleDownloadTemplate}>
+            <Button variant="outline" onClick={handleDownloadPurchasedItemsTemplate}>
               Baixar Template de Itens Comprados (Excel)
             </Button>
           </div>
         </TabsContent>
-        <TabsContent value="xml" className="mt-4">
+
+        <TabsContent value="xml-purchased" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (XML)</h3>
             <p className="text-gray-600 dark:text-gray-400">
@@ -308,42 +463,97 @@ const CargaDeDados: React.FC = () => {
             </div>
           </div>
         </TabsContent>
+
+        <TabsContent value="excel-sold" className="mt-4"> {/* Nova aba de conteúdo */}
+          <div className="space-y-4">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Faça o upload de um arquivo Excel (.xlsx) contendo os produtos vendidos.
+              O arquivo deve conter as colunas: <code>Nome do Produto</code>, <code>Quantidade Vendida</code>, <code>Preço Unitário</code> e opcionalmente <code>Data da Venda (YYYY-MM-DD)</code>.
+              Se a data não for fornecida, a data atual será usada.
+            </p>
+
+            <div className="flex items-center space-x-2">
+              <Input
+                id="sold-items-excel-file-upload"
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                onChange={handleSoldItemsExcelFileChange}
+                className="flex-grow"
+              />
+              <Button onClick={handleUploadSoldItemsExcel} disabled={!selectedSoldItemsExcelFile}>
+                Carregar Produtos Vendidos
+              </Button>
+            </div>
+
+            <Button variant="outline" onClick={handleDownloadSoldItemsTemplate}>
+              Baixar Template de Produtos Vendidos (Excel)
+            </Button>
+          </div>
+        </TabsContent>
       </Tabs>
 
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Exportar Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Baixe todos os itens comprados atualmente no sistema para um arquivo Excel.
+          Baixe todos os itens comprados ou vendidos atualmente no sistema para arquivos Excel.
         </p>
-        <Button onClick={handleDownloadAllPurchasedItems}>
-          Baixar Itens Comprados (Excel)
-        </Button>
+        <div className="flex flex-wrap gap-4">
+          <Button onClick={handleDownloadAllPurchasedItems}>
+            Baixar Itens Comprados (Excel)
+          </Button>
+          <Button onClick={handleDownloadAllSoldItems}>
+            Baixar Produtos Vendidos (Excel)
+          </Button>
+        </div>
       </div>
 
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Limpeza de Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
-          Use esta opção para remover *todos* os itens da tabela de itens comprados. Esta ação é irreversível.
+          Use esta opção para remover *todos* os itens das tabelas selecionadas. Esta ação é irreversível.
         </p>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive">Limpar Todos os Itens Comprados</Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Isso removerá permanentemente todos os itens comprados do seu banco de dados.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleClearPurchasedItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Sim, Limpar Dados
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex flex-wrap gap-4">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Limpar Todos os Itens Comprados</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente todos os itens comprados do seu banco de dados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearPurchasedItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Limpar Todos os Produtos Vendidos</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente todos os produtos vendidos do seu banco de dados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearSoldItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
     </div>
   );
