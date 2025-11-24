@@ -6,10 +6,11 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Adicionando logs para depuração
 console.log('Supabase URL carregada:', supabaseUrl);
 console.log('Supabase Anon Key carregada:', supabaseAnonKey ? 'Sim (tamanho: ' + supabaseAnonKey.length + ')' : 'Não');
-console.log('Valor completo da Supabase Anon Key:', supabaseAnonKey); // Adicionado para depuração
+console.log('Valor completo da Supabase Anon Key (para depuração):', supabaseAnonKey); // Adicionado para depuração
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Supabase URL e Anon Key devem ser fornecidas como variáveis de ambiente.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log('Supabase client initialized.'); // Log após a criação do cliente
