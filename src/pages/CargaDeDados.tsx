@@ -23,7 +23,7 @@ import {
 const CargaDeDados: React.FC = () => {
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const templateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
+  const templateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom']; // Mantém ns1:xProd para o template de entrada
 
   const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -60,20 +60,15 @@ const CargaDeDados: React.FC = () => {
 
       const formattedData = data.map((row: any) => ({
         c_prod: String(row['ns1:cProd']),
-        x_prod: String(row['ns1:xProd']),
+        descricao_do_produto: String(row['ns1:xProd']), // Usando o novo nome da coluna
         u_com: String(row['ns1:uCom']),
         q_com: parseFloat(row['ns1:qCom']),
         v_un_com: parseFloat(row['ns1:vUnCom']),
-        // Para Excel, não temos invoice_id ou item_sequence_number por padrão.
-        // Cada linha será inserida como um novo registro.
       }));
 
-      // Para Excel, sem um identificador único de nota/item, inserimos como novos registros.
-      // Se a intenção for evitar duplicações de produtos (c_prod, x_prod, u_com, v_un_com)
-      // para Excel, precisaríamos de uma estratégia diferente ou de um campo de ID no Excel.
       const { error, count } = await supabase
         .from('purchased_items')
-        .insert(formattedData); // Usando insert em vez de upsert para Excel sem onConflict
+        .insert(formattedData);
 
       if (error) {
         console.error('Erro detalhado do Supabase (Excel):', error);
@@ -112,16 +107,15 @@ const CargaDeDados: React.FC = () => {
 
         const formattedData = data.map((row: any) => ({
           c_prod: String(row['ns1:cProd']),
-          x_prod: String(row['ns1:xProd']),
+          descricao_do_produto: String(row['descricao_do_produto']), // Usando o novo nome da coluna
           u_com: String(row['ns1:uCom']),
           q_com: parseFloat(row['ns1:qCom']),
           v_un_com: parseFloat(row['ns1:vUnCom']),
-          invoice_id: row.invoice_id, // Usar o ID da nota extraído
-          item_sequence_number: row.item_sequence_number, // Usar o número sequencial do item extraído
-          x_fant: row.x_fant, // Adiciona o Nome Fantasia do Fornecedor
+          invoice_id: row.invoice_id,
+          item_sequence_number: row.item_sequence_number,
+          x_fant: row.x_fant,
         }));
 
-        // Usar upsert com onConflict em invoice_id e item_sequence_number para XML
         const { error, count } = await supabase
           .from('purchased_items')
           .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
@@ -167,11 +161,10 @@ const CargaDeDados: React.FC = () => {
   const handleDownloadAllPurchasedItems = async () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
-      // Agora buscando diretamente da tabela 'purchased_items' para incluir invoice_id e item_sequence_number
       const { data, error } = await supabase
         .from('purchased_items')
         .select('*')
-        .order('created_at', { ascending: false }); // Ordenar por data de criação para ver os mais recentes
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -181,15 +174,15 @@ const CargaDeDados: React.FC = () => {
       }
 
       const headers = [
-        'ID do Item', // Adicionado
+        'ID do Item',
         'Código Fornecedor',
-        'Descrição do Produto',
+        'Descrição do Produto', // Usando o novo nome
         'Unidade',
-        'Quantidade', // Não é mais 'Quantidade Total' aqui, pois são itens individuais
+        'Quantidade',
         'Valor Unitário',
         'Nome Interno',
-        'Nome Fantasia Fornecedor', // Novo campo
-        'Data da Compra', // Não é mais 'Última Compra'
+        'Nome Fantasia Fornecedor',
+        'Data da Compra',
         'ID da Nota',
         'Número do Item na Nota',
       ];
@@ -197,12 +190,12 @@ const CargaDeDados: React.FC = () => {
       const formattedData = data.map(item => ({
         'ID do Item': item.id,
         'Código Fornecedor': item.c_prod,
-        'Descrição do Produto': item.x_prod,
+        'Descrição do Produto': item.descricao_do_produto, // Usando o novo nome
         'Unidade': item.u_com,
         'Quantidade': item.q_com,
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Nome Fantasia Fornecedor': item.x_fant || 'N/A', // Mapeia o novo campo
+        'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
         'Data da Compra': new Date(item.created_at).toLocaleString(),
         'ID da Nota': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
@@ -232,7 +225,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('purchased_items')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos os registros
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (error) throw error;
 

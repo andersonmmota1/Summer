@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface PurchasedItem {
   id: string;
   c_prod: string;
-  x_prod: string;
+  descricao_do_produto: string; // Renomeado aqui
   u_com: string;
   q_com: number;
   v_un_com: number;
@@ -59,7 +59,7 @@ const MapeamentoDeProdutos: React.FC = () => {
       const initialInput: { [key: string]: string } = {};
       (itemsData || []).forEach(item => {
         // Try to pre-fill from existing mappings if available
-        const existingMapping = (mappingsData || []).find(m => m.supplier_product_name === item.x_prod);
+        const existingMapping = (mappingsData || []).find(m => m.supplier_product_name === item.descricao_do_produto); // Usando o novo nome
         initialInput[item.id] = existingMapping ? existingMapping.internal_product_name : '';
       });
       setNewMappingInput(initialInput);
@@ -86,11 +86,11 @@ const MapeamentoDeProdutos: React.FC = () => {
       return;
     }
 
-    const loadingToastId = showLoading(`Aplicando mapeamento para "${item.x_prod}"...`);
+    const loadingToastId = showLoading(`Aplicando mapeamento para "${item.descricao_do_produto}"...`); // Usando o novo nome
 
     try {
       // 1. Check if mapping already exists for supplier_product_name
-      const existingMapping = mappings.find(m => m.supplier_product_name === item.x_prod);
+      const existingMapping = mappings.find(m => m.supplier_product_name === item.descricao_do_produto); // Usando o novo nome
 
       if (existingMapping) {
         // If mapping exists, update it if the internal name changed
@@ -101,16 +101,16 @@ const MapeamentoDeProdutos: React.FC = () => {
             .eq('id', existingMapping.id);
 
           if (updateMappingError) throw updateMappingError;
-          showSuccess(`Mapeamento existente para "${item.x_prod}" atualizado.`);
+          showSuccess(`Mapeamento existente para "${item.descricao_do_produto}" atualizado.`); // Usando o novo nome
         }
       } else {
         // If no mapping exists, create a new one
         const { error: insertMappingError } = await supabase
           .from('product_mappings')
-          .insert({ supplier_product_name: item.x_prod, internal_product_name: internalName });
+          .insert({ supplier_product_name: item.descricao_do_produto, internal_product_name: internalName }); // Usando o novo nome
 
         if (insertMappingError) throw insertMappingError;
-        showSuccess(`Novo mapeamento criado para "${item.x_prod}".`);
+        showSuccess(`Novo mapeamento criado para "${item.descricao_do_produto}".`); // Usando o novo nome
       }
 
       // 2. Update the purchased_item with the internal_product_name
@@ -121,7 +121,7 @@ const MapeamentoDeProdutos: React.FC = () => {
 
       if (updateItemError) throw updateItemError;
 
-      showSuccess(`Item "${item.x_prod}" mapeado para "${internalName}" com sucesso!`);
+      showSuccess(`Item "${item.descricao_do_produto}" mapeado para "${internalName}" com sucesso!`); // Usando o novo nome
       fetchData(); // Re-fetch data to update the list
     } catch (error: any) {
       console.error('Erro ao aplicar mapeamento:', error);
@@ -167,7 +167,7 @@ const MapeamentoDeProdutos: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Código Fornecedor</TableHead>
-                  <TableHead>Nome Fornecedor</TableHead>
+                  <TableHead>Descrição do Produto</TableHead> {/* Renomeado aqui */}
                   <TableHead>Unidade</TableHead>
                   <TableHead>Quantidade</TableHead>
                   <TableHead>Valor Unitário</TableHead>
@@ -179,7 +179,7 @@ const MapeamentoDeProdutos: React.FC = () => {
                 {unmappedItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.c_prod}</TableCell>
-                    <TableCell>{item.x_prod}</TableCell>
+                    <TableCell>{item.descricao_do_produto}</TableCell> {/* Usando o novo nome */}
                     <TableCell>{item.u_com}</TableCell>
                     <TableCell>{item.q_com}</TableCell>
                     <TableCell>{item.v_un_com}</TableCell>

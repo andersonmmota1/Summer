@@ -47,48 +47,46 @@ export const readXmlFile = (file: File): Promise<any[]> => {
             const prodElement = itemElement.querySelector('prod');
             if (prodElement) {
               const cProd = prodElement.querySelector('cProd')?.textContent || '';
-              const xProd = prodElement.querySelector('xProd')?.textContent || '';
+              const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || ''; // Renomeado aqui
               const uCom = prodElement.querySelector('uCom')?.textContent || '';
               const qCom = prodElement.querySelector('qCom')?.textContent || '';
               const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
 
-              if (cProd && xProd) {
+              if (cProd && descricaoDoProduto) {
                 items.push({
                   'ns1:cProd': cProd,
-                  'ns1:xProd': xProd,
+                  'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
                   'ns1:uCom': uCom,
                   'ns1:qCom': parseFloat(qCom),
                   'ns1:vUnCom': parseFloat(vUnCom),
-                  'invoice_id': invoiceId, // Adiciona o ID da nota
-                  'item_sequence_number': itemSequenceNumber, // Adiciona o número sequencial do item
-                  'x_fant': xFant, // Adiciona o Nome Fantasia do Fornecedor
+                  'invoice_id': invoiceId,
+                  'item_sequence_number': itemSequenceNumber,
+                  'x_fant': xFant,
                 });
               }
             }
           });
         } else {
           // Fallback: Se não houver <det>, tentar encontrar elementos <prod> diretamente
-          // Neste caso, não teremos item_sequence_number, e o invoice_id pode ser menos confiável.
-          // Vamos manter a lógica anterior, mas com um aviso.
           showWarning('Não foi possível encontrar tags <det>. Tentando inferir itens com base em tags <prod>. A unicidade pode ser comprometida sem o número do item.');
           const prodElements = xmlDoc.querySelectorAll('prod');
           prodElements.forEach(prodElement => {
             const cProd = prodElement.querySelector('cProd')?.textContent || '';
-            const xProd = prodElement.querySelector('xProd')?.textContent || '';
+            const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || ''; // Renomeado aqui
             const uCom = prodElement.querySelector('uCom')?.textContent || '';
             const qCom = prodElement.querySelector('qCom')?.textContent || '';
             const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
 
-            if (cProd && xProd) {
+            if (cProd && descricaoDoProduto) {
               items.push({
                 'ns1:cProd': cProd,
-                'ns1:xProd': xProd,
+                'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
                 'ns1:uCom': uCom,
                 'ns1:qCom': parseFloat(qCom),
                 'ns1:vUnCom': parseFloat(vUnCom),
-                'invoice_id': invoiceId, // Ainda tenta usar o invoiceId encontrado
-                'item_sequence_number': null, // Não há número de item sem <det>
-                'x_fant': xFant, // Adiciona o Nome Fantasia do Fornecedor
+                'invoice_id': invoiceId,
+                'item_sequence_number': null,
+                'x_fant': xFant,
               });
             }
           });
