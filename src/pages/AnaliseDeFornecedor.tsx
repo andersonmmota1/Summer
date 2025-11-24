@@ -17,27 +17,58 @@ interface AggregatedSupplierProduct {
   last_purchase_date: string;
 }
 
+interface TotalBySupplier {
+  supplier_name: string;
+  total_value_spent: number;
+}
+
+interface TotalByProduct {
+  product_description: string;
+  total_value_spent: number;
+}
+
 const AnaliseDeFornecedor: React.FC = () => {
   const [aggregatedData, setAggregatedData] = useState<AggregatedSupplierProduct[]>([]);
+  const [totalBySupplier, setTotalBySupplier] = useState<TotalBySupplier[]>([]);
+  const [totalByProduct, setTotalByProduct] = useState<TotalByProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAggregatedData();
+    fetchAnalysisData();
   }, []);
 
-  const fetchAggregatedData = async () => {
+  const fetchAnalysisData = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando dados de análise de fornecedor...');
     try {
-      const { data, error } = await supabase
+      // Fetch aggregated supplier products
+      const { data: aggregatedDataResult, error: aggregatedError } = await supabase
         .from('aggregated_supplier_products')
         .select('*')
         .order('supplier_name', { ascending: true })
         .order('supplier_product_description', { ascending: true });
 
-      if (error) throw error;
+      if (aggregatedError) throw aggregatedError;
+      setAggregatedData(aggregatedDataResult || []);
 
-      setAggregatedData(data || []);
+      // Fetch total purchased by supplier
+      const { data: totalBySupplierResult, error: totalBySupplierError } = await supabase
+        .from('total_purchased_by_supplier')
+        .select('*')
+        .order('total_value_spent', { ascending: false });
+
+      if (totalBySupplierError) throw totalBySupplierError;
+      setTotalBySupplier(totalBySupplierResult || []);
+
+      // Fetch total purchased by product
+      const { data: totalByProductResult, error: totalByProductError } = await supabase
+        .from('total_purchased_by_product')
+        .select('*')
+        .order('total_value_spent', { ascending: false });
+
+      if (totalByProductError) throw totalByProductError;
+      setTotalByProduct(totalByProductResult || []);
+
       showSuccess('Dados de análise de fornecedor carregados com sucesso!');
     } catch (error: any) {
       console.error('Erro ao carregar dados de análise de fornecedor:', error);
@@ -71,46 +102,111 @@ const AnaliseDeFornecedor: React.FC = () => {
           <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML ou Excel na página "Carga de Dados".</p>
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Resumo de Compras por Fornecedor e Produto</CardTitle>
-            <CardDescription>
-              Dados agregados de todos os itens comprados, agrupados por fornecedor e descrição do produto.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Cód. Produto Fornecedor</TableHead>
-                    <TableHead>Descrição do Produto</TableHead>
-                    <TableHead>Unidade</TableHead>
-                    <TableHead className="text-right">Qtd. Total Comprada</TableHead>
-                    <TableHead className="text-right">Valor Total Gasto</TableHead>
-                    <TableHead className="text-right">Valor Unitário Médio</TableHead>
-                    <TableHead>Última Compra</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {aggregatedData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                      <TableCell>{item.supplier_product_code}</TableCell>
-                      <TableCell>{item.supplier_product_description}</TableCell>
-                      <TableCell>{item.supplier_unit}</TableCell>
-                      <TableCell className="text-right">{item.total_quantity_purchased.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.average_unit_value.toFixed(2)}</TableCell>
-                      <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Card: Somatório por Fornecedor */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Total Comprado por Fornecedor</CardTitle>
+                <CardDescription>
+                  Valor total gasto com cada fornecedor.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {totalBySupplier.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                          <TableCell className="text-right">R$ {item.total_value_spent.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card: Somatório por Produto */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Total Comprado por Produto</CardTitle>
+                <CardDescription>
+                  Valor total gasto com cada descrição de produto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Descrição do Produto</TableHead>
+                        <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {totalByProduct.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.product_description}</TableCell>
+                          <TableCell className="text-right">R$ {item.total_value_spent.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Card: Resumo de Compras por Fornecedor e Produto (existente) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo de Compras por Fornecedor e Produto</CardTitle>
+              <CardDescription>
+                Dados agregados de todos os itens comprados, agrupados por fornecedor e descrição do produto.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fornecedor</TableHead>
+                      <TableHead>Cód. Produto Fornecedor</TableHead>
+                      <TableHead>Descrição do Produto</TableHead>
+                      <TableHead>Unidade</TableHead>
+                      <TableHead className="text-right">Qtd. Total Comprada</TableHead>
+                      <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      <TableHead className="text-right">Valor Unitário Médio</TableHead>
+                      <TableHead>Última Compra</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {aggregatedData.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                        <TableCell>{item.supplier_product_code}</TableCell>
+                        <TableCell>{item.supplier_product_description}</TableCell>
+                        <TableCell>{item.supplier_unit}</TableCell>
+                        <TableCell className="text-right">{item.total_quantity_purchased.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">R$ {item.average_unit_value.toFixed(2)}</TableCell>
+                        <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
