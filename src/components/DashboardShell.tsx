@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,17 +9,30 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from '@/components/ui/navigation-menu';
+import { supabase } from '@/integrations/supabase/client';
+import { showError, showSuccess } from '@/utils/toast';
 
 const DashboardShell: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
     { name: 'Estoque', path: '/estoque' },
     { name: 'Fluxo de Caixa', path: '/fluxo-de-caixa' },
     { name: 'Carga de Dados', path: '/carga-de-dados' },
-    { name: 'Mapeamento de Produtos', path: '/mapeamento-de-produtos' }, // Novo item de navegação
+    { name: 'Mapeamento de Produtos', path: '/mapeamento-de-produtos' },
   ];
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Erro ao fazer logout:', error);
+      showError(`Erro ao fazer logout: ${error.message}`);
+    } else {
+      // O redirecionamento é tratado pelo SessionContextProvider
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -29,26 +42,31 @@ const DashboardShell: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             Gestão de Restaurante
           </h1>
-          <NavigationMenu>
-            <NavigationMenuList>
-              {navItems.map((item) => (
-                <NavigationMenuItem key={item.path}>
-                  <NavigationMenuLink asChild
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      location.pathname === item.path
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    )}
-                  >
-                    <Link to={item.path}>
-                      {item.name}
-                    </Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
+          <div className="flex items-center space-x-4">
+            <NavigationMenu>
+              <NavigationMenuList>
+                {navItems.map((item) => (
+                  <NavigationMenuItem key={item.path}>
+                    <NavigationMenuLink asChild
+                      className={cn(
+                        navigationMenuTriggerStyle(),
+                        location.pathname === item.path
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      )}
+                    >
+                      <Link to={item.path}>
+                        {item.name}
+                      </Link>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                ))}
+              </NavigationMenuList>
+            </NavigationMenu>
+            <Button onClick={handleLogout} variant="destructive">
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 
