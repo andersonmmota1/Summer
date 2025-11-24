@@ -13,6 +13,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // --- NOVOS LOGS PARA DEPURAR VARIÁVEIS DE AMBIENTE ---
+  console.log('Edge Function: SUPABASE_URL:', Deno.env.get('SUPABASE_URL'));
+  console.log('Edge Function: SUPABASE_ANON_KEY:', Deno.env.get('SUPABASE_ANON_KEY') ? 'Sim (tamanho: ' + Deno.env.get('SUPABASE_ANON_KEY')!.length + ')' : 'Não');
+  // --- FIM DOS NOVOS LOGS ---
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
