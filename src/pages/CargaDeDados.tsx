@@ -143,6 +143,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
       // Consulta para agrupar e somar quantidades de itens comprados
+      // O PostgREST (Supabase) infere o GROUP BY automaticamente pelas colunas não agregadas
       const { data, error } = await supabase
         .from('purchased_items')
         .select(`
@@ -154,8 +155,7 @@ const CargaDeDados: React.FC = () => {
           q_com:sum(q_com),
           latest_created_at:max(created_at)
         `)
-        .order('x_prod', { ascending: true }) // Ordenar para melhor visualização
-        .group('c_prod, x_prod, u_com, v_un_com, internal_product_name');
+        .order('x_prod', { ascending: true }); // Ordenar para melhor visualização
 
 
       if (error) throw error;
@@ -169,20 +169,20 @@ const CargaDeDados: React.FC = () => {
         'Código Fornecedor',
         'Descrição do Produto',
         'Unidade',
-        'Quantidade Total', // Alterado para refletir a soma
+        'Quantidade Total',
         'Valor Unitário',
         'Nome Interno',
-        'Última Compra', // Alterado para refletir a data mais recente
+        'Última Compra',
       ];
 
       const formattedData = data.map(item => ({
         'Código Fornecedor': item.c_prod,
         'Descrição do Produto': item.x_prod,
         'Unidade': item.u_com,
-        'Quantidade Total': item.q_com, // Usando a quantidade somada
+        'Quantidade Total': item.q_com,
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Última Compra': new Date(item.latest_created_at).toLocaleString(), // Usando a data mais recente
+        'Última Compra': new Date(item.latest_created_at).toLocaleString(),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosAgregados');
