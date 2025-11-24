@@ -7,6 +7,18 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 const CargaDeDados: React.FC = () => {
   const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
@@ -54,7 +66,10 @@ const CargaDeDados: React.FC = () => {
         v_un_com: parseFloat(row['ns1:vUnCom']),
       }));
 
-      const { error } = await supabase.from('purchased_items').insert(formattedData);
+      // Usar upsert para evitar duplicações
+      const { error, count } = await supabase
+        .from('purchased_items')
+        .upsert(formattedData, { onConflict: 'c_prod,x_prod,u_com,v_un_com', ignoreDuplicates: true });
 
       if (error) {
         console.error('Erro detalhado do Supabase (Excel):', error);
@@ -99,7 +114,10 @@ const CargaDeDados: React.FC = () => {
           v_un_com: parseFloat(row['ns1:vUnCom']),
         }));
 
-        const { error } = await supabase.from('purchased_items').insert(formattedData);
+        // Usar upsert para evitar duplicações
+        const { error, count } = await supabase
+          .from('purchased_items')
+          .upsert(formattedData, { onConflict: 'c_prod,x_prod,u_com,v_un_com', ignoreDuplicates: true });
 
         if (error) {
           console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (XML):`, error);
@@ -142,11 +160,10 @@ const CargaDeDados: React.FC = () => {
   const handleDownloadAllPurchasedItems = async () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
-      // Consulta a nova view que já contém os dados agregados
       const { data, error } = await supabase
-        .from('aggregated_purchased_items') // Alterado para a nova view
-        .select('*') // Seleciona todas as colunas da view
-        .order('x_prod', { ascending: true }); // Ordenar para melhor visualização
+        .from('aggregated_purchased_items')
+        .select('*')
+        .order('x_prod', { ascending: true });
 
       if (error) throw error;
 
@@ -169,10 +186,10 @@ const CargaDeDados: React.FC = () => {
         'Código Fornecedor': item.c_prod,
         'Descrição do Produto': item.x_prod,
         'Unidade': item.u_com,
-        'Quantidade Total': item.total_q_com, // Usando a quantidade somada da view
+        'Quantidade Total': item.total_q_com,
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Última Compra': new Date(item.latest_created_at).toLocaleString(), // Usando a data mais recente da view
+        'Última Compra': new Date(item.latest_created_at).toLocaleString(),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosAgregados');
@@ -188,6 +205,25 @@ const CargaDeDados: React.FC = () => {
     } catch (error: any) {
       console.error('Erro ao baixar itens comprados:', error);
       showError(`Erro ao baixar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleClearPurchasedItems = async () => {
+    const loadingToastId = showLoading('Limpando todos os itens comprados...');
+    try {
+      const { error } = await supabase
+        .from('purchased_items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos os registros
+
+      if (error) throw error;
+
+      showSuccess('Todos os itens comprados foram removidos com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao limpar itens comprados:', error);
+      showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
     }
@@ -272,6 +308,32 @@ const CargaDeDados: React.FC = () => {
         <Button onClick={handleDownloadAllPurchasedItems}>
           Baixar Itens Comprados (Excel)
         </Button>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+        <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Limpeza de Dados</h3>
+        <p className="text-gray-600 dark:text-gray-400">
+          Use esta opção para remover *todos* os itens da tabela de itens comprados. Esta ação é irreversível.
+        </p>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive">Limpar Todos os Itens Comprados</Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isso removerá permanentemente todos os itens comprados do seu banco de dados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleClearPurchasedItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Sim, Limpar Dados
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
