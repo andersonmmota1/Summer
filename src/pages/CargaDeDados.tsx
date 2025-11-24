@@ -142,9 +142,21 @@ const CargaDeDados: React.FC = () => {
   const handleDownloadAllPurchasedItems = async () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
+      // Consulta para agrupar e somar quantidades de itens comprados
       const { data, error } = await supabase
         .from('purchased_items')
-        .select('c_prod, x_prod, u_com, q_com, v_un_com, internal_product_name, created_at');
+        .select(`
+          c_prod,
+          x_prod,
+          u_com,
+          v_un_com,
+          internal_product_name,
+          q_com:sum(q_com),
+          latest_created_at:max(created_at)
+        `)
+        .order('x_prod', { ascending: true }) // Ordenar para melhor visualização
+        .group('c_prod, x_prod, u_com, v_un_com, internal_product_name');
+
 
       if (error) throw error;
 
@@ -155,34 +167,34 @@ const CargaDeDados: React.FC = () => {
 
       const headers = [
         'Código Fornecedor',
-        'Descrição do Produto', // Alterado aqui
+        'Descrição do Produto',
         'Unidade',
-        'Quantidade',
+        'Quantidade Total', // Alterado para refletir a soma
         'Valor Unitário',
         'Nome Interno',
-        'Data de Criação',
+        'Última Compra', // Alterado para refletir a data mais recente
       ];
 
       const formattedData = data.map(item => ({
         'Código Fornecedor': item.c_prod,
-        'Descrição do Produto': item.x_prod, // Alterado aqui
+        'Descrição do Produto': item.x_prod,
         'Unidade': item.u_com,
-        'Quantidade': item.q_com,
+        'Quantidade Total': item.q_com, // Usando a quantidade somada
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Data de Criação': new Date(item.created_at).toLocaleString(),
+        'Última Compra': new Date(item.latest_created_at).toLocaleString(), // Usando a data mais recente
       }));
 
-      const blob = createExcelFile(formattedData, headers, 'ItensComprados');
+      const blob = createExcelFile(formattedData, headers, 'ItensCompradosAgregados');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'itens_comprados.xlsx';
+      a.download = 'itens_comprados_agregados.xlsx';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccess(`Dados de ${data.length} itens comprados baixados com sucesso!`);
+      showSuccess(`Dados de ${data.length} itens comprados agregados baixados com sucesso!`);
     } catch (error: any) {
       console.error('Erro ao baixar itens comprados:', error);
       showError(`Erro ao baixar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
