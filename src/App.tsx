@@ -9,7 +9,8 @@ import Estoque from "./pages/Estoque";
 import FluxoDeCaixa from "./pages/FluxoDeCaixa";
 import CargaDeDados from "./pages/CargaDeDados";
 import MapeamentoDeProdutos from "./pages/MapeamentoDeProdutos";
-import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor"; // Importar a nova página
+import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor";
+import AnaliseDeProdutosVendidos from "./pages/AnaliseDeProdutosVendidos"; // Importar a nova página
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
@@ -51,7 +52,8 @@ const App = () => (
               <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
               <Route path="carga-de-dados" element={<CargaDeDados />} />
               <Route path="mapeamento-de-produtos" element={<MapeamentoDeProdutos />} />
-              <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} /> {/* Nova rota */}
+              <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} />
+              <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} /> {/* Nova rota */}
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
