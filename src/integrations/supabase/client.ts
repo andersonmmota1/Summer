@@ -4,8 +4,9 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Supabase URL or Anon Key is not defined in environment variables.');
-  // Optionally, throw an error or handle this more gracefully in a production app
+  console.error('Supabase URL ou Anon Key não está definida nas variáveis de ambiente. Por favor, verifique seu arquivo .env e a configuração do Vite.');
+  // Lança um erro para impedir que o aplicativo continue com um cliente Supabase inválido
+  throw new Error('Variáveis de ambiente do Supabase estão faltando.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
