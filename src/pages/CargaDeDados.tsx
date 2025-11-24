@@ -118,6 +118,7 @@ const CargaDeDados: React.FC = () => {
           v_un_com: parseFloat(row['ns1:vUnCom']),
           invoice_id: row.invoice_id, // Usar o ID da nota extraído
           item_sequence_number: row.item_sequence_number, // Usar o número sequencial do item extraído
+          x_fant: row.x_fant, // Adiciona o Nome Fantasia do Fornecedor
         }));
 
         // Usar upsert com onConflict em invoice_id e item_sequence_number para XML
@@ -187,6 +188,7 @@ const CargaDeDados: React.FC = () => {
         'Quantidade', // Não é mais 'Quantidade Total' aqui, pois são itens individuais
         'Valor Unitário',
         'Nome Interno',
+        'Nome Fantasia Fornecedor', // Novo campo
         'Data da Compra', // Não é mais 'Última Compra'
         'ID da Nota',
         'Número do Item na Nota',
@@ -200,6 +202,7 @@ const CargaDeDados: React.FC = () => {
         'Quantidade': item.q_com,
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
+        'Nome Fantasia Fornecedor': item.x_fant || 'N/A', // Mapeia o novo campo
         'Data da Compra': new Date(item.created_at).toLocaleString(),
         'ID da Nota': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',

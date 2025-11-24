@@ -28,6 +28,13 @@ export const readXmlFile = (file: File): Promise<any[]> => {
           showWarning('Não foi possível encontrar o ID da nota fiscal (tag <infNFe> com atributo Id). Itens podem ser tratados como duplicados se não houver outro identificador único.');
         }
 
+        // Tentar extrair o Nome Fantasia do Fornecedor (xFant)
+        const emitElement = xmlDoc.querySelector('emit');
+        const xFant = emitElement?.querySelector('xFant')?.textContent || null;
+        if (!xFant) {
+          showWarning('Não foi possível encontrar o Nome Fantasia do Fornecedor (tag <xFant> dentro de <emit>).');
+        }
+
         let itemElements: NodeListOf<Element>;
 
         // Prioridade 1: Tentar encontrar elementos <det> (comum em NFe)
@@ -54,6 +61,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'ns1:vUnCom': parseFloat(vUnCom),
                   'invoice_id': invoiceId, // Adiciona o ID da nota
                   'item_sequence_number': itemSequenceNumber, // Adiciona o número sequencial do item
+                  'x_fant': xFant, // Adiciona o Nome Fantasia do Fornecedor
                 });
               }
             }
@@ -80,6 +88,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'ns1:vUnCom': parseFloat(vUnCom),
                 'invoice_id': invoiceId, // Ainda tenta usar o invoiceId encontrado
                 'item_sequence_number': null, // Não há número de item sem <det>
+                'x_fant': xFant, // Adiciona o Nome Fantasia do Fornecedor
               });
             }
           });
