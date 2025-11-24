@@ -19,34 +19,47 @@ export const readXmlFile = (file: File): Promise<any[]> => {
         }
 
         const items: any[] = [];
-        // Assuming a structure where each item is directly under a root or a specific tag
-        // For example, if items are <item> tags, or <det> tags within an <nfeProc>
-        // Let's assume a common structure for purchased items, e.g., <item> or <det>
-        // We'll look for elements that contain the product details.
-        // A common XML structure for NFe items uses <det> for details and <prod> inside it.
-        const itemElements = xmlDoc.querySelectorAll('det'); // Common for NFe items
+        let itemElements: NodeListOf<Element>;
+        let prodElements: NodeListOf<Element>;
 
-        if (itemElements.length === 0) {
-          // Fallback if 'det' is not found, try 'item' or a more generic approach
-          const genericElements = xmlDoc.querySelectorAll('*');
-          let potentialItems: Element[] = [];
-          genericElements.forEach(el => {
-            // Heuristic: if an element has children like cProd, xProd, etc., it might be an item
-            if (el.querySelector('cProd') || el.querySelector('xProd')) {
-              potentialItems.push(el);
+        // Prioridade 1: Tentar encontrar elementos <det> (comum em NFe)
+        itemElements = xmlDoc.querySelectorAll('det');
+
+        if (itemElements.length > 0) {
+          itemElements.forEach(itemElement => {
+            // Assumindo que os detalhes do produto estão aninhados sob <prod> dentro de <det>
+            const prodElement = itemElement.querySelector('prod');
+            if (prodElement) {
+              const cProd = prodElement.querySelector('cProd')?.textContent || '';
+              const xProd = prodElement.querySelector('xProd')?.textContent || '';
+              const uCom = prodElement.querySelector('uCom')?.textContent || '';
+              const qCom = prodElement.querySelector('qCom')?.textContent || '';
+              const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
+
+              if (cProd && xProd) { // Apenas adiciona se campos essenciais estiverem presentes
+                items.push({
+                  'ns1:cProd': cProd,
+                  'ns1:xProd': xProd,
+                  'ns1:uCom': uCom,
+                  'ns1:qCom': parseFloat(qCom),
+                  'ns1:vUnCom': parseFloat(vUnCom),
+                });
+              }
             }
           });
-          if (potentialItems.length > 0) {
-            showWarning('Não foi possível encontrar tags <det>. Tentando inferir itens com base em <cProd>/<xProd>.');
-            itemElements.forEach(el => potentialItems.push(el)); // Add existing if any
-            potentialItems.forEach(itemElement => {
-              const cProd = itemElement.querySelector('cProd')?.textContent || '';
-              const xProd = itemElement.querySelector('xProd')?.textContent || '';
-              const uCom = itemElement.querySelector('uCom')?.textContent || '';
-              const qCom = itemElement.querySelector('qCom')?.textContent || '';
-              const vUnCom = itemElement.querySelector('vUnCom')?.textContent || '';
+        } else {
+          // Prioridade 2: Se não houver <det>, tentar encontrar elementos <prod> diretamente
+          prodElements = xmlDoc.querySelectorAll('prod');
+          if (prodElements.length > 0) {
+            showWarning('Não foi possível encontrar tags <det>. Tentando inferir itens com base em tags <prod>.');
+            prodElements.forEach(prodElement => {
+              const cProd = prodElement.querySelector('cProd')?.textContent || '';
+              const xProd = prodElement.querySelector('xProd')?.textContent || '';
+              const uCom = prodElement.querySelector('uCom')?.textContent || '';
+              const qCom = prodElement.querySelector('qCom')?.textContent || '';
+              const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
 
-              if (cProd && xProd) { // Only add if essential fields are present
+              if (cProd && xProd) {
                 items.push({
                   'ns1:cProd': cProd,
                   'ns1:xProd': xProd,
@@ -57,29 +70,44 @@ export const readXmlFile = (file: File): Promise<any[]> => {
               }
             });
           } else {
-            reject(new Error('Nenhum item de produto encontrado no arquivo XML. Verifique a estrutura do XML (esperado <det> ou elementos com <cProd>/<xProd>).'));
-            return;
-          }
-        } else {
-          itemElements.forEach(itemElement => {
-            // Assuming product details are nested under <prod> within <det>
-            const prodElement = itemElement.querySelector('prod');
-            if (prodElement) {
-              const cProd = prodElement.querySelector('cProd')?.textContent || '';
-              const xProd = prodElement.querySelector('xProd')?.textContent || '';
-              const uCom = prodElement.querySelector('uCom')?.textContent || '';
-              const qCom = prodElement.querySelector('qCom')?.textContent || '';
-              const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
+            // Prioridade 3: Se nem <det> nem <prod> forem encontrados, tentar uma abordagem mais genérica
+            // Encontrar elementos que são pais diretos de cProd e xProd para evitar duplicação
+            const cProdElements = xmlDoc.querySelectorAll('cProd');
+            const xProdElements = xmlDoc.querySelectorAll('xProd');
 
-              items.push({
-                'ns1:cProd': cProd,
-                'ns1:xProd': xProd,
-                'ns1:uCom': uCom,
-                'ns1:qCom': parseFloat(qCom),
-                'ns1:vUnCom': parseFloat(vUnCom),
-              });
+            if (cProdElements.length > 0 || xProdElements.length > 0) { // Use OR here, as one might be enough to indicate an item
+                showWarning('Não foi possível encontrar tags <det> ou <prod>. Tentando inferir itens com base em elementos que contêm <cProd>/<xProd>.');
+                const uniqueItemContainers = new Set<Element>();
+
+                cProdElements.forEach(el => {
+                    if (el.parentElement) uniqueItemContainers.add(el.parentElement);
+                });
+                xProdElements.forEach(el => {
+                    if (el.parentElement) uniqueItemContainers.add(el.parentElement);
+                });
+
+                uniqueItemContainers.forEach(itemContainer => {
+                    const cProd = itemContainer.querySelector('cProd')?.textContent || '';
+                    const xProd = itemContainer.querySelector('xProd')?.textContent || '';
+                    const uCom = itemContainer.querySelector('uCom')?.textContent || '';
+                    const qCom = itemContainer.querySelector('qCom')?.textContent || '';
+                    const vUnCom = itemContainer.querySelector('vUnCom')?.textContent || '';
+
+                    if (cProd && xProd) {
+                        items.push({
+                            'ns1:cProd': cProd,
+                            'ns1:xProd': xProd,
+                            'ns1:uCom': uCom,
+                            'ns1:qCom': parseFloat(qCom),
+                            'ns1:vUnCom': parseFloat(vUnCom),
+                        });
+                    }
+                });
+            } else {
+                reject(new Error('Nenhum item de produto encontrado no arquivo XML. Verifique a estrutura do XML (esperado <det>, <prod> ou elementos com <cProd>/<xProd>).'));
+                return;
             }
-          });
+          }
         }
         
         if (items.length === 0) {
