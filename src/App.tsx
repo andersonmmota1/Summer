@@ -8,6 +8,7 @@ import Inicio from "./pages/Inicio";
 import Estoque from "./pages/Estoque";
 import FluxoDeCaixa from "./pages/FluxoDeCaixa";
 import CargaDeDados from "./pages/CargaDeDados";
+import MapeamentoDeProdutos from "./pages/MapeamentoDeProdutos"; // Importar a nova página
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="estoque" element={<Estoque />} />
             <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
             <Route path="carga-de-dados" element={<CargaDeDados />} />
+            <Route path="mapeamento-de-produtos" element={<MapeamentoDeProdutos />} /> {/* Nova rota */}
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

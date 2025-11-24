@@ -18,6 +18,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Estoque', path: '/estoque' },
     { name: 'Fluxo de Caixa', path: '/fluxo-de-caixa' },
     { name: 'Carga de Dados', path: '/carga-de-dados' },
+    { name: 'Mapeamento de Produtos', path: '/mapeamento-de-produtos' }, // Novo item de navegação
   ];
 
   return (
