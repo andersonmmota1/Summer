@@ -142,21 +142,11 @@ const CargaDeDados: React.FC = () => {
   const handleDownloadAllPurchasedItems = async () => {
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
-      // Consulta para agrupar e somar quantidades de itens comprados
-      // O PostgREST (Supabase) infere o GROUP BY automaticamente pelas colunas não agregadas
+      // Consulta a nova view que já contém os dados agregados
       const { data, error } = await supabase
-        .from('purchased_items')
-        .select(`
-          c_prod,
-          x_prod,
-          u_com,
-          v_un_com,
-          internal_product_name,
-          q_com:sum(q_com),
-          latest_created_at:max(created_at)
-        `)
+        .from('aggregated_purchased_items') // Alterado para a nova view
+        .select('*') // Seleciona todas as colunas da view
         .order('x_prod', { ascending: true }); // Ordenar para melhor visualização
-
 
       if (error) throw error;
 
@@ -179,10 +169,10 @@ const CargaDeDados: React.FC = () => {
         'Código Fornecedor': item.c_prod,
         'Descrição do Produto': item.x_prod,
         'Unidade': item.u_com,
-        'Quantidade Total': item.q_com,
+        'Quantidade Total': item.total_q_com, // Usando a quantidade somada da view
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
-        'Última Compra': new Date(item.latest_created_at).toLocaleString(),
+        'Última Compra': new Date(item.latest_created_at).toLocaleString(), // Usando a data mais recente da view
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosAgregados');
