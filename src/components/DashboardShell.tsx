@@ -32,18 +32,18 @@ const DashboardShell: React.FC = () => {
             <NavigationMenuList>
               {navItems.map((item) => (
                 <NavigationMenuItem key={item.path}>
-                  <Link to={item.path} legacyBehavior passHref>
-                    <NavigationMenuLink
-                      className={cn(
-                        navigationMenuTriggerStyle(),
-                        location.pathname === item.path
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      )}
-                    >
+                  <NavigationMenuLink asChild
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      location.pathname === item.path
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    )}
+                  >
+                    <Link to={item.path}>
                       {item.name}
-                    </NavigationMenuLink>
-                  </Link>
+                    </Link>
+                  </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
             </NavigationMenuList>
