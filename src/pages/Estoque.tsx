@@ -1,19 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 interface CurrentStockSummary {
   internal_product_name: string;
   internal_unit: string;
   current_stock_quantity: number;
   total_purchased_value: number;
+  total_purchased_quantity_converted: number;
   total_consumed_quantity_from_sales: number;
+}
+
+interface InternalProductUsage {
+  internal_product_name: string;
+  sold_product_name: string;
+  quantity_needed: number;
 }
 
 const Estoque: React.FC = () => {
   const [stockData, setStockData] = useState<CurrentStockSummary[]>([]);
+  const [internalProductUsage, setInternalProductUsage] = useState<InternalProductUsage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,14 +35,22 @@ const Estoque: React.FC = () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando dados de estoque...');
     try {
-      const { data, error } = await supabase
+      const { data: stockResult, error: stockError } = await supabase
         .from('current_stock_summary')
         .select('*')
         .order('internal_product_name', { ascending: true });
 
-      if (error) throw error;
+      if (stockError) throw stockError;
+      setStockData(stockResult || []);
 
-      setStockData(data || []);
+      const { data: usageResult, error: usageError } = await supabase
+        .from('internal_product_usage')
+        .select('*')
+        .order('internal_product_name', { ascending: true });
+
+      if (usageError) throw usageError;
+      setInternalProductUsage(usageResult || []);
+
       showSuccess('Dados de estoque carregados com sucesso!');
     } catch (error: any) {
       console.error('Erro ao carregar dados de estoque:', error);
@@ -41,6 +60,16 @@ const Estoque: React.FC = () => {
       dismissToast(loadingToastId);
     }
   };
+
+  const groupedUsage = useMemo(() => {
+    return internalProductUsage.reduce((acc, usage) => {
+      if (!acc[usage.internal_product_name]) {
+        acc[usage.internal_product_name] = [];
+      }
+      acc[usage.internal_product_name].push(usage);
+      return acc;
+    }, {} as Record<string, InternalProductUsage[]>);
+  }, [internalProductUsage]);
 
   if (loading) {
     return (
@@ -58,6 +87,7 @@ const Estoque: React.FC = () => {
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Aqui você pode visualizar o estoque atual dos seus produtos internos,
         calculado a partir das compras (com unidades convertidas) e do consumo via vendas (com base nas fichas técnicas).
+        Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
       {stockData.length === 0 ? (
@@ -87,18 +117,51 @@ const Estoque: React.FC = () => {
                     <TableHead className="text-right">Qtd. Comprada (Convertida)</TableHead>
                     <TableHead className="text-right">Qtd. Consumida (Vendas)</TableHead>
                     <TableHead className="text-right">Valor Total Comprado</TableHead>
+                    <TableHead className="text-right">Detalhes de Uso</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stockData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{item.internal_product_name}</TableCell>
-                      <TableCell>{item.internal_unit}</TableCell>
-                      <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{(item.total_purchased_value / (item.current_stock_quantity + item.total_consumed_quantity_from_sales > 0 ? (item.current_stock_quantity + item.total_consumed_quantity_from_sales) : 1)).toFixed(2)}</TableCell> {/* Placeholder for total purchased quantity, needs actual value from converted_units_summary */}
-                      <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
-                    </TableRow>
+                    <React.Fragment key={index}>
+                      <Collapsible asChild>
+                        <TableRow>
+                          <TableCell className="font-medium">{item.internal_product_name}</TableCell>
+                          <TableCell>{item.internal_unit}</TableCell>
+                          <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" size="sm" className="w-9 p-0">
+                                <ChevronDown className="h-4 w-4" />
+                                <span className="sr-only">Toggle detalhes de uso</span>
+                              </Button>
+                            </CollapsibleTrigger>
+                          </TableCell>
+                        </TableRow>
+                        <CollapsibleContent asChild>
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-0 pl-12 pr-4">
+                              <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
+                                <p className="font-semibold mb-1">Utilizado em:</p>
+                                {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
+                                  <ul className="list-disc list-inside space-y-0.5">
+                                    {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
+                                      <li key={i}>
+                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
