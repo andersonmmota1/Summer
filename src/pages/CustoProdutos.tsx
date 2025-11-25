@@ -5,42 +5,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSession } from '@/components/SessionContextProvider';
 
-interface ProductRecipe {
-  id: string;
+interface SoldProductCost {
   sold_product_name: string;
-  internal_product_name: string;
-  quantity_needed: number;
+  estimated_cost_of_sold_product: number;
 }
 
 const CustoProdutos: React.FC = () => {
   const { user } = useSession();
-  const [productRecipes, setProductRecipes] = useState<ProductRecipe[]>([]);
+  const [soldProductCosts, setSoldProductCosts] = useState<SoldProductCost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user?.id) {
-      fetchProductRecipes();
+      fetchSoldProductCosts();
     } else {
       setLoading(false);
     }
   }, [user?.id]);
 
-  const fetchProductRecipes = async () => {
+  const fetchSoldProductCosts = async () => {
     setLoading(true);
-    const loadingToastId = showLoading('Carregando fichas técnicas de produtos...');
+    const loadingToastId = showLoading('Calculando custo dos produtos vendidos...');
     try {
       const { data, error } = await supabase
-        .from('product_recipes')
+        .from('sold_product_cost')
         .select('*')
         .eq('user_id', user?.id)
         .order('sold_product_name', { ascending: true });
 
       if (error) throw error;
 
-      setProductRecipes(data || []);
-      showSuccess('Fichas técnicas carregadas com sucesso!');
+      setSoldProductCosts(data || []);
+      showSuccess('Custo dos produtos vendidos calculado com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao carregar fichas técnicas:', error);
+      console.error('Erro ao calcular custo dos produtos vendidos:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
     } finally {
       setLoading(false);
@@ -51,7 +49,7 @@ const CustoProdutos: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
-        Carregando fichas técnicas...
+        Calculando custo dos produtos...
       </div>
     );
   }
@@ -59,26 +57,25 @@ const CustoProdutos: React.FC = () => {
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Custo de Produtos
+        Custo de Produtos Vendidos
       </h2>
       <p className="text-gray-700 dark:text-gray-300 mb-6">
-        Esta página exibe os produtos vendidos que possuem uma ficha técnica cadastrada, detalhando seus componentes internos e as quantidades necessárias.
-        Para calcular o custo real de cada produto, seria necessário integrar os custos médios das matérias-primas.
+        Esta página exibe o custo estimado de cada produto vendido, calculado com base nas fichas técnicas cadastradas e no custo médio das matérias-primas (produtos internos).
       </p>
 
-      {productRecipes.length === 0 ? (
+      {soldProductCosts.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhuma ficha técnica de produto encontrada.</p>
+          <p className="text-lg">Nenhum custo de produto vendido encontrado.</p>
           <p className="text-sm mt-2">
-            Você pode carregar fichas técnicas na página "Carga de Dados" (aba Ficha Técnica).
+            Certifique-se de ter carregado dados de compras, vendas, fichas técnicas e conversões de unidades nas páginas "Carga de Dados" e "Mapeamento de Produtos".
           </p>
         </div>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Fichas Técnicas Cadastradas</CardTitle>
+            <CardTitle>Custo Estimado por Produto Vendido</CardTitle>
             <CardDescription>
-              Lista de produtos vendidos e seus componentes internos.
+              Lista de produtos vendidos com seu custo estimado.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -87,16 +84,14 @@ const CustoProdutos: React.FC = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Produto Vendido</TableHead>
-                    <TableHead>Nome Interno do Componente</TableHead>
-                    <TableHead className="text-right">Quantidade Necessária</TableHead>
+                    <TableHead className="text-right">Custo Unitário Estimado</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productRecipes.map((recipe) => (
-                    <TableRow key={recipe.id}>
-                      <TableCell className="font-medium">{recipe.sold_product_name}</TableCell>
-                      <TableCell>{recipe.internal_product_name}</TableCell>
-                      <TableCell className="text-right">{recipe.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                  {soldProductCosts.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{item.sold_product_name}</TableCell>
+                      <TableCell className="text-right">{item.estimated_cost_of_sold_product.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
