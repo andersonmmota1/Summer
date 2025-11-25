@@ -83,10 +83,6 @@ const CargaDeDados: React.FC = () => {
       showError('Por favor, selecione um ou mais arquivos XML para carregar.');
       return;
     }
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível carregar itens comprados.');
-      return;
-    }
 
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
@@ -103,7 +99,6 @@ const CargaDeDados: React.FC = () => {
         }
 
         const formattedData = data.map((row: any) => ({
-          user_id: user.id, // Adicionando user_id aqui
           c_prod: String(row['ns1:cProd']),
           descricao_do_produto: String(row['descricao_do_produto']),
           u_com: String(row['ns1:uCom']),
@@ -114,8 +109,6 @@ const CargaDeDados: React.FC = () => {
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
-
-        console.log(`Dados formatados para upsert de "${file.name}":`, formattedData); // Log de depuração
 
         const { error } = await supabase
           .from('purchased_items')
@@ -442,16 +435,11 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleDownloadAllPurchasedItems = async () => {
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível baixar itens comprados.');
-      return;
-    }
     const loadingToastId = showLoading('Baixando todos os itens comprados...');
     try {
       const { data, error } = await supabase
         .from('purchased_items')
         .select('*')
-        .eq('user_id', user.id) // Filtrar por user_id
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -553,8 +541,8 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'produtos_vendidos_detalhado.xlsx';
       document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} produtos vendidos detalhados baixados com sucesso!`);
     } catch (error: any) {
@@ -739,16 +727,12 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleClearPurchasedItems = async () => {
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível limpar itens comprados.');
-      return;
-    }
     const loadingToastId = showLoading('Limpando todos os itens comprados...');
     try {
       const { error } = await supabase
         .from('purchased_items')
         .delete()
-        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos os registros
 
       if (error) throw error;
 
