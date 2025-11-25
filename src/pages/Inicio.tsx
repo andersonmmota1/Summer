@@ -19,8 +19,10 @@ const Inicio: React.FC = () => {
 
   const fetchSalesByDate = async (): Promise<SalesByDate[]> => {
     if (!user?.id) {
+      console.log('Inicio: Usuário não autenticado, retornando dados vazios.');
       return [];
     }
+    console.log('Inicio: Fetching sold_items for user:', user.id);
     const { data, error } = await supabase
       .from('sold_items')
       .select('sale_date, quantity_sold, total_value_sold')
@@ -28,10 +30,12 @@ const Inicio: React.FC = () => {
       .order('sale_date', { ascending: false });
 
     if (error) {
-      console.error('Erro ao carregar vendas por data:', error);
+      console.error('Inicio: Erro ao carregar vendas por data:', error);
       showError(`Erro ao carregar vendas por data: ${error.message}`);
       throw error;
     }
+
+    console.log('Inicio: Raw data from sold_items (before aggregation):', data);
 
     // Agregação manual dos dados por data
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
@@ -45,12 +49,17 @@ const Inicio: React.FC = () => {
       aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0); // Garante que null seja tratado como 0
     });
 
+    console.log('Inicio: Aggregated data before final array conversion:', aggregatedData);
+
     // Converte o objeto agregado de volta para um array e ordena por data
-    return Object.keys(aggregatedData).map(dateKey => ({
+    const finalAggregatedArray = Object.keys(aggregatedData).map(dateKey => ({
       sale_date: dateKey,
       total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
       total_value_sold: aggregatedData[dateKey].total_value_sold,
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()); // Ordena do mais recente para o mais antigo
+
+    console.log('Inicio: Final aggregated and sorted data:', finalAggregatedArray);
+    return finalAggregatedArray;
   };
 
   const { data: salesByDate, isLoading, isError, error } = useQuery<SalesByDate[], Error>({
