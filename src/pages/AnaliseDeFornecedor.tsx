@@ -22,15 +22,15 @@ interface TotalBySupplier {
   total_value_spent: number;
 }
 
-interface TotalByProduct {
-  product_description: string;
+interface TotalByInternalProduct {
+  product_display_name: string; // Usar o nome da view
   total_value_spent: number;
 }
 
 const AnaliseDeFornecedor: React.FC = () => {
   const [aggregatedData, setAggregatedData] = useState<AggregatedSupplierProduct[]>([]);
   const [totalBySupplier, setTotalBySupplier] = useState<TotalBySupplier[]>([]);
-  const [totalByProduct, setTotalByProduct] = useState<TotalByProduct[]>([]);
+  const [totalByInternalProduct, setTotalByInternalProduct] = useState<TotalByInternalProduct[]>([]); // Novo estado
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,14 +60,14 @@ const AnaliseDeFornecedor: React.FC = () => {
       if (totalBySupplierError) throw totalBySupplierError;
       setTotalBySupplier(totalBySupplierResult || []);
 
-      // Fetch total purchased by product
-      const { data: totalByProductResult, error: totalByProductError } = await supabase
-        .from('total_purchased_by_product')
+      // Fetch total purchased by internal product (using the new view)
+      const { data: totalByInternalProductResult, error: totalByInternalProductError } = await supabase
+        .from('total_purchased_by_internal_product') // Usando a nova view
         .select('*')
         .order('total_value_spent', { ascending: false });
 
-      if (totalByProductError) throw totalByProductError;
-      setTotalByProduct(totalByProductResult || []);
+      if (totalByInternalProductError) throw totalByInternalProductError;
+      setTotalByInternalProduct(totalByInternalProductResult || []);
 
       showSuccess('Dados de análise de fornecedor carregados com sucesso!');
     } catch (error: any) {
@@ -96,7 +96,7 @@ const AnaliseDeFornecedor: React.FC = () => {
         Visualize informações agregadas sobre os produtos comprados de cada fornecedor.
       </p>
 
-      {aggregatedData.length === 0 ? (
+      {aggregatedData.length === 0 && totalByInternalProduct.length === 0 && totalBySupplier.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de compra encontrado para análise.</p>
           <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML ou Excel na página "Carga de Dados".</p>
@@ -134,12 +134,12 @@ const AnaliseDeFornecedor: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Card: Somatório por Produto */}
+            {/* Card: Somatório por Produto (agora usando nomes internos) */}
             <Card>
               <CardHeader>
                 <CardTitle>Total Comprado por Produto</CardTitle>
                 <CardDescription>
-                  Valor total gasto com cada descrição de produto.
+                  Valor total gasto com cada descrição de produto (usando nome interno se mapeado).
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -152,9 +152,9 @@ const AnaliseDeFornecedor: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {totalByProduct.map((item, index) => (
+                      {totalByInternalProduct.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.product_description}</TableCell>
+                          <TableCell className="font-medium">{item.product_display_name}</TableCell>
                           <TableCell className="text-right">R$ {item.total_value_spent.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}

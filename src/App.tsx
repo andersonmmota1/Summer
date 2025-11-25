@@ -10,7 +10,8 @@ import FluxoDeCaixa from "./pages/FluxoDeCaixa";
 import CargaDeDados from "./pages/CargaDeDados";
 import MapeamentoDeProdutos from "./pages/MapeamentoDeProdutos";
 import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor";
-import AnaliseDeProdutosVendidos from "./pages/AnaliseDeProdutosVendidos"; // Importar a nova página
+import AnaliseDeProdutosVendidos from "./pages/AnaliseDeProdutosVendidos";
+import ProdutosNaoMapeados from "./pages/ProdutosNaoMapeados"; // Importar a nova página
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
@@ -53,7 +54,8 @@ const App = () => (
               <Route path="carga-de-dados" element={<CargaDeDados />} />
               <Route path="mapeamento-de-produtos" element={<MapeamentoDeProdutos />} />
               <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} />
-              <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} /> {/* Nova rota */}
+              <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} />
+              <Route path="produtos-nao-mapeados" element={<ProdutosNaoMapeados />} /> {/* Nova rota */}
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
