@@ -119,7 +119,7 @@ const AnaliseDeFornecedor: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  Total Geral: R$ {totalValueSpentBySupplier.toFixed(2)}
+                  Total Geral: {totalValueSpentBySupplier.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
                 <div className="overflow-x-auto">
                   <Table>
@@ -133,7 +133,7 @@ const AnaliseDeFornecedor: React.FC = () => {
                       {totalBySupplier.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                          <TableCell className="text-right">R$ {item.total_value_spent.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -163,7 +163,7 @@ const AnaliseDeFornecedor: React.FC = () => {
                       {totalByInternalProduct.map((item, index) => (
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.product_display_name}</TableCell>
-                          <TableCell className="text-right">R$ {item.total_value_spent.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -203,9 +203,9 @@ const AnaliseDeFornecedor: React.FC = () => {
                         <TableCell>{item.supplier_product_code}</TableCell>
                         <TableCell>{item.supplier_product_description}</TableCell>
                         <TableCell>{item.supplier_unit}</TableCell>
-                        <TableCell className="text-right">{item.total_quantity_purchased.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">R$ {item.average_unit_value.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{item.total_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{item.average_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                       </TableRow>
                     ))}

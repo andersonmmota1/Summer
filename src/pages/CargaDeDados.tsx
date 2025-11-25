@@ -476,7 +476,7 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
         'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
-        'Data da Compra': new Date(item.created_at).toLocaleString(),
+        'Data da Compra': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
@@ -531,8 +531,8 @@ const CargaDeDados: React.FC = () => {
         'Nome do Produto': item.product_name,
         'Quantidade Vendida': item.quantity_sold,
         'Preço Unitário': item.unit_price,
-        'Data da Venda': new Date(item.sale_date).toLocaleString(),
-        'Data de Registro': new Date(item.created_at).toLocaleString(),
+        'Data da Venda': format(new Date(item.sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
@@ -586,7 +586,7 @@ const CargaDeDados: React.FC = () => {
         'Produto Vendido': item.sold_product_name,
         'Nome Interno': item.internal_product_name,
         'Quantidade Necessária': item.quantity_needed,
-        'Data de Registro': new Date(item.created_at).toLocaleString(),
+        'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'FichaTecnicaDetalhada');
@@ -643,7 +643,7 @@ const CargaDeDados: React.FC = () => {
         'Nome Fornecedor': item.supplier_name,
         'Descrição Produto Fornecedor': item.supplier_product_name,
         'Nome Interno do Produto': item.internal_product_name,
-        'Data de Registro': new Date(item.created_at).toLocaleString(),
+        'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ConversaoNomesProdutosDetalhada');
@@ -705,7 +705,7 @@ const CargaDeDados: React.FC = () => {
         'Unidade Fornecedor': item.supplier_unit,
         'Unidade Interna': item.internal_unit,
         'Fator de Conversão': item.conversion_factor,
-        'Data de Registro': new Date(item.created_at).toLocaleString(),
+        'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ConversaoUnidadesDetalhada');

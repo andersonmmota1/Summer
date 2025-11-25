@@ -82,7 +82,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {invoices.map((invoice, index) => (
-                    <TableRow key={invoice.invoice_id || index}><TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell><TableCell>{invoice.supplier_name || 'N/A'}</TableCell><TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell><TableCell className="text-right">R$ {invoice.total_invoice_value.toFixed(2)}</TableCell></TableRow>
+                    <TableRow key={invoice.invoice_id || index}><TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell><TableCell>{invoice.supplier_name || 'N/A'}</TableCell><TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell><TableCell className="text-right">{invoice.total_invoice_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell></TableRow>
                   ))}
                 </TableBody>
               </Table>

@@ -124,7 +124,7 @@ const Estoque: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                R$ {totalStockValue.toFixed(2)}
+                {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
             </CardContent>
           </Card>
@@ -156,10 +156,10 @@ const Estoque: React.FC = () => {
                         <TableRow>
                           <TableCell className="font-medium">{item.internal_product_name}</TableCell>
                           <TableCell>{item.internal_unit}</TableCell>
-                          <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_purchased_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="ghost"
@@ -181,7 +181,7 @@ const Estoque: React.FC = () => {
                                   <ul className="list-disc list-inside space-y-0.5">
                                     {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
                                       <li key={i}>
-                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
+                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
                                       </li>
                                     ))}
                                   </ul>

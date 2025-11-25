@@ -88,7 +88,7 @@ const VisaoDeConversoes: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Total Convertido: {totalConvertedQuantity.toFixed(2)} unidades
+                Total Convertido: {totalConvertedQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades
               </p>
             </CardContent>
           </Card>
@@ -127,10 +127,10 @@ const VisaoDeConversoes: React.FC = () => {
                         <TableCell>{item.product_display_name}</TableCell>
                         <TableCell>{item.supplier_unit}</TableCell>
                         <TableCell>{item.internal_unit}</TableCell>
-                        <TableCell className="text-right">{item.conversion_factor.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.total_original_quantity_purchased.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.total_converted_quantity.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{item.conversion_factor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_original_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                       </TableRow>
                     ))}

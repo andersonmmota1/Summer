@@ -90,9 +90,9 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                   {aggregatedSoldData.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell className="text-right">{item.total_quantity_sold.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.total_revenue.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">R$ {item.average_unit_price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                      <TableCell className="text-right">{item.average_unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                       <TableCell>{format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                     </TableRow>
                   ))}
