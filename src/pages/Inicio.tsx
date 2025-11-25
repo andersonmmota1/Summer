@@ -32,10 +32,11 @@ const Inicio: React.FC = () => {
       .order('sale_date', { ascending: false });
 
     if (error) {
-      console.error('Erro ao carregar todos os itens vendidos:', error);
+      console.error('Inicio: Erro ao carregar todos os itens vendidos:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
       throw error;
     }
+    console.log('Inicio: Raw data from Supabase (all items for user):', data);
     return data || [];
   };
 
@@ -48,7 +49,7 @@ const Inicio: React.FC = () => {
       // showSuccess('Dados brutos de vendas carregados com sucesso!');
     },
     onError: (err) => {
-      console.error('Erro no React Query ao carregar dados brutos de vendas:', err);
+      console.error('Inicio: Erro no React Query ao carregar dados brutos de vendas:', err);
       showError(`Erro ao carregar dados brutos de vendas: ${err.message}`);
     },
   });
@@ -57,17 +58,32 @@ const Inicio: React.FC = () => {
     if (!rawSoldItems) return [];
 
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
+    const problematicDate = '2025-11-01';
+    let debugSumProblematicDate = 0;
 
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
-      const parsedTotalValue = item.total_value_sold ? parseBrazilianFloat(item.total_value_sold) : 0; // Usar parseBrazilianFloat
+      const rawTotalValueString = item.total_value_sold;
+      const parsedTotalValue = rawTotalValueString ? parseBrazilianFloat(rawTotalValueString) : 0;
       
+      if (dateKey === problematicDate) {
+        console.log(`Inicio: Item for ${problematicDate} - raw string: "${rawTotalValueString}", parsed float: ${parsedTotalValue}`);
+        debugSumProblematicDate += parsedTotalValue;
+        console.log(`Inicio: Running sum for ${problematicDate}: ${debugSumProblematicDate}`);
+      }
+
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
       aggregatedData[dateKey].total_value_sold += parsedTotalValue;
     });
+
+    if (aggregatedData[problematicDate]) {
+      console.log(`Inicio: Final aggregated total_value_sold for ${problematicDate} (client-side): ${aggregatedData[problematicDate].total_value_sold}`);
+    } else {
+      console.log(`Inicio: No aggregated data found for ${problematicDate}.`);
+    }
 
     return Object.keys(aggregatedData).map(dateKey => ({
       sale_date: dateKey,
