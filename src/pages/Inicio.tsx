@@ -37,9 +37,17 @@ const Inicio: React.FC = () => {
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
 
     data?.forEach(item => {
-      console.log(`DEBUG: Raw sale_date from Supabase: ${item.sale_date}`); // Adicionado log aqui
-      // Garante que a data seja formatada consistentemente para a chave de agregação
-      const dateKey = format(new Date(item.sale_date), 'yyyy-MM-dd'); 
+      const dateFromSupabase = new Date(item.sale_date);
+      // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
+      const year = dateFromSupabase.getUTCFullYear();
+      const month = dateFromSupabase.getUTCMonth(); // 0-indexed
+      const day = dateFromSupabase.getUTCDate();
+
+      // Cria um novo objeto Date no fuso horário local usando os componentes UTC
+      // Isso garante que o dia do calendário seja preservado, independentemente do fuso horário local
+      const localDateForDisplay = new Date(year, month, day);
+      
+      const dateKey = format(localDateForDisplay, 'yyyy-MM-dd'); 
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
@@ -106,13 +114,24 @@ const Inicio: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {salesByDate.map((sale, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{format(new Date(sale.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      </TableRow>
-                    ))}
+                    {salesByDate.map((sale, index) => {
+                      const dateFromSupabase = new Date(sale.sale_date);
+                      // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
+                      const year = dateFromSupabase.getUTCFullYear();
+                      const month = dateFromSupabase.getUTCMonth(); // 0-indexed
+                      const day = dateFromSupabase.getUTCDate();
+
+                      // Cria um novo objeto Date no fuso horário local usando os componentes UTC
+                      const localDateForDisplay = new Date(year, month, day);
+
+                      return (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{format(localDateForDisplay, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                          <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

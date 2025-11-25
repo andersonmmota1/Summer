@@ -121,19 +121,14 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleUploadXml = async () => {
-    console.log('handleUploadXml called.');
-
     if (selectedXmlFiles.length === 0) {
-      console.warn('No XML files selected.');
       showError('Por favor, selecione um ou mais arquivos XML para carregar.');
       return;
     }
     if (!user?.id) {
-      console.error('User not authenticated. Cannot upload purchased items.');
       showError('Usuário não autenticado. Não é possível carregar itens comprados.');
       return;
     }
-    console.log('User ID:', user.id);
 
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
@@ -142,12 +137,9 @@ const CargaDeDados: React.FC = () => {
 
     for (const file of selectedXmlFiles) {
       try {
-        console.log(`Processing file: ${file.name}`);
         const data = await readXmlFile(file);
-        console.log(`XML data read for ${file.name}:`, data);
 
         if (!data || data.length === 0) {
-          console.warn(`XML file "${file.name}" is empty or contains no valid data.`);
           showError(`O arquivo XML "${file.name}" está vazio ou não contém dados válidos.`);
           hasError = true;
           continue;
@@ -165,7 +157,6 @@ const CargaDeDados: React.FC = () => {
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
-        console.log(`Formatted data for ${file.name}:`, formattedData);
         // allParsedData.push(...formattedData); // Removido, pois não há preview
 
         const { error } = await supabase
@@ -173,17 +164,14 @@ const CargaDeDados: React.FC = () => {
           .upsert(formattedData, { onConflict: 'user_id, invoice_id, item_sequence_number', ignoreDuplicates: true });
 
         if (error) {
-          console.error(`Supabase upsert error for "${file.name}" (XML):`, error);
           showError(`Erro ao carregar dados do XML "${file.name}": ${error.message}`);
           hasError = true;
           continue;
         }
-        console.log(`Successfully upserted data for ${file.name}.`);
 
         totalItemsLoaded += formattedData.length;
         showSuccess(`Dados de ${formattedData.length} itens de "${file.name}" carregados com sucesso!`);
       } catch (error: any) {
-        console.error(`Unexpected error during XML upload for "${file.name}":`, error);
         showError(`Erro ao carregar dados do XML "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
         hasError = true;
       }
@@ -243,15 +231,6 @@ const CargaDeDados: React.FC = () => {
         if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
         }
-        console.log(`DEBUG: File "${fileName}" parsed to sale_date (ISO): ${fileSaleDate.toISOString()}`); // Adicionado log aqui
-
-        const data = await readExcelFile(file);
-
-        if (!data || data.length === 0) {
-          showError(`O arquivo Excel de produtos vendidos "${file.name}" está vazio ou não contém dados válidos.`);
-          hasError = true;
-          continue;
-        }
 
         // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
         datesToProcess.add(format(fileSaleDate, 'yyyy-MM-dd'));
@@ -285,7 +264,6 @@ const CargaDeDados: React.FC = () => {
             .eq('sale_date', dateString);
 
           if (countError) {
-            console.error(`Erro ao verificar produtos vendidos existentes para a data ${dateString}:`, countError);
             showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
             hasError = true;
             continue; // Pula a exclusão para esta data se não puder verificar
@@ -299,7 +277,6 @@ const CargaDeDados: React.FC = () => {
               .eq('sale_date', dateString);
 
             if (deleteError) {
-              console.error(`Erro ao limpar produtos vendidos para a data ${dateString}:`, deleteError);
               showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
               hasError = true;
             } else {
@@ -314,7 +291,6 @@ const CargaDeDados: React.FC = () => {
           .insert(formattedData);
 
         if (insertError) {
-          console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (Produtos Vendidos Excel):`, insertError);
           showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${insertError.message}`);
           hasError = true;
           continue;
@@ -323,7 +299,6 @@ const CargaDeDados: React.FC = () => {
         totalItemsLoaded += formattedData.length;
         showSuccess(`Dados de ${formattedData.length} produtos vendidos de "${file.name}" carregados com sucesso!`);
       } catch (error: any) {
-        console.error(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}":`, error);
         showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
         hasError = true;
       }
@@ -376,7 +351,6 @@ const CargaDeDados: React.FC = () => {
         .insert(formattedData);
 
       if (error) {
-        console.error('Erro detalhado do Supabase (Ficha Técnica Excel):', error);
         throw new Error(error.message);
       }
 
@@ -388,7 +362,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
     } catch (error: any) {
-      console.error('Erro ao carregar dados da ficha técnica de produtos do Excel:', error);
       showError(`Erro ao carregar dados da ficha técnica de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -429,7 +402,6 @@ const CargaDeDados: React.FC = () => {
         .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name' });
 
       if (error) {
-        console.error('Erro detalhado do Supabase (Conversão de Nomes Excel):', error);
         throw new Error(error.message);
       }
 
@@ -442,7 +414,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
-      console.error('Erro ao carregar conversões de nomes de produtos do Excel:', error);
       showError(`Erro ao carregar conversões de nomes de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -485,7 +456,6 @@ const CargaDeDados: React.FC = () => {
         .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit' });
 
       if (error) {
-        console.error('Erro detalhado do Supabase (Conversão de Unidades Excel):', error);
         throw new Error(error.message);
       }
 
@@ -497,7 +467,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
-      console.error('Erro ao carregar conversões de unidades do Excel:', error);
       showError(`Erro ao carregar conversões de unidades do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -613,7 +582,6 @@ const CargaDeDados: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} itens comprados detalhados baixados com sucesso!`);
     } catch (error: any) {
-      console.error('Erro ao baixar itens comprados:', error);
       showError(`Erro ao baixar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -675,7 +643,6 @@ const CargaDeDados: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} produtos vendidos detalhados baixados com sucesso!`);
     } catch (error: any) {
-      console.error('Erro ao baixar produtos vendidos:', error);
       showError(`Erro ao baixar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -729,7 +696,6 @@ const CargaDeDados: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
     } catch (error: any) {
-      console.error('Erro ao baixar fichas técnicas de produtos:', error);
       showError(`Erro ao baixar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -786,7 +752,6 @@ const CargaDeDados: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} conversões de nomes de produtos detalhadas baixados com sucesso!`);
     } catch (error: any) {
-      console.error('Erro ao baixar conversões de nomes de produtos:', error);
       showError(`Erro ao baixar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -848,7 +813,6 @@ const CargaDeDados: React.FC = () => {
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} conversões de unidades detalhadas baixados com sucesso!`);
     } catch (error: any) {
-      console.error('Erro ao baixar conversões de unidades:', error);
       showError(`Erro ao baixar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -877,7 +841,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
       // refetchDirectPurchasedItems(); // Removido, pois não há preview
     } catch (error: any) {
-      console.error('Erro ao limpar itens comprados:', error);
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -905,7 +868,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
     } catch (error: any) {
-      console.error('Erro ao limpar produtos vendidos:', error);
       showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -933,7 +895,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
     } catch (error: any) {
-      console.error('Erro ao limpar fichas técnicas de produtos:', error);
       showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -962,7 +923,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
-      console.error('Erro ao limpar conversões de nomes de produtos:', error);
       showError(`Erro ao limpar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
@@ -990,7 +950,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
-      console.error('Erro ao limpar conversões de unidades:', error);
       showError(`Erro ao limpar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
