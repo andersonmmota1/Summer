@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
+import { useFilter } from '@/contexts/FilterContext';
+import { useQuery } from '@tanstack/react-query'; // Importar useQuery
 
 interface InvoiceSummary {
   invoice_id: string;
@@ -16,48 +17,56 @@ interface InvoiceSummary {
 }
 
 const VisaoDeNotasFiscais: React.FC = () => {
-  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { filters } = useFilter();
   const { selectedSupplier } = filters;
 
-  const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const fetchInvoiceSummary = async (): Promise<InvoiceSummary[]> => {
+    let query = supabase
+      .from('invoice_summary')
+      .select('*');
 
-  useEffect(() => {
-    fetchInvoiceSummary();
-  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
+    if (selectedSupplier) {
+      query = query.eq('supplier_name', selectedSupplier);
+    }
+    query = query.order('invoice_date', { ascending: false });
 
-  const fetchInvoiceSummary = async () => {
-    setLoading(true);
-    const loadingToastId = showLoading('Carregando resumo das notas fiscais...');
-    try {
-      let query = supabase
-        .from('invoice_summary')
-        .select('*');
+    const { data, error } = await query;
 
-      if (selectedSupplier) {
-        query = query.eq('supplier_name', selectedSupplier);
-      }
-      query = query.order('invoice_date', { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setInvoices(data || []);
-      showSuccess('Resumo das notas fiscais carregado com sucesso!');
-    } catch (error: any) {
+    if (error) {
       console.error('Erro ao carregar resumo das notas fiscais:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
-    } finally {
-      setLoading(false);
-      dismissToast(loadingToastId);
+      throw error; // Lançar o erro para o React Query
     }
+
+    return data || [];
   };
 
-  if (loading) {
+  const { data: invoices, isLoading, isError, error } = useQuery<InvoiceSummary[], Error>({
+    queryKey: ['invoice_summary', selectedSupplier], // A chave da query inclui o filtro de fornecedor
+    queryFn: fetchInvoiceSummary,
+    staleTime: 1000 * 60 * 5, // Dados considerados 'frescos' por 5 minutos
+    onSuccess: () => {
+      // showSuccess('Resumo das notas fiscais carregado com sucesso!'); // Removido para evitar toast excessivo
+    },
+    onError: (err) => {
+      console.error('Erro no React Query ao carregar notas fiscais:', err);
+      showError(`Erro ao carregar notas fiscais: ${err.message}`);
+    },
+  });
+
+  if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
         Carregando notas fiscais...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
+        <p>Ocorreu um erro ao carregar as notas fiscais: {error?.message}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
       </div>
     );
   }
@@ -79,7 +88,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
         </div>
       )}
 
-      {invoices.length === 0 ? (
+      {invoices && invoices.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhuma nota fiscal encontrada.</p>
           <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML na página "Carga de Dados".</p>
@@ -104,7 +113,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((invoice, index) => (
+                  {invoices?.map((invoice, index) => (
                     <TableRow key={invoice.invoice_id || index}>
                       <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell>
                       <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
