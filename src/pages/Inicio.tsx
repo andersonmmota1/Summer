@@ -30,8 +30,7 @@ const Inicio: React.FC = () => {
       .from('sold_items')
       .select('sale_date, quantity_sold, total_value_sold')
       .eq('user_id', user.id)
-      .order('sale_date', { ascending: false })
-      .limit(10000); // Aumentando o limite para garantir que todos os itens sejam buscados
+      .order('sale_date', { ascending: false }); // Removendo o .limit() para buscar todos os registros
 
     if (error) {
       console.error('Inicio: Erro ao carregar todos os itens vendidos:', error);
