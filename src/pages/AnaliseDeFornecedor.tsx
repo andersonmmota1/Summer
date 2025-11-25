@@ -233,118 +233,168 @@ const AnaliseDeFornecedor: React.FC = () => {
   const hasData = aggregatedData.length > 0 || totalBySupplier.length > 0 || internalProductCosts.length > 0;
 
   return (
-    <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-      <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Análise de Fornecedor
-      </h2>
-      <p className="text-gray-700 dark:text-gray-300 mb-6">
-        Visualize informações agregadas sobre os produtos comprados de cada fornecedor.
-        Clique no nome de um fornecedor na tabela "Total Comprado por Fornecedor" para filtrar os dados.
-        Clique no nome de um produto na tabela "Custo Médio por Produto Interno" para filtrar os dados.
-      </p>
+    <React.Fragment>
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Análise de Fornecedor
+        </h2>
+        <p className="text-gray-700 dark:text-gray-300 mb-6">
+          Visualize informações agregadas sobre os produtos comprados de cada fornecedor.
+          Clique no nome de um fornecedor na tabela "Total Comprado por Fornecedor" para filtrar os dados.
+          Clique no nome de um produto na tabela "Custo Médio por Produto Interno" para filtrar os dados.
+        </p>
 
-      {(selectedSupplier || selectedProduct) && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtros Ativos:
-            {selectedSupplier && <span className="ml-2 font-bold text-primary">Fornecedor: {selectedSupplier}</span>}
-            {selectedProduct && <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>}
-          </span>
-          <Button variant="outline" size="sm" onClick={clearFilters}>
-            <XCircle className="h-4 w-4 mr-1" /> Limpar Todos os Filtros
-          </Button>
-        </div>
-      )}
+        {(selectedSupplier || selectedProduct) && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Filtros Ativos:
+              {selectedSupplier && <span className="ml-2 font-bold text-primary">Fornecedor: {selectedSupplier}</span>}
+              {selectedProduct && <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>}
+            </span>
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              <XCircle className="h-4 w-4 mr-1" /> Limpar Todos os Filtros
+            </Button>
+          </div>
+        )}
 
-      {!hasData ? (
-        <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhum dado de compra encontrado para análise.</p>
-          <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML ou Excel na página "Carga de Dados".</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Card: Somatório por Fornecedor */}
+        {!hasData ? (
+          <div className="text-center text-gray-600 dark:text-gray-400 py-8">
+            <p className="text-lg">Nenhum dado de compra encontrado para análise.</p>
+            <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML ou Excel na página "Carga de Dados".</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Card: Somatório por Fornecedor */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Comprado por Fornecedor</CardTitle>
+                  <CardDescription>
+                    Valor total gasto com cada fornecedor.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                    Total Geral: {totalValueSpentBySupplier.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fornecedor</TableHead>
+                          <TableHead className="text-right">Valor Total Gasto</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {totalBySupplier.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">
+                              <Button variant="link" onClick={() => handleSupplierClick(item.supplier_name)} className="p-0 h-auto text-left">
+                                {item.supplier_name}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="text-right">{item.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Novo Card: Custo Médio por Produto Interno */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Custo Médio por Produto Interno</CardTitle>
+                      <CardDescription>
+                        Quantidade total comprada e custo médio por unidade de cada produto interno.
+                      </CardDescription>
+                    </div>
+                    {selectedProduct && (
+                      <Button variant="outline" size="sm" onClick={handleClearProductFilter} className="gap-1">
+                        <XCircle className="h-4 w-4" /> Limpar Produto
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {internalProductCosts.length === 0 ? (
+                    <p className="text-center text-gray-600 dark:text-gray-400 py-4">
+                      Nenhum produto interno encontrado para os filtros aplicados.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome Interno do Produto</TableHead>
+                            <TableHead>Unidade Interna</TableHead>
+                            <TableHead className="text-right">Qtd. Total Comprada</TableHead>
+                            <TableHead className="text-right">Custo Médio Unitário</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {internalProductCosts.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-medium">
+                                <Button variant="link" onClick={() => handleProductClick(item.internal_product_name)} className="p-0 h-auto text-left">
+                                  {item.internal_product_name}
+                                </Button>
+                              </TableCell>
+                              <TableCell>{item.internal_unit}</TableCell>
+                              <TableCell className="text-right">{item.total_quantity_converted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                              <TableCell className="text-right">{item.average_unit_cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Card: Resumo de Compras por Fornecedor e Produto (existente) */}
             <Card>
               <CardHeader>
-                <CardTitle>Total Comprado por Fornecedor</CardTitle>
+                <CardTitle>Resumo de Compras por Fornecedor e Produto</CardTitle>
                 <CardDescription>
-                  Valor total gasto com cada fornecedor.
+                  Dados agregados de todos os itens comprados, agrupados por fornecedor e descrição do produto.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  Total Geral: {totalValueSpentBySupplier.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </p>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead className="text-right">Valor Total Gasto</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {totalBySupplier.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">
-                            <Button variant="link" onClick={() => handleSupplierClick(item.supplier_name)} className="p-0 h-auto text-left">
-                              {item.supplier_name}
-                            </Button>
-                          </TableCell>
-                          <TableCell className="text-right">{item.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Novo Card: Custo Médio por Produto Interno */}
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle>Custo Médio por Produto Interno</CardTitle>
-                    <CardDescription>
-                      Quantidade total comprada e custo médio por unidade de cada produto interno.
-                    </CardDescription>
-                  </div>
-                  {selectedProduct && (
-                    <Button variant="outline" size="sm" onClick={handleClearProductFilter} className="gap-1">
-                      <XCircle className="h-4 w-4" /> Limpar Produto
-                    </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {internalProductCosts.length === 0 ? (
+                {aggregatedData.length === 0 ? (
                   <p className="text-center text-gray-600 dark:text-gray-400 py-4">
-                    Nenhum produto interno encontrado para os filtros aplicados.
+                    Nenhum dado de compra agregado encontrado para os filtros aplicados.
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Nome Interno do Produto</TableHead>
-                          <TableHead>Unidade Interna</TableHead>
+                          <TableHead>Fornecedor</TableHead>
+                          <TableHead>Cód. Produto Fornecedor</TableHead>
+                          <TableHead>Descrição do Produto</TableHead>
+                          <TableHead>Unidade</TableHead>
                           <TableHead className="text-right">Qtd. Total Comprada</TableHead>
-                          <TableHead className="text-right">Custo Médio Unitário</TableHead>
+                          <TableHead className="text-right">Valor Total Gasto</TableHead>
+                          <TableHead className="text-right">Valor Unitário Médio</TableHead>
+                          <TableHead>Última Compra</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {internalProductCosts.map((item, index) => (
+                        {aggregatedData.map((item, index) => (
                           <TableRow key={index}>
-                            <TableCell className="font-medium">
-                              <Button variant="link" onClick={() => handleProductClick(item.internal_product_name)} className="p-0 h-auto text-left">
-                                {item.internal_product_name}
-                              </Button>
-                            </TableCell>
-                            <TableCell>{item.internal_unit}</TableCell>
-                            <TableCell className="text-right">{item.total_quantity_converted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{item.average_unit_cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                            <TableCell>{item.supplier_product_code}</TableCell>
+                            <TableCell>{item.supplier_product_description}</TableCell>
+                            <TableCell>{item.supplier_unit}</TableCell>
+                            <TableCell className="text-right">{item.total_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">{item.average_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -353,58 +403,11 @@ const AnaliseDeFornecedor: React.FC = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
-
-          {/* Card: Resumo de Compras por Fornecedor e Produto (existente) */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo de Compras por Fornecedor e Produto</CardTitle>
-              <CardDescription>
-                Dados agregados de todos os itens comprados, agrupados por fornecedor e descrição do produto.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {aggregatedData.length === 0 ? (
-                <p className="text-center text-gray-600 dark:text-gray-400 py-4">
-                  Nenhum dado de compra agregado encontrado para os filtros aplicados.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Cód. Produto Fornecedor</TableHead>
-                        <TableHead>Descrição do Produto</TableHead>
-                        <TableHead>Unidade</TableHead>
-                        <TableHead className="text-right">Qtd. Total Comprada</TableHead>
-                        <TableHead className="text-right">Valor Total Gasto</TableHead>
-                        <TableHead className="text-right">Valor Unitário Médio</TableHead>
-                        <TableHead>Última Compra</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {aggregatedData.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                          <TableCell>{item.supplier_product_code}</TableCell>
-                          <TableCell>{item.supplier_product_description}</TableCell>
-                          <TableCell>{item.supplier_unit}</TableCell>
-                          <TableCell className="text-right">{item.total_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                          <TableCell className="text-right">{item.average_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                          <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
           </Card>
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
+    </React.Fragment>
   );
 };
 
