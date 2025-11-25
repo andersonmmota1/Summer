@@ -80,8 +80,8 @@ const Inicio: React.FC = () => {
       aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0); // Garante que null seja tratado como 0
     });
 
-    console.log('Inicio: Aggregated data before final array conversion:', aggregatedData);
-    console.log('Inicio: Aggregated total for 2025-11-01:', aggregatedData['2025-11-01']);
+    console.log('Inicio: Aggregated data before final array conversion:', JSON.stringify(aggregatedData, null, 2));
+    console.log('Inicio: Aggregated total for 2025-11-01:', aggregatedData['2025-11-01'] ? `Qtd: ${aggregatedData['2025-11-01'].total_quantity_sold}, Valor: ${aggregatedData['2025-11-01'].total_value_sold}` : 'N/A');
 
 
     // Converte o objeto agregado de volta para um array e ordena por data
