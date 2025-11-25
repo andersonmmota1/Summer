@@ -15,16 +15,11 @@ interface UnmappedProductNameSummary {
   supplier_name: string;
 }
 
-// Interface for unmapped unit conversion summary remains the same
+// Updated interface for unmapped unit conversion summary
 interface UnmappedUnitConversionSummary {
   c_prod: string;
-  descricao_do_produto: string;
   supplier_name: string;
   supplier_unit: string;
-  total_quantity_purchased: number;
-  total_value_purchased: number;
-  average_unit_value: number;
-  last_purchase_date: string;
 }
 
 const ProdutosNaoMapeados: React.FC = () => {
@@ -89,6 +84,31 @@ const ProdutosNaoMapeados: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showSuccess('Produtos sem mapeamento de nome interno exportados com sucesso!');
+  };
+
+  const handleExportUnmappedUnitsToExcel = () => {
+    if (unmappedUnitProducts.length === 0) {
+      showWarning('Não há produtos sem mapeamento de unidade interna para exportar.');
+      return;
+    }
+
+    const headers = ['Código Fornecedor', 'Nome Fornecedor', 'Unidade Fornecedor'];
+    const formattedData = unmappedUnitProducts.map(item => ({
+      'Código Fornecedor': item.c_prod,
+      'Nome Fornecedor': item.supplier_name,
+      'Unidade Fornecedor': item.supplier_unit,
+    }));
+
+    const blob = createExcelFile(formattedData, headers, 'ProdutosNaoMapeadosUnidades');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'produtos_nao_mapeados_unidades.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Produtos sem mapeamento de unidade interna exportados com sucesso!');
   };
 
 
@@ -162,33 +182,26 @@ const ProdutosNaoMapeados: React.FC = () => {
                 <CardDescription>
                   Itens comprados que ainda não possuem uma conversão para uma unidade interna.
                 </CardDescription>
+                <Button onClick={handleExportUnmappedUnitsToExcel} className="mt-4">
+                  Exportar para Excel
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Cód. Produto Fornecedor</TableHead>
-                        <TableHead>Descrição do Produto</TableHead>
+                        <TableHead>Cód. Fornecedor</TableHead>
+                        <TableHead>Nome Fornecedor</TableHead>
                         <TableHead>Unidade Fornecedor</TableHead>
-                        <TableHead className="text-right">Qtd. Total Comprada</TableHead>
-                        <TableHead className="text-right">Valor Total Gasto</TableHead>
-                        <TableHead className="text-right">Valor Unitário Médio</TableHead>
-                        <TableHead>Última Compra</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {unmappedUnitProducts.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                          <TableCell>{item.c_prod}</TableCell>
-                          <TableCell>{item.descricao_do_produto}</TableCell>
+                          <TableCell className="font-medium">{item.c_prod}</TableCell>
+                          <TableCell>{item.supplier_name}</TableCell>
                           <TableCell>{item.supplier_unit}</TableCell>
-                          <TableCell className="text-right">{item.total_quantity_purchased.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">R$ {item.total_value_purchased.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">R$ {item.average_unit_value.toFixed(2)}</TableCell>
-                          <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
