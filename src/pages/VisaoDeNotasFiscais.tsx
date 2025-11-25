@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFilter } from '@/contexts/FilterContext';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
 
@@ -18,8 +17,6 @@ interface InvoiceSummary {
 }
 
 const VisaoDeNotasFiscais: React.FC = () => {
-  const { filters } = useFilter();
-  const { selectedSupplier } = filters;
   const { user } = useSession(); // Obter o usuário da sessão
 
   const fetchInvoiceSummary = async (): Promise<InvoiceSummary[]> => {
@@ -32,10 +29,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
       .from('invoice_summary')
       .select('*');
 
-    if (selectedSupplier) {
-      query = query.eq('supplier_name', selectedSupplier);
-    }
-    // A view já filtra por user_id, então não precisamos adicionar aqui novamente
+    // Removido o filtro por selectedSupplier
     query = query.order('invoice_date', { ascending: false });
 
     const { data, error } = await query;
@@ -50,7 +44,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
   };
 
   const { data: invoices, isLoading, isError, error } = useQuery<InvoiceSummary[], Error>({
-    queryKey: ['invoice_summary', user?.id, selectedSupplier], // Inclui user.id na chave da query
+    queryKey: ['invoice_summary', user?.id], // Removido selectedSupplier da chave da query
     queryFn: fetchInvoiceSummary,
     enabled: !!user?.id, // A query só será executada se houver um user.id
     staleTime: 1000 * 60 * 5,
@@ -89,13 +83,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
         Visualize um resumo das notas fiscais carregadas, incluindo o fornecedor, data de emissão e valor total.
       </p>
 
-      {selectedSupplier && (
-        <div className="mb-4">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
-          </span>
-        </div>
-      )}
+      {/* Removido o display do filtro de fornecedor */}
 
       {invoices && invoices.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">

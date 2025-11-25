@@ -3,11 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { createExcelFile } from '@/utils/excel';
-import { useFilter } from '@/contexts/FilterContext';
 import { useQuery } from '@tanstack/react-query'; // Import useQuery
 import { useSession } from '@/components/SessionContextProvider'; // Import useSession
 
@@ -29,13 +26,11 @@ interface UnmappedUnitConversionSummary {
 }
 
 const ProdutosNaoMapeados: React.FC = () => {
-  const { filters } = useFilter();
-  const { selectedSupplier } = filters;
   const { user } = useSession(); // Obter o usuário da sessão
 
   // Fetch unmapped name products
   const { data: unmappedNameProducts, isLoading: isLoadingNames, isError: isErrorNames, error: errorNames } = useQuery<UnmappedProductNameSummary[], Error>({
-    queryKey: ['unmapped_purchased_products_summary', user?.id, selectedSupplier],
+    queryKey: ['unmapped_purchased_products_summary', user?.id], // Removido selectedSupplier da chave
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -43,9 +38,7 @@ const ProdutosNaoMapeados: React.FC = () => {
         .select('*')
         .eq('user_id', user.id); // Filtra por user_id
 
-      if (selectedSupplier) {
-        query = query.eq('supplier_name', selectedSupplier);
-      }
+      // Removido o filtro por selectedSupplier
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -56,7 +49,7 @@ const ProdutosNaoMapeados: React.FC = () => {
 
   // Fetch unmapped unit conversion products
   const { data: unmappedUnitProducts, isLoading: isLoadingUnits, isError: isErrorUnits, error: errorUnits } = useQuery<UnmappedUnitConversionSummary[], Error>({
-    queryKey: ['unmapped_unit_conversions_summary', user?.id, selectedSupplier],
+    queryKey: ['unmapped_unit_conversions_summary', user?.id], // Removido selectedSupplier da chave
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -64,9 +57,7 @@ const ProdutosNaoMapeados: React.FC = () => {
         .select('*')
         .eq('user_id', user.id); // Filtra por user_id
 
-      if (selectedSupplier) {
-        query = query.eq('supplier_name', selectedSupplier);
-      }
+      // Removido o filtro por selectedSupplier
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -166,13 +157,7 @@ const ProdutosNaoMapeados: React.FC = () => {
         Considere mapeá-los na página "Carga de Dados" (aba Conversões) para uma análise mais consistente.
       </p>
 
-      {selectedSupplier && (
-        <div className="mb-4">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
-          </span>
-        </div>
-      )}
+      {/* Removido o display do filtro de fornecedor */}
 
       {!hasUnmappedData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
