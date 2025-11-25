@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Adicionado aqui!
 
 // Interface para os itens comprados diretamente do Supabase
 interface PurchasedItem {
@@ -167,7 +168,7 @@ const CargaDeDados: React.FC = () => {
 
         const { error } = await supabase
           .from('purchased_items')
-          .upsert(formattedData, { onConflict: 'user_id, invoice_id, item_sequence_number', ignoreDuplicates: true }); // ATUALIZADO AQUI!
+          .upsert(formattedData, { onConflict: 'user_id, invoice_id, item_sequence_number', ignoreDuplicates: true });
 
         if (error) {
           console.error(`Supabase upsert error for "${file.name}" (XML):`, error);
