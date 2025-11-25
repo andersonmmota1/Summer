@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { cn } from '@/lib/utils';
+import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
+import { useSession } from '@/components/SessionContextProvider';
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -23,31 +25,52 @@ interface InternalProductUsage {
 }
 
 const Estoque: React.FC = () => {
+  const { user } = useSession();
+  const { filters } = useFilter(); // Usar o contexto de filtro
+  const { selectedProduct } = filters; // Obter selectedProduct
   const [stockData, setStockData] = useState<CurrentStockSummary[]>([]);
   const [internalProductUsage, setInternalProductUsage] = useState<InternalProductUsage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openRows, setOpenRows] = useState<Record<string, boolean>>({}); // Novo estado para controlar linhas abertas
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    fetchStockData();
-  }, []);
+    if (user?.id) {
+      fetchStockData();
+    } else {
+      setLoading(false);
+    }
+  }, [user?.id, selectedProduct]); // Adicionar selectedProduct às dependências
 
   const fetchStockData = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando dados de estoque...');
     try {
-      const { data: stockResult, error: stockError } = await supabase
+      let stockQuery = supabase
         .from('current_stock_summary')
         .select('*')
+        .eq('user_id', user?.id) // Filtrar por user_id
         .order('internal_product_name', { ascending: true });
+
+      if (selectedProduct) {
+        stockQuery = stockQuery.eq('internal_product_name', selectedProduct);
+      }
+
+      const { data: stockResult, error: stockError } = await stockQuery;
 
       if (stockError) throw stockError;
       setStockData(stockResult || []);
 
-      const { data: usageResult, error: usageError } = await supabase
+      let usageQuery = supabase
         .from('internal_product_usage')
         .select('*')
+        .eq('user_id', user?.id) // Filtrar por user_id
         .order('internal_product_name', { ascending: true });
+
+      if (selectedProduct) {
+        usageQuery = usageQuery.eq('internal_product_name', selectedProduct);
+      }
+
+      const { data: usageResult, error: usageError } = await usageQuery;
 
       if (usageError) throw usageError;
       setInternalProductUsage(usageResult || []);
@@ -72,7 +95,6 @@ const Estoque: React.FC = () => {
     }, {} as Record<string, InternalProductUsage[]>);
   }, [internalProductUsage]);
 
-  // Função para alternar o estado de abertura de uma linha
   const handleToggleRow = (productName: string) => {
     setOpenRows(prev => ({
       ...prev,
@@ -80,7 +102,6 @@ const Estoque: React.FC = () => {
     }));
   };
 
-  // Calcular o valor total do estoque
   const totalStockValue = useMemo(() => {
     return stockData.reduce((sum, item) => sum + item.total_purchased_value, 0);
   }, [stockData]);
@@ -104,6 +125,14 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
+      {selectedProduct && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
+          </span>
+        </div>
+      )}
+
       {stockData.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de estoque encontrado.</p>
@@ -114,7 +143,6 @@ const Estoque: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Novo Card para o Somatório do Valor Total de Estoque */}
           <Card>
             <CardHeader>
               <CardTitle>Valor Total do Estoque</CardTitle>

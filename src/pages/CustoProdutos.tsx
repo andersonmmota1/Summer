@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
+import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
 
 interface SoldProductCost {
   sold_product_name: string;
@@ -24,6 +25,8 @@ interface SoldProductRecipeDetail {
 
 const CustoProdutos: React.FC = () => {
   const { user } = useSession();
+  const { filters } = useFilter(); // Usar o contexto de filtro
+  const { selectedProduct } = filters; // Obter selectedProduct
   const [soldProductCosts, setSoldProductCosts] = useState<SoldProductCost[]>([]);
   const [recipeDetails, setRecipeDetails] = useState<SoldProductRecipeDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,13 +38,15 @@ const CustoProdutos: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, selectedProduct]); // Adicionar selectedProduct às dependências
 
   const fetchProductCostsAndRecipes = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Calculando custo dos produtos vendidos e carregando fichas técnicas...');
     try {
       // Fetch aggregated sold product costs
+      // Este card agrega por sold_product_name, então filtrar por internal_product_name é complexo aqui.
+      // Por enquanto, vamos manter este card sem filtro direto por selectedProduct.
       const { data: costsData, error: costsError } = await supabase
         .from('sold_product_cost')
         .select('*')
@@ -52,12 +57,18 @@ const CustoProdutos: React.FC = () => {
       setSoldProductCosts(costsData || []);
 
       // Fetch detailed recipe components with costs
-      const { data: detailsData, error: detailsError } = await supabase
+      let detailsQuery = supabase
         .from('sold_product_recipe_details')
         .select('*')
         .eq('user_id', user?.id)
         .order('sold_product_name', { ascending: true })
         .order('internal_product_name', { ascending: true });
+
+      if (selectedProduct) {
+        detailsQuery = detailsQuery.eq('internal_product_name', selectedProduct); // Filtrar por nome interno do produto
+      }
+
+      const { data: detailsData, error: detailsError } = await detailsQuery;
 
       if (detailsError) throw detailsError;
       setRecipeDetails(detailsData || []);
@@ -107,9 +118,17 @@ const CustoProdutos: React.FC = () => {
         Expanda cada produto para ver os detalhes da sua ficha técnica e o custo individual de cada componente.
       </p>
 
-      {soldProductCosts.length === 0 ? (
+      {selectedProduct && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Produto Interno: <span className="font-bold text-primary">{selectedProduct}</span>
+          </span>
+        </div>
+      )}
+
+      {soldProductCosts.length === 0 && recipeDetails.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhum custo de produto vendido encontrado.</p>
+          <p className="text-lg">Nenhum custo de produto vendido ou detalhe de ficha técnica encontrado.</p>
           <p className="text-sm mt-2">
             Certifique-se de ter carregado dados de compras, vendas, fichas técnicas e conversões de unidades nas páginas "Carga de Dados" e "Mapeamento de Produtos".
           </p>

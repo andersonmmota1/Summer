@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO } from 'date-fns'; // Importar parseISO
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,19 +11,20 @@ import { ArrowUpDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createExcelFile } from '@/utils/excel';
 import { useSession } from '@/components/SessionContextProvider';
+import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
 
 interface SoldItemDetailed {
   id: string;
   user_id: string;
-  sale_date: string; // Agora será uma string 'YYYY-MM-DD'
+  sale_date: string;
   group_name: string | null;
   subgroup_name: string | null;
   additional_code: string | null;
-  base_product_name: string | null; // 'Produto' do Excel
-  product_name: string; // 'Produto' do Excel, usado como nome principal
+  base_product_name: string | null;
+  product_name: string;
   quantity_sold: number;
   unit_price: number;
-  total_value_sold: number | null; // Pode ser null se não houver dados antigos
+  total_value_sold: number | null;
   created_at: string;
 }
 
@@ -34,10 +35,21 @@ interface SortConfig {
 
 const AnaliseDeProdutosVendidos: React.FC = () => {
   const { user } = useSession();
+  const { filters } = useFilter(); // Usar o contexto de filtro
+  const { selectedProduct } = filters; // Obter selectedProduct
   const [allSoldItems, setAllSoldItems] = useState<SoldItemDetailed[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sale_date', direction: 'desc' });
+
+  // Sincronizar searchTerm com selectedProduct do contexto
+  useEffect(() => {
+    if (selectedProduct) {
+      setSearchTerm(selectedProduct);
+    } else {
+      setSearchTerm(''); // Limpa o termo de busca se o filtro de produto for removido
+    }
+  }, [selectedProduct]);
 
   useEffect(() => {
     if (user?.id) {
@@ -90,8 +102,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         (item.subgroup_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
-        (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) || // Usar optional chaining
-        format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm) // Ajustado para parseISO
+        (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) ||
+        format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
       );
     }
 
@@ -101,13 +113,11 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         const aValue = a[sortConfig.key!];
         const bValue = b[sortConfig.key!];
 
-        // Handle null/undefined values for sorting
         if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
         if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           if (sortConfig.key === 'sale_date') {
-            // Comparar strings YYYY-MM-DD diretamente funciona para ordenação cronológica
             if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
@@ -148,7 +158,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     ];
 
     const formattedData = filteredAndSortedData.map(item => ({
-      'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }), // Ajustado para parseISO
+      'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
       'Grupo': item.group_name || '',
       'Subgrupo': item.subgroup_name || '',
       'Codigo': item.additional_code || '',
@@ -185,6 +195,14 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Visualize informações detalhadas sobre os produtos que foram vendidos.
       </p>
+
+      {selectedProduct && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
+          </span>
+        </div>
+      )}
 
       {allSoldItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">

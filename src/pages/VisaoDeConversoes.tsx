@@ -8,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 import { useFilter } from '@/contexts/FilterContext';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
-import { Input } from '@/components/ui/input'; // Importar o componente Input
+import { Input } from '@/components/ui/input';
 
 interface ConvertedUnitSummary {
   user_id: string;
@@ -28,12 +28,12 @@ interface ConvertedUnitSummary {
 
 const VisaoDeConversoes: React.FC = () => {
   const { filters } = useFilter();
-  const { selectedSupplier } = filters;
+  const { selectedSupplier, selectedProduct } = filters; // Obter selectedProduct
   const { user } = useSession();
-  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
-    queryKey: ['converted_units_summary', user?.id, selectedSupplier],
+    queryKey: ['converted_units_summary', user?.id, selectedSupplier, selectedProduct], // Adicionar selectedProduct à chave
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -43,6 +43,9 @@ const VisaoDeConversoes: React.FC = () => {
 
       if (selectedSupplier) {
         query = query.eq('supplier_name', selectedSupplier);
+      }
+      if (selectedProduct) {
+        query = query.eq('product_display_name', selectedProduct); // Filtrar por nome interno do produto
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -63,7 +66,6 @@ const VisaoDeConversoes: React.FC = () => {
     return convertedData?.reduce((sum, item) => sum + item.total_converted_quantity, 0) || 0;
   }, [convertedData]);
 
-  // Lógica de filtragem
   const filteredConvertedData = useMemo(() => {
     if (!convertedData) return [];
     if (!searchTerm) return convertedData;
@@ -105,10 +107,12 @@ const VisaoDeConversoes: React.FC = () => {
         visualizando as quantidades originais e as quantidades convertidas para suas unidades internas.
       </p>
 
-      {selectedSupplier && (
+      {(selectedSupplier || selectedProduct) && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
+            Filtros Ativos:
+            {selectedSupplier && <span className="ml-2 font-bold text-primary">Fornecedor: {selectedSupplier}</span>}
+            {selectedProduct && <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>}
           </span>
         </div>
       )}

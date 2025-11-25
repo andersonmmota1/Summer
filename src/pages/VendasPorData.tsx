@@ -10,9 +10,10 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
 
 interface SoldItemRaw {
-  id: string; // Necessário para chaves únicas na tabela de itens individuais
+  id: string;
   sale_date: string;
   product_name: string;
   quantity_sold: number;
@@ -32,8 +33,16 @@ interface SalesByDateAggregated {
 
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
+  const { filters } = useFilter(); // Usar o contexto de filtro
+  const { selectedProduct: globalSelectedProduct } = filters; // Obter selectedProduct do contexto
+
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
-  const [selectedProductFilter, setSelectedProductFilter] = useState<string | null>(null);
+  const [selectedProductFilter, setSelectedProductFilter] = useState<string | null>(globalSelectedProduct); // Inicializa com o filtro global
+
+  // Sincronizar selectedProductFilter com globalSelectedProduct
+  useEffect(() => {
+    setSelectedProductFilter(globalSelectedProduct);
+  }, [globalSelectedProduct]);
 
   const fetchAllSoldItems = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
@@ -42,7 +51,7 @@ const VendasPorData: React.FC = () => {
 
     let allData: SoldItemRaw[] = [];
     let offset = 0;
-    const limit = 1000; // Buscar em chunks de 1000
+    const limit = 1000;
     let hasMore = true;
 
     while (hasMore) {
@@ -62,9 +71,9 @@ const VendasPorData: React.FC = () => {
       if (data && data.length > 0) {
         allData = allData.concat(data);
         offset += data.length;
-        hasMore = data.length === limit; // Se o número de itens retornados for menor que o limite, não há mais dados
+        hasMore = data.length === limit;
       } else {
-        hasMore = false; // Não há mais dados
+        hasMore = false;
       }
     }
     return allData;
@@ -81,7 +90,6 @@ const VendasPorData: React.FC = () => {
     },
   });
 
-  // Vendas agregadas por data, filtradas por selectedProductFilter
   const aggregatedSalesByDate = useMemo(() => {
     if (!rawSoldItems) return [];
 
@@ -111,7 +119,6 @@ const VendasPorData: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems, selectedProductFilter]);
 
-  // Itens vendidos individualmente, filtrados por selectedDateFilter e selectedProductFilter
   const individualSoldItems = useMemo(() => {
     if (!rawSoldItems) return [];
 
@@ -129,12 +136,12 @@ const VendasPorData: React.FC = () => {
 
   const handleDateClick = (date: string) => {
     setSelectedDateFilter(prev => (prev === date ? null : date));
-    setSelectedProductFilter(null); // Limpa o filtro de produto ao selecionar uma data
+    // Não limpa o filtro de produto ao selecionar uma data, para permitir filtros combinados
   };
 
   const handleProductClick = (productName: string) => {
     setSelectedProductFilter(prev => (prev === productName ? null : productName));
-    setSelectedDateFilter(null); // Limpa o filtro de data ao selecionar um produto
+    // Não limpa o filtro de data ao selecionar um produto, para permitir filtros combinados
   };
 
   const clearAllFilters = () => {

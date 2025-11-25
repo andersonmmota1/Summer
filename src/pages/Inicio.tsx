@@ -4,9 +4,11 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
 
 interface SoldItemRaw {
   sale_date: string;
+  product_name: string; // Adicionado para filtrar
   quantity_sold: number;
   total_value_sold: number | null;
 }
@@ -15,12 +17,13 @@ interface SalesByDate {
   sale_date: string;
   total_quantity_sold: number;
   total_value_sold: number;
-  itemCount: number; // Adicionado para armazenar a contagem de itens por data
+  itemCount: number;
 }
 
 const Inicio: React.FC = () => {
   const { user } = useSession();
-  const problematicDate = '2025-11-01'; // Data problemática para depuração
+  const { filters } = useFilter(); // Usar o contexto de filtro
+  const { selectedProduct } = filters; // Obter selectedProduct
 
   const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
@@ -29,16 +32,22 @@ const Inicio: React.FC = () => {
 
     let allData: SoldItemRaw[] = [];
     let offset = 0;
-    const limit = 1000; // Buscar em chunks de 1000
+    const limit = 1000;
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
+      let query = supabase
         .from('sold_items')
-        .select('sale_date, quantity_sold, total_value_sold')
-        .eq('user_id', user.id)
+        .select('sale_date, product_name, quantity_sold, total_value_sold') // Selecionar product_name
+        .eq('user_id', user.id);
+
+      if (selectedProduct) {
+        query = query.eq('product_name', selectedProduct); // Filtrar por product_name
+      }
+
+      const { data, error } = await query
         .order('sale_date', { ascending: false })
-        .range(offset, offset + limit - 1); // Buscar do offset até offset + limit - 1
+        .range(offset, offset + limit - 1);
 
       if (error) {
         console.error('Inicio: Erro ao carregar todos os itens vendidos (paginação):', error);
@@ -48,10 +57,10 @@ const Inicio: React.FC = () => {
 
       if (data && data.length > 0) {
         allData = allData.concat(data);
-        offset += data.length; // Aumenta o offset pelo número de itens realmente retornados
-        hasMore = data.length === limit; // Se o número de itens retornados for menor que o limite, há mais dados para buscar
+        offset += data.length;
+        hasMore = data.length === limit;
       } else {
-        hasMore = false; // Não há mais dados
+        hasMore = false;
       }
     }
     
@@ -60,7 +69,7 @@ const Inicio: React.FC = () => {
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_raw', user?.id],
+    queryKey: ['all_sold_items_raw', user?.id, selectedProduct], // Adicionar selectedProduct à chave
     queryFn: fetchAllSoldItemsRaw,
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
@@ -77,20 +86,11 @@ const Inicio: React.FC = () => {
     if (!rawSoldItems) return [];
 
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
-    let debugSumProblematicDate = 0;
-    let debugCountProblematicDate = 0;
-
+    
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
       const itemTotalValue = item.total_value_sold ?? 0;
       
-      if (dateKey === problematicDate) {
-        console.log(`Inicio: Item for ${problematicDate} - received number: ${itemTotalValue}`);
-        debugSumProblematicDate += itemTotalValue;
-        debugCountProblematicDate++;
-        console.log(`Inicio: Running sum for ${problematicDate}: ${debugSumProblematicDate}, Running count: ${debugCountProblematicDate}`);
-      }
-
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
@@ -99,13 +99,6 @@ const Inicio: React.FC = () => {
       aggregatedData[dateKey].itemCount++;
     });
 
-    if (aggregatedData[problematicDate]) {
-      console.log(`Inicio: Final aggregated total_value_sold for ${problematicDate} (client-side): ${aggregatedData[problematicDate].total_value_sold}`);
-      console.log(`Inicio: Final aggregated item count for ${problematicDate} (client-side): ${aggregatedData[problematicDate].itemCount}`);
-    } else {
-      console.log(`Inicio: No aggregated data found for ${problematicDate}.`);
-    }
-
     return Object.keys(aggregatedData).map(dateKey => ({
       sale_date: dateKey,
       total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
@@ -113,26 +106,6 @@ const Inicio: React.FC = () => {
       itemCount: aggregatedData[dateKey].itemCount,
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
-
-  // Novo useEffect para buscar a contagem diretamente do Supabase para a data problemática
-  useEffect(() => {
-    const checkSupabaseCount = async () => {
-      if (!user?.id) return;
-      
-      const { count, error } = await supabase
-        .from('sold_items')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('sale_date', problematicDate);
-
-      if (error) {
-        console.error(`Inicio: Erro ao buscar contagem de itens para ${problematicDate} no Supabase:`, error);
-      } else {
-        console.log(`Inicio: Total items for ${problematicDate} directly from Supabase (count query): ${count}`);
-      }
-    };
-    checkSupabaseCount();
-  }, [user?.id, problematicDate]); // Dependência de user.id e problematicDate
 
   const totalQuantitySoldSum = useMemo(() => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
@@ -150,6 +123,14 @@ const Inicio: React.FC = () => {
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Use a navegação acima para explorar as diferentes seções da gestão do seu restaurante.
       </p>
+
+      {selectedProduct && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
+          </span>
+        </div>
+      )}
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface FilterState {
   selectedSupplier: string | null;
-  // Adicione outros filtros globais aqui conforme necessário
+  selectedProduct: string | null; // Novo filtro para o nome do produto interno
 }
 
 interface FilterContextType {
@@ -18,6 +18,7 @@ const FilterContext = createContext<FilterContextType | undefined>(undefined);
 export const FilterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [filters, setFilters] = useState<FilterState>({
     selectedSupplier: null,
+    selectedProduct: null, // Inicializa como nulo
   });
 
   const setFilter = (newFilters: Partial<FilterState>) => {
@@ -27,6 +28,7 @@ export const FilterProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const clearFilters = () => {
     setFilters({
       selectedSupplier: null,
+      selectedProduct: null, // Limpa também o filtro de produto
     });
   };
 

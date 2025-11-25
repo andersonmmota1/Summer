@@ -10,8 +10,8 @@ import { XCircle } from 'lucide-react';
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { filters, clearFilters } = useFilter();
-  const { selectedSupplier } = filters;
+  const { filters, clearFilters, setFilter } = useFilter(); // Adicionado setFilter
+  const { selectedSupplier, selectedProduct } = filters; // Desestruturado selectedProduct
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
@@ -21,7 +21,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Visão de Notas Fiscais', path: '/visao-de-notas-fiscais' },
     { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
-    { name: 'Vendas por Data', path: '/vendas-por-data' }, // Nova entrada no menu
+    { name: 'Vendas por Data', path: '/vendas-por-data' }, 
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
     { name: 'Visão de Conversões', path: '/visao-de-conversoes' },
     { name: 'Custo de Produtos', path: '/custo-produtos' },
@@ -37,6 +37,10 @@ const DashboardShell: React.FC = () => {
     }
   };
 
+  const handleClearProductFilter = () => {
+    setFilter({ selectedProduct: null });
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       {/* Barra Lateral */}
@@ -50,17 +54,30 @@ const DashboardShell: React.FC = () => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Gestão de Restaurante
             </h1>
-            {selectedSupplier && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Filtrando: <span className="font-semibold">{selectedSupplier}</span>
-                </span>
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-1">
-                  <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="sr-only">Limpar filtro</span>
-                </Button>
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {selectedSupplier && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Fornecedor: <span className="font-semibold">{selectedSupplier}</span>
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-1">
+                    <XCircle className="h-4 w-4 text-red-500" />
+                    <span className="sr-only">Limpar filtro de fornecedor</span>
+                  </Button>
+                </div>
+              )}
+              {selectedProduct && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Produto: <span className="font-semibold">{selectedProduct}</span>
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={handleClearProductFilter} className="h-auto p-1">
+                    <XCircle className="h-4 w-4 text-red-500" />
+                    <span className="sr-only">Limpar filtro de produto</span>
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
