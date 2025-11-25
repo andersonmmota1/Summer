@@ -4,25 +4,12 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// Removendo imports não utilizados para manter o código limpo
-// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-// import { format, parseISO } from 'date-fns';
-// import { ptBR } from 'date-fns/locale';
-// import { Button } from '@/components/ui/button';
-// import {
-//   Dialog,
-//   DialogContent,
-//   DialogDescription,
-//   DialogHeader,
-//   DialogTitle,
-//   DialogTrigger,
-// } from "@/components/ui/dialog";
-// import { ScrollArea } from '@/components/ui/scroll-area';
+import { parseBrazilianFloat } from '@/lib/utils'; // Importar a função de parsing
 
-interface SoldItemRaw { // Nova interface para dados brutos do Supabase
+interface SoldItemRaw {
   sale_date: string;
   quantity_sold: number;
-  total_value_sold: number | null;
+  total_value_sold: string | null; // Alterado para string
 }
 
 interface SalesByDate {
@@ -40,9 +27,9 @@ const Inicio: React.FC = () => {
     }
     const { data, error } = await supabase
       .from('sold_items')
-      .select('sale_date, quantity_sold, total_value_sold')
+      .select('sale_date, quantity_sold, total_value_sold::text') // Cast para text aqui
       .eq('user_id', user.id)
-      .order('sale_date', { ascending: false }); // Ainda ordena para consistência, mas a agregação é no cliente
+      .order('sale_date', { ascending: false });
 
     if (error) {
       console.error('Erro ao carregar todos os itens vendidos:', error);
@@ -53,7 +40,7 @@ const Inicio: React.FC = () => {
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_raw', user?.id], // Nova chave de query para dados brutos
+    queryKey: ['all_sold_items_raw', user?.id],
     queryFn: fetchAllSoldItemsRaw,
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
@@ -73,11 +60,13 @@ const Inicio: React.FC = () => {
 
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
+      const parsedTotalValue = item.total_value_sold ? parseBrazilianFloat(item.total_value_sold) : 0; // Usar parseBrazilianFloat
+      
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
-      aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0);
+      aggregatedData[dateKey].total_value_sold += parsedTotalValue;
     });
 
     return Object.keys(aggregatedData).map(dateKey => ({
@@ -87,7 +76,6 @@ const Inicio: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
 
-  // Calcula o somatório total da quantidade e valor vendidos
   const totalQuantitySoldSum = useMemo(() => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
   }, [salesByDate]);
@@ -105,7 +93,7 @@ const Inicio: React.FC = () => {
         Use a navegação acima para explorar as diferentes seções da gestão do seu restaurante.
       </p>
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Adicionado grid para os cards */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
@@ -130,7 +118,6 @@ const Inicio: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Novo Card para o Valor Total Vendido */}
         <Card>
           <CardHeader>
             <CardTitle>Valor Total Vendido</CardTitle>
