@@ -24,7 +24,7 @@ import { ptBR } from 'date-fns/locale';
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
-  const [selectedExcelFile, setSelectedExcelFile] = useState<File | null>(null);
+  // Removido: [selectedExcelFile, setSelectedExcelFile]
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
@@ -32,20 +32,14 @@ const CargaDeDados: React.FC = () => {
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
 
-  const purchasedItemsTemplateHeaders = ['ns1:cProd', 'ns1:xProd', 'ns1:uCom', 'ns1:qCom', 'ns1:vUnCom'];
+  // Removido: purchasedItemsTemplateHeaders
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
 
 
-  const handleExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      setSelectedExcelFile(event.target.files[0]);
-    } else {
-      setSelectedExcelFile(null);
-    }
-  };
+  // Removido: handleExcelFileChange
 
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -87,49 +81,7 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
-  const handleUploadExcel = async () => {
-    if (!selectedExcelFile) {
-      showError('Por favor, selecione um arquivo Excel para carregar.');
-      return;
-    }
-
-    const loadingToastId = showLoading('Carregando dados do Excel...');
-
-    try {
-      const data = await readExcelFile(selectedExcelFile);
-
-      if (!data || data.length === 0) {
-        showError('O arquivo Excel está vazio ou não contém dados válidos.');
-        dismissToast(loadingToastId);
-        return;
-      }
-
-      const formattedData = data.map((row: any) => ({
-        c_prod: String(row['ns1:cProd']),
-        descricao_do_produto: String(row['ns1:xProd']),
-        u_com: String(row['ns1:uCom']),
-        q_com: parseFloat(row['ns1:qCom']),
-        v_un_com: parseFloat(row['ns1:vUnCom']),
-      }));
-
-      const { error } = await supabase
-        .from('purchased_items')
-        .insert(formattedData);
-
-      if (error) {
-        console.error('Erro detalhado do Supabase (Excel):', error);
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Dados de ${formattedData.length} itens comprados do Excel carregados com sucesso!`);
-      setSelectedExcelFile(null);
-    } catch (error: any) {
-      console.error('Erro ao carregar dados do Excel:', error);
-      showError(`Erro ao carregar dados do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
-    } finally {
-      dismissToast(loadingToastId);
-    }
-  };
+  // Removido: handleUploadExcel
 
   const handleUploadXml = async () => {
     if (selectedXmlFiles.length === 0) {
@@ -420,18 +372,7 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
-  const handleDownloadPurchasedItemsTemplate = () => {
-    const blob = createEmptyExcelTemplate(purchasedItemsTemplateHeaders, 'Template_ItensComprados');
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_itens_comprados.xlsx';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showSuccess('Template de itens comprados baixado com sucesso!');
-  };
+  // Removido: handleDownloadPurchasedItemsTemplate
 
   const handleDownloadSoldItemsTemplate = () => {
     const blob = createEmptyExcelTemplate(soldItemsTemplateHeaders, 'Template_ProdutosVendidos');
@@ -644,8 +585,8 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'ficha_tecnica_detalhada.xlsx';
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    a.click();
+    document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
     } catch (error: any) {
@@ -893,42 +834,16 @@ const CargaDeDados: React.FC = () => {
         Gerencie a importação e exportação de dados para o sistema através de arquivos Excel ou XML.
       </p>
 
-      <Tabs defaultValue="excel-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger>
+      <Tabs defaultValue="xml-purchased" className="w-full"> {/* Default value changed */}
+        <TabsList className="grid w-full grid-cols-4"> {/* Changed from grid-cols-5 to grid-cols-4 */}
+          {/* Removido: <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger> */}
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
           <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="excel-purchased" className="mt-4">
-          <div className="space-y-4">
-            <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (Excel)</h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de um arquivo Excel (.xlsx) contendo os itens comprados.
-              O arquivo deve conter as colunas: <code>ns1:cProd</code>, <code>ns1:xProd</code> (Descrição do Produto), <code>ns1:uCom</code>, <code>ns1:qCom</code>, <code>ns1:vUnCom</code>.
-              Atualmente, cada linha do Excel será inserida como um novo registro.
-            </p>
-
-            <div className="flex items-center space-x-2">
-              <Input
-                id="excel-file-upload"
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleExcelFileChange}
-                className="flex-grow"
-              />
-              <Button onClick={handleUploadExcel} disabled={!selectedExcelFile}>
-                Carregar Excel
-              </Button>
-            </div>
-
-            <Button variant="outline" onClick={handleDownloadPurchasedItemsTemplate}>
-              Baixar Template de Itens Comprados (Excel)
-            </Button>
-          </div>
-        </TabsContent>
+        {/* Removido: TabsContent para excel-purchased */}
 
         <TabsContent value="xml-purchased" className="mt-4">
           <div className="space-y-4">

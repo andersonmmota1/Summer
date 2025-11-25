@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +79,11 @@ const AnaliseDeFornecedor: React.FC = () => {
     }
   };
 
+  // Calcular o valor total gasto por fornecedor
+  const totalValueSpentBySupplier = useMemo(() => {
+    return totalBySupplier.reduce((sum, item) => sum + item.total_value_spent, 0);
+  }, [totalBySupplier]);
+
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -113,6 +118,9 @@ const AnaliseDeFornecedor: React.FC = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                  Total Geral: R$ {totalValueSpentBySupplier.toFixed(2)}
+                </p>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
