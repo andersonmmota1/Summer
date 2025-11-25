@@ -79,11 +79,24 @@ const AnaliseDeFornecedor: React.FC = () => {
       if (totalBySupplierError) throw totalBySupplierError;
       setTotalBySupplier(totalBySupplierResult || []);
 
-      // Busca total comprado por produto interno (mantido sem filtro direto por fornecedor)
-      const { data: totalByInternalProductResult, error: totalByInternalProductError } = await supabase
-        .from('total_purchased_by_internal_product')
-        .select('*')
-        .order('total_value_spent', { ascending: false });
+      // Busca total comprado por produto interno (agora com filtro condicional)
+      let totalByInternalProductQuery;
+      if (selectedSupplier) {
+        // Se houver um fornecedor selecionado, usa a nova view e filtra por ele
+        totalByInternalProductQuery = supabase
+          .from('total_purchased_by_internal_product_and_supplier')
+          .select('product_display_name, total_value_spent')
+          .eq('supplier_name', selectedSupplier)
+          .order('total_value_spent', { ascending: false });
+      } else {
+        // Caso contrário, usa a view original que agrega por produto interno sem filtro de fornecedor
+        totalByInternalProductQuery = supabase
+          .from('total_purchased_by_internal_product')
+          .select('*')
+          .order('total_value_spent', { ascending: false });
+      }
+
+      const { data: totalByInternalProductResult, error: totalByInternalProductError } = await totalByInternalProductQuery;
 
       if (totalByInternalProductError) throw totalByInternalProductError;
       setTotalByInternalProduct(totalByInternalProductResult || []);
