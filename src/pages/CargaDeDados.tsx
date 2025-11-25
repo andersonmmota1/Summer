@@ -115,6 +115,8 @@ const CargaDeDados: React.FC = () => {
           x_fant: row.x_fant,
         }));
 
+        console.log(`Dados formatados para upsert de "${file.name}":`, formattedData); // Log de depuração
+
         const { error } = await supabase
           .from('purchased_items')
           .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
@@ -551,8 +553,8 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'produtos_vendidos_detalhado.xlsx';
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    a.click();
+    document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} produtos vendidos detalhados baixados com sucesso!`);
     } catch (error: any) {
