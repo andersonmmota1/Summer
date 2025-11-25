@@ -213,6 +213,7 @@ const CargaDeDados: React.FC = () => {
     let totalItemsLoaded = 0;
     let hasError = false;
     const datesToProcess = new Set<string>(); // Para rastrear as datas únicas na carga
+    const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
 
     for (const file of selectedSoldItemsExcelFiles) {
       try {
@@ -226,7 +227,7 @@ const CargaDeDados: React.FC = () => {
         const month = dateMatch[2];
         const year = dateMatch[3];
         const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-        const fileSaleDate = parseISO(saleDateString); // Renomeado para evitar conflito
+        const fileSaleDate = parseISO(saleDateString);
 
         if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
@@ -236,9 +237,9 @@ const CargaDeDados: React.FC = () => {
         datesToProcess.add(format(fileSaleDate, 'yyyy-MM-dd'));
 
         // Lendo o arquivo Excel
-        const data = await readExcelFile(file); // <-- CORREÇÃO AQUI: 'data' agora é definida
+        const data = await readExcelFile(file);
 
-        const formattedData = data.map((row: any) => {
+        const fileFormattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
           const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
@@ -256,55 +257,77 @@ const CargaDeDados: React.FC = () => {
             total_value_sold: totalValue,
           };
         });
+        allFormattedData.push(...fileFormattedData); // Acumula dados de todos os arquivos
 
-        // --- Lógica de exclusão por data ---
-        for (const dateString of datesToProcess) {
-          // Primeiro, verifica se existem registros para esta data e usuário
-          const { count, error: countError } = await supabase
-            .from('sold_items')
-            .select('id', { count: 'exact' })
-            .eq('user_id', user.id)
-            .eq('sale_date', dateString);
-
-          if (countError) {
-            showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
-            hasError = true;
-            continue; // Pula a exclusão para esta data se não puder verificar
-          }
-
-          if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
-            const { error: deleteError } = await supabase
-              .from('sold_items')
-              .delete()
-              .eq('user_id', user.id)
-              .eq('sale_date', dateString);
-
-            if (deleteError) {
-              showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
-              hasError = true;
-            } else {
-              showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
-            }
-          }
-        }
-        // --- Fim da lógica de exclusão por data ---
-
-        const { error: insertError } = await supabase
-          .from('sold_items')
-          .insert(formattedData);
-
-        if (insertError) {
-          showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${insertError.message}`);
-          hasError = true;
-          continue;
-        }
-
-        totalItemsLoaded += formattedData.length;
-        showSuccess(`Dados de ${formattedData.length} produtos vendidos de "${file.name}" carregados com sucesso!`);
       } catch (error: any) {
         showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
         hasError = true;
       }
+    }
+
+    // Se houve erros durante a leitura dos arquivos, para a execução aqui.
+    if (hasError) {
+      dismissToast(loadingToastId);
+      showError('Carga de produtos vendidos concluída com alguns erros durante a leitura dos arquivos. Verifique as mensagens acima.');
+      setSelectedSoldItemsExcelFiles([]);
+      return;
+    }
+
+    // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
+    for (const dateString of datesToProcess) {
+      // Primeiro, verifica se existem registros para esta data e usuário
+      const { count, error: countError } = await supabase
+        .from('sold_items')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('sale_date', dateString);
+
+      if (countError) {
+        showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
+        hasError = true;
+        continue; // Pula a exclusão para esta data se não puder verificar
+      }
+
+      if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
+        const { error: deleteError } = await supabase
+          .from('sold_items')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('sale_date', dateString);
+
+        if (deleteError) {
+          showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+          hasError = true;
+        } else {
+          showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+        }
+      }
+    }
+    // --- Fim da lógica de exclusão por data ---
+
+    // Se houve erros durante a exclusão, para a execução aqui.
+    if (hasError) {
+      dismissToast(loadingToastId);
+      showError('Carga de produtos vendidos concluída com alguns erros durante a limpeza de dados. Verifique as mensagens acima.');
+      setSelectedSoldItemsExcelFiles([]);
+      return;
+    }
+
+    // Inserir todos os dados formatados de uma vez
+    if (allFormattedData.length > 0) {
+      const { error: insertError } = await supabase
+        .from('sold_items')
+        .insert(allFormattedData);
+
+      if (insertError) {
+        showError(`Erro ao carregar dados de produtos vendidos para o Supabase: ${insertError.message}`);
+        hasError = true;
+      } else {
+        totalItemsLoaded = allFormattedData.length;
+        showSuccess(`Total de ${totalItemsLoaded} produtos vendidos carregados com sucesso!`);
+      }
+    } else {
+      showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados.');
     }
 
     dismissToast(loadingToastId);
