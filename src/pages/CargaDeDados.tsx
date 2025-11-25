@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
-import { readXmlFile } from '@/utils/xml'; // Corrigido aqui: '=>' para 'from'
+import { readXmlFile } from '@/utils/xml';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1021,8 +1021,7 @@ const CargaDeDados: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
               A **data da venda será inferida do nome do arquivo** (ex: "DD.MM.YYYY.xlsx").
-              O arquivo Excel deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
-              Para cada data inferida do nome do arquivo, todos os produtos vendidos existentes para essa data serão **removidos** e substituídos pelos dados da carga.
+              Para cada data inferida do nome do arquivo, todos os produtos vendidos existentes para essa data no banco de dados serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação** que correspondem a essa data. Se você carregar um arquivo para uma data já existente, os dados anteriores para essa data serão perdidos e substituídos.
             </p>
 
             <div className="flex flex-col space-y-2">
