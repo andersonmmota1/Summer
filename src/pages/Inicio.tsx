@@ -1,46 +1,40 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ScrollArea } from '@/components/ui/scroll-area';
+// Removendo imports não utilizados para manter o código limpo
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+// import { format, parseISO } from 'date-fns';
+// import { ptBR } from 'date-fns/locale';
+// import { Button } from '@/components/ui/button';
+// import {
+//   Dialog,
+//   DialogContent,
+//   DialogDescription,
+//   DialogHeader,
+//   DialogTitle,
+//   DialogTrigger,
+// } from "@/components/ui/dialog";
+// import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface SalesByDate {
-  sale_date: string; // Agora será uma string 'YYYY-MM-DD'
-  total_quantity_sold: number;
-  total_value_sold: number;
+interface SoldItemRaw { // Nova interface para dados brutos do Supabase
+  sale_date: string;
+  quantity_sold: number;
+  total_value_sold: number | null;
 }
 
-interface SoldItemDetailed {
-  id: string;
+interface SalesByDate {
   sale_date: string;
-  group_name: string | null;
-  subgroup_name: string | null;
-  additional_code: string | null;
-  product_name: string;
-  quantity_sold: number;
-  unit_price: number;
-  total_value_sold: number | null;
-  created_at: string;
+  total_quantity_sold: number;
+  total_value_sold: number;
 }
 
 const Inicio: React.FC = () => {
   const { user } = useSession();
 
-  const fetchSalesByDate = async (): Promise<SalesByDate[]> => {
+  const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
       return [];
     }
@@ -48,59 +42,61 @@ const Inicio: React.FC = () => {
       .from('sold_items')
       .select('sale_date, quantity_sold, total_value_sold')
       .eq('user_id', user.id)
-      .order('sale_date', { ascending: false });
+      .order('sale_date', { ascending: false }); // Ainda ordena para consistência, mas a agregação é no cliente
 
     if (error) {
-      console.error('Erro ao carregar vendas por data:', error);
-      showError(`Erro ao carregar vendas por data: ${error.message}`);
+      console.error('Inicio: Erro ao carregar todos os itens vendidos:', error);
+      showError(`Erro ao carregar dados: ${error.message}`);
       throw error;
     }
+    console.log('Inicio: Raw data from Supabase (all items for user):', data);
+    return data || [];
+  };
 
-    // Adicionando logs para depuração
-    console.log('Inicio: Raw data from Supabase for sold_items:', data);
-    const problematicDateData = data?.filter(item => item.sale_date === '2025-11-01');
-    if (problematicDateData && problematicDateData.length > 0) {
-      const sumProblematicDate = problematicDateData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
-      console.log(`Inicio: Supabase data for 2025-11-01 (before client aggregation):`, problematicDateData);
-      console.log(`Inicio: Sum of total_value_sold for 2025-11-01 from Supabase (before client aggregation): ${sumProblematicDate}`);
-    }
+  const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
+    queryKey: ['all_sold_items_raw', user?.id], // Nova chave de query para dados brutos
+    queryFn: fetchAllSoldItemsRaw,
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onSuccess: () => {
+      // showSuccess('Dados brutos de vendas carregados com sucesso!');
+    },
+    onError: (err) => {
+      console.error('Inicio: Erro no React Query ao carregar dados brutos de vendas:', err);
+      showError(`Erro ao carregar dados brutos de vendas: ${err.message}`);
+    },
+  });
 
+  const salesByDate = useMemo(() => {
+    if (!rawSoldItems) return [];
 
-    // Agregação manual dos dados por data
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
 
-    data?.forEach(item => {
-      const dateKey = item.sale_date; // A data já vem como 'YYYY-MM-DD'
+    rawSoldItems.forEach(item => {
+      const dateKey = item.sale_date;
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
-      aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0); // Garante que null seja tratado como 0
+      aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0);
     });
 
-    // Converte o objeto agregado de volta para um array e ordena por data
-    const finalAggregatedArray = Object.keys(aggregatedData).map(dateKey => ({
+    const problematicDate = '2025-11-01';
+    const problematicDateRawItems = rawSoldItems.filter(item => item.sale_date === problematicDate);
+    if (problematicDateRawItems.length > 0) {
+      const sumProblematicDate = problematicDateRawItems.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+      console.log(`Inicio: Raw items for ${problematicDate} (from all fetched data):`, problematicDateRawItems);
+      console.log(`Inicio: Sum of total_value_sold for ${problematicDate} (from all fetched data, client-side): ${sumProblematicDate}`);
+    } else {
+      console.log(`Inicio: No raw items found for ${problematicDate} in the fetched data.`);
+    }
+
+    return Object.keys(aggregatedData).map(dateKey => ({
       sale_date: dateKey,
       total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
       total_value_sold: aggregatedData[dateKey].total_value_sold,
-    })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()); // Ordena do mais recente para o mais antigo
-
-    return finalAggregatedArray;
-  };
-
-  const { data: salesByDate, isLoading, isError, error } = useQuery<SalesByDate[], Error>({
-    queryKey: ['sales_by_date', user?.id], // A chave da query inclui o ID do usuário
-    queryFn: fetchSalesByDate,
-    enabled: !!user?.id, // A query só será executada se houver um user.id
-    staleTime: 1000 * 60 * 5, // Os dados são considerados "frescos" por 5 minutos
-    onSuccess: () => {
-      // showSuccess('Vendas por data carregadas com sucesso!'); // Comentado para evitar muitos toasts
-    },
-    onError: (err) => {
-      console.error('Erro no React Query ao carregar vendas por data:', err);
-      showError(`Erro ao carregar vendas por data: ${err.message}`);
-    },
-  });
+    })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
+  }, [rawSoldItems]);
 
   // Calcula o somatório total da quantidade e valor vendidos
   const totalQuantitySoldSum = useMemo(() => {
