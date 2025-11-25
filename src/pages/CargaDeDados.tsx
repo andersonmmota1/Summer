@@ -26,7 +26,7 @@ import { parseBrazilianFloat } from '@/lib/utils'; // Importar a nova função
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
+  const [selectedSoldItemsExcelFiles, setSelectedSoldItemsExcelFiles] = useState<File[]>([]); // Alterado para array
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
@@ -48,9 +48,9 @@ const CargaDeDados: React.FC = () => {
 
   const handleSoldItemsExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedSoldItemsExcelFile(event.target.files[0]);
+      setSelectedSoldItemsExcelFiles(Array.from(event.target.files)); // Alterado para array
     } else {
-      setSelectedSoldItemsExcelFile(null);
+      setSelectedSoldItemsExcelFiles([]);
     }
   };
 
@@ -140,8 +140,8 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleUploadSoldItemsExcel = async () => {
-    if (!selectedSoldItemsExcelFile) {
-      showError('Por favor, selecione um arquivo Excel para carregar produtos vendidos.');
+    if (selectedSoldItemsExcelFiles.length === 0) { // Alterado para array
+      showError('Por favor, selecione um ou mais arquivos Excel para carregar produtos vendidos.');
       return;
     }
     if (!user?.id) {
@@ -149,79 +149,92 @@ const CargaDeDados: React.FC = () => {
       return;
     }
 
-    const loadingToastId = showLoading('Carregando dados de produtos vendidos do Excel...');
+    const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`); // Alterado para array
+    let totalItemsLoaded = 0;
+    let hasError = false;
 
-    try {
-      const data = await readExcelFile(selectedSoldItemsExcelFile);
+    for (const file of selectedSoldItemsExcelFiles) { // Iterar sobre os arquivos
+      try {
+        const data = await readExcelFile(file);
 
-      if (!data || data.length === 0) {
-        showError('O arquivo Excel de produtos vendidos está vazio ou não contém dados válidos.');
-        dismissToast(loadingToastId);
-        return;
-      }
-
-      let fileDate: Date | null = null;
-      const fileName = selectedSoldItemsExcelFile.name;
-      // Regex para encontrar DD.MM.YYYY no nome do arquivo
-      const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-
-      if (dateMatch) {
-        const day = parseInt(dateMatch[1], 10);
-        const month = parseInt(dateMatch[2], 10) - 1; // Mês é 0-indexado em JS Date
-        const year = parseInt(dateMatch[3], 10);
-        const parsedDate = new Date(year, month, day);
-
-        // Validação básica para garantir que é uma data válida
-        if (!isNaN(parsedDate.getTime()) && parsedDate.getDate() === day && parsedDate.getMonth() === month && parsedDate.getFullYear() === year) {
-          fileDate = parsedDate;
-          showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo e será usada para as vendas.`);
-        } else {
-          showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar a data atual.`);
-        }
-      } else {
-        showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Usando a data atual.`);
-      }
-
-      const formattedData = data.map((row: any) => {
-        let saleDate: string;
-        if (fileDate) {
-          saleDate = fileDate.toISOString(); // Prioriza a data do nome do arquivo
-        } else {
-          saleDate = new Date().toISOString(); // Padrão para a data atual
+        if (!data || data.length === 0) {
+          showError(`O arquivo Excel de produtos vendidos "${file.name}" está vazio ou não contém dados válidos.`);
+          hasError = true;
+          continue;
         }
 
-        const totalValue = parseBrazilianFloat(row['Valor']) || 0; // Usando parseBrazilianFloat
-        const quantity = parseBrazilianFloat(row['Quantidade']) || 0; // Usando parseBrazilianFloat
-        
-        // Calcula o preço unitário médio: Valor Total / Quantidade
-        const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
+        let fileDate: Date | null = null;
+        const fileName = file.name; // Usar o nome do arquivo atual
+        // Regex para encontrar DD.MM.YYYY no nome do arquivo
+        const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})/);
 
-        return {
-          user_id: user.id,
-          product_name: String(row['Produto']),
-          quantity_sold: quantity, // Quantidade vendida
-          unit_price: calculatedUnitPrice, // Preço unitário médio calculado
-          sale_date: saleDate,
-        };
-      });
+        if (dateMatch) {
+          const day = parseInt(dateMatch[1], 10);
+          const month = parseInt(dateMatch[2], 10) - 1; // Mês é 0-indexado em JS Date
+          const year = parseInt(dateMatch[3], 10);
+          const parsedDate = new Date(year, month, day);
 
-      const { error } = await supabase
-        .from('sold_items')
-        .insert(formattedData);
+          // Validação básica para garantir que é uma data válida
+          if (!isNaN(parsedDate.getTime()) && parsedDate.getDate() === day && parsedDate.getMonth() === month && parsedDate.getFullYear() === year) {
+            fileDate = parsedDate;
+            showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo "${file.name}" e será usada para as vendas.`);
+          } else {
+            showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar a data atual.`);
+          }
+        } else {
+          showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Usando a data atual.`);
+        }
 
-      if (error) {
-        console.error('Erro detalhado do Supabase (Produtos Vendidos Excel):', error);
-        throw new Error(error.message);
+        const formattedData = data.map((row: any) => {
+          let saleDate: string;
+          if (fileDate) {
+            saleDate = fileDate.toISOString(); // Prioriza a data do nome do arquivo
+          } else {
+            saleDate = new Date().toISOString(); // Padrão para a data atual
+          }
+
+          const totalValue = parseBrazilianFloat(row['Valor']) || 0; // Usando parseBrazilianFloat
+          const quantity = parseBrazilianFloat(row['Quantidade']) || 0; // Usando parseBrazilianFloat
+          
+          // Calcula o preço unitário médio: Valor Total / Quantidade
+          const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
+
+          return {
+            user_id: user.id,
+            product_name: String(row['Produto']),
+            quantity_sold: quantity, // Quantidade vendida
+            unit_price: calculatedUnitPrice, // Preço unitário médio calculado
+            sale_date: saleDate,
+          };
+        });
+
+        const { error } = await supabase
+          .from('sold_items')
+          .insert(formattedData);
+
+        if (error) {
+          console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (Produtos Vendidos Excel):`, error);
+          showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message}`);
+          hasError = true;
+          continue;
+        }
+
+        totalItemsLoaded += formattedData.length;
+        showSuccess(`Dados de ${formattedData.length} produtos vendidos de "${file.name}" carregados com sucesso!`);
+      } catch (error: any) {
+        console.error(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}":`, error);
+        showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
+        hasError = true;
       }
-
-      showSuccess(`Dados de ${formattedData.length} produtos vendidos do Excel carregados com sucesso!`);
-      setSelectedSoldItemsExcelFile(null);
-    } catch (error: any) {
-      console.error('Erro ao carregar dados de produtos vendidos do Excel:', error);
-      showError(`Erro ao carregar dados de produtos vendidos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
-    } finally {
-      dismissToast(loadingToastId);
     }
+
+    dismissToast(loadingToastId);
+    if (!hasError) {
+      showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoaded} itens carregados.`);
+    } else {
+      showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
+    }
+    setSelectedSoldItemsExcelFiles([]); // Limpar seleção
   };
 
   const handleUploadProductRecipeExcel = async () => {
@@ -876,21 +889,28 @@ const CargaDeDados: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de um arquivo Excel (.xlsx) contendo os produtos vendidos.
+              Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
               O arquivo deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
               A coluna <code>Valor</code> será tratada como o valor total da venda para a <code>Quantidade</code> informada, e o preço unitário será calculado como <code>Valor / Quantidade</code>.
               A data da venda será extraída do nome do arquivo (formato <code>DD.MM.YYYY</code>, ex: "VENDAS 01.11.2025"). Se nenhuma data for encontrada no nome do arquivo, a data atual será usada.
             </p>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col space-y-2"> {/* Alterado para flex-col para melhor layout */}
+              <Label htmlFor="sold-items-excel-file-upload">Selecionar arquivos Excel</Label> {/* Adicionado Label */}
               <Input
                 id="sold-items-excel-file-upload"
                 type="file"
                 accept=".xlsx, .xls, .csv"
+                multiple // Permitir múltiplos arquivos
                 onChange={handleSoldItemsExcelFileChange}
                 className="flex-grow"
               />
-              <Button onClick={handleUploadSoldItemsExcel} disabled={!selectedSoldItemsExcelFile}>
+              {selectedSoldItemsExcelFiles.length > 0 && ( // Exibir contagem de arquivos
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {selectedSoldItemsExcelFiles.length} arquivo(s) selecionado(s): {selectedSoldItemsExcelFiles.map(f => f.name).join(', ')}
+                </p>
+              )}
+              <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}> {/* Alterado para array */}
                 Carregar Produtos Vendidos
               </Button>
             </div>
