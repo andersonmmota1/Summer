@@ -259,6 +259,8 @@ const CargaDeDados: React.FC = () => {
         .eq('user_id', user.id)
         .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
 
+      console.log(`[DEBUG] For date ${dateString}, existing items count: ${count}`); // Adicionado log de depuração
+
       if (countError) {
         showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
         hasError = true;
