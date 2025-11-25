@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
-import { readXmlFile } => '@/utils/xml';
+import { readXmlFile } from '@/utils/xml'; // Corrigido aqui: '=>' para 'from'
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
