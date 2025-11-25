@@ -20,12 +20,19 @@ export const readXmlFile = (file: File): Promise<any[]> => {
 
         const items: any[] = [];
         
-        // Tentar extrair o ID da nota fiscal (NFe ID)
+        // Tentar extrair o ID da nota fiscal (NFe ID - chave de acesso)
         const infNFeElement = xmlDoc.querySelector('infNFe');
         const invoiceId = infNFeElement?.getAttribute('Id') || null;
 
+        // Tentar extrair o Número Sequencial da Nota Fiscal (nNF)
+        const ideElement = infNFeElement?.querySelector('ide');
+        const invoiceNumber = ideElement?.querySelector('nNF')?.textContent || null;
+
         if (!invoiceId) {
           showWarning('Não foi possível encontrar o ID da nota fiscal (tag <infNFe> com atributo Id). Itens podem ser tratados como duplicados se não houver outro identificador único.');
+        }
+        if (!invoiceNumber) {
+          showWarning('Não foi possível encontrar o Número Sequencial da Nota Fiscal (tag <nNF> dentro de <ide>).');
         }
 
         // Tentar extrair o Nome Fantasia do Fornecedor (xFant)
@@ -59,7 +66,8 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'ns1:uCom': uCom,
                   'ns1:qCom': parseFloat(qCom),
                   'ns1:vUnCom': parseFloat(vUnCom),
-                  'invoice_id': invoiceId,
+                  'invoice_id': invoiceId, // Chave de acesso
+                  'invoice_number': invoiceNumber, // Número sequencial da nota
                   'item_sequence_number': itemSequenceNumber,
                   'x_fant': xFant,
                 });
@@ -84,7 +92,8 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'ns1:uCom': uCom,
                 'ns1:qCom': parseFloat(qCom),
                 'ns1:vUnCom': parseFloat(vUnCom),
-                'invoice_id': invoiceId,
+                'invoice_id': invoiceId, // Chave de acesso
+                'invoice_number': invoiceNumber, // Número sequencial da nota
                 'item_sequence_number': null,
                 'x_fant': xFant,
               });

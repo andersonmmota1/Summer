@@ -109,7 +109,8 @@ const CargaDeDados: React.FC = () => {
           u_com: String(row['ns1:uCom']),
           q_com: parseFloat(row['ns1:qCom']),
           v_un_com: parseFloat(row['ns1:vUnCom']),
-          invoice_id: row.invoice_id,
+          invoice_id: row.invoice_id, // Chave de acesso da NFe
+          invoice_number: row.invoice_number, // Número sequencial da nota
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
@@ -450,9 +451,10 @@ const CargaDeDados: React.FC = () => {
         'Valor Unitário',
         'Nome Interno',
         'Nome Fantasia Fornecedor',
-        'Data da Compra',
-        'ID da Nota',
+        'Número da Nota (Sequencial)', // Novo cabeçalho
+        'ID da Nota (Chave de Acesso)', // Cabeçalho clarificado
         'Número do Item na Nota',
+        'Data da Compra',
       ];
 
       const formattedData = data.map(item => ({
@@ -464,9 +466,10 @@ const CargaDeDados: React.FC = () => {
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
         'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
-        'Data da Compra': new Date(item.created_at).toLocaleString(),
-        'ID da Nota': item.invoice_id || 'N/A',
+        'Número da Nota (Sequencial)': item.invoice_number || 'N/A', // Novo campo
+        'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A', // Campo existente
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
+        'Data da Compra': new Date(item.created_at).toLocaleString(),
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
@@ -850,7 +853,8 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (XML)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados.
-              O sistema tentará extrair o ID da nota fiscal e o número do item para evitar duplicações.
+              O sistema tentará extrair o ID da nota fiscal (chave de acesso) e o número sequencial da nota,
+              além do número do item para evitar duplicações.
             </p>
 
             <div className="flex flex-col space-y-2">

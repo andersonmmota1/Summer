@@ -7,7 +7,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface InvoiceSummary {
-  invoice_id: string;
+  invoice_id: string; // Chave de acesso da NFe (identificador único)
+  invoice_number_display: string; // Número sequencial da nota (para exibição)
   supplier_name: string;
   invoice_date: string;
   total_invoice_value: number;
@@ -78,7 +79,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Número da Nota</TableHead>
+                    <TableHead>Número da Nota</TableHead> {/* Agora exibirá o nNF */}
                     <TableHead>Fornecedor</TableHead>
                     <TableHead>Data de Emissão</TableHead>
                     <TableHead className="text-right">Total da Nota</TableHead>
@@ -86,8 +87,8 @@ const VisaoDeNotasFiscais: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {invoices.map((invoice, index) => (
-                    <TableRow key={invoice.invoice_id || index}>
-                      <TableCell className="font-medium">{invoice.invoice_id}</TableCell>
+                    <TableRow key={invoice.invoice_id || index}> {/* Usar invoice_id como key única */}
+                      <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell> {/* Exibe o nNF */}
                       <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
                       <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                       <TableCell className="text-right">R$ {invoice.total_invoice_value.toFixed(2)}</TableCell>
