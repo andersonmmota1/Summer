@@ -78,21 +78,11 @@ const VisaoDeNotasFiscais: React.FC = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Número da Nota</TableHead> {/* Agora exibirá o nNF */}
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Data de Emissão</TableHead>
-                    <TableHead className="text-right">Total da Nota</TableHead>
-                  </TableRow>
+                  <TableRow><TableHead>Número da Nota</TableHead><TableHead>Fornecedor</TableHead><TableHead>Data de Emissão</TableHead><TableHead className="text-right">Total da Nota</TableHead></TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoices.map((invoice, index) => (
-                    <TableRow key={invoice.invoice_id || index}> {/* Usar invoice_id como key única */}
-                      <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell> {/* Exibe o nNF */}
-                      <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
-                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
-                      <TableCell className="text-right">R$ {invoice.total_invoice_value.toFixed(2)}</TableCell>
-                    </TableRow>
+                    <TableRow key={invoice.invoice_id || index}><TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell><TableCell>{invoice.supplier_name || 'N/A'}</TableCell><TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell><TableCell className="text-right">R$ {invoice.total_invoice_value.toFixed(2)}</TableCell></TableRow>
                   ))}
                 </TableBody>
               </Table>
