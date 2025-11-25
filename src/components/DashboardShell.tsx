@@ -10,8 +10,8 @@ import { XCircle } from 'lucide-react';
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { filters, clearFilters, setFilter } = useFilter(); // Adicionado setFilter
-  const { selectedSupplier, selectedProduct } = filters; // Desestruturado selectedProduct
+  const { filters, clearFilters, setFilter } = useFilter();
+  const { selectedProduct } = filters; // selectedSupplier foi removido
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
@@ -55,17 +55,7 @@ const DashboardShell: React.FC = () => {
               Gestão de Restaurante
             </h1>
             <div className="flex items-center gap-4">
-              {selectedSupplier && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Fornecedor: <span className="font-semibold">{selectedSupplier}</span>
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-1">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                    <span className="sr-only">Limpar filtro de fornecedor</span>
-                  </Button>
-                </div>
-              )}
+              {/* Removido o filtro de fornecedor */}
               {selectedProduct && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700 dark:text-gray-300">

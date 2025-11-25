@@ -28,12 +28,12 @@ interface ConvertedUnitSummary {
 
 const VisaoDeConversoes: React.FC = () => {
   const { filters } = useFilter();
-  const { selectedSupplier, selectedProduct } = filters; // Obter selectedProduct
+  const { selectedProduct } = filters; // selectedSupplier foi removido
   const { user } = useSession();
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
-    queryKey: ['converted_units_summary', user?.id, selectedSupplier, selectedProduct], // Adicionar selectedProduct à chave
+    queryKey: ['converted_units_summary', user?.id, selectedProduct], // Removido selectedSupplier da chave
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -41,9 +41,7 @@ const VisaoDeConversoes: React.FC = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      if (selectedSupplier) {
-        query = query.eq('supplier_name', selectedSupplier);
-      }
+      // Removido o filtro por selectedSupplier
       if (selectedProduct) {
         query = query.eq('product_display_name', selectedProduct); // Filtrar por nome interno do produto
       }
@@ -107,12 +105,11 @@ const VisaoDeConversoes: React.FC = () => {
         visualizando as quantidades originais e as quantidades convertidas para suas unidades internas.
       </p>
 
-      {(selectedSupplier || selectedProduct) && (
+      {selectedProduct && ( // Apenas exibe o filtro de produto, se ativo
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtros Ativos:
-            {selectedSupplier && <span className="ml-2 font-bold text-primary">Fornecedor: {selectedSupplier}</span>}
-            {selectedProduct && <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>}
+            <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>
           </span>
         </div>
       )}
