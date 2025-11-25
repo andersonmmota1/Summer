@@ -6,11 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFilter } from '@/contexts/FilterContext';
-import { useQuery } from '@tanstack/react-query'; // Import useQuery
-import { useSession } from '@/components/SessionContextProvider'; // Import useSession
+import { useQuery } from '@tanstack/react-query';
+import { useSession } from '@/components/SessionContextProvider';
+import { Input } from '@/components/ui/input'; // Importar o componente Input
 
 interface ConvertedUnitSummary {
-  user_id: string; // Adicionado user_id
+  user_id: string;
   supplier_name: string;
   supplier_product_code: string;
   supplier_product_description: string;
@@ -28,7 +29,8 @@ interface ConvertedUnitSummary {
 const VisaoDeConversoes: React.FC = () => {
   const { filters } = useFilter();
   const { selectedSupplier } = filters;
-  const { user } = useSession(); // Obter o usuário da sessão
+  const { user } = useSession();
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
   const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
     queryKey: ['converted_units_summary', user?.id, selectedSupplier],
@@ -37,7 +39,7 @@ const VisaoDeConversoes: React.FC = () => {
       let query = supabase
         .from('converted_units_summary')
         .select('*')
-        .eq('user_id', user.id); // Filtra por user_id
+        .eq('user_id', user.id);
 
       if (selectedSupplier) {
         query = query.eq('supplier_name', selectedSupplier);
@@ -60,6 +62,21 @@ const VisaoDeConversoes: React.FC = () => {
   const totalConvertedQuantity = useMemo(() => {
     return convertedData?.reduce((sum, item) => sum + item.total_converted_quantity, 0) || 0;
   }, [convertedData]);
+
+  // Lógica de filtragem
+  const filteredConvertedData = useMemo(() => {
+    if (!convertedData) return [];
+    if (!searchTerm) return convertedData;
+
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    return convertedData.filter(item =>
+      item.supplier_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.supplier_product_description.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.product_display_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.supplier_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [convertedData, searchTerm]);
 
   if (isLoading) {
     return (
@@ -123,6 +140,12 @@ const VisaoDeConversoes: React.FC = () => {
               <CardDescription>
                 Lista detalhada de cada produto com sua conversão de unidade aplicada.
               </CardDescription>
+              <Input
+                placeholder="Filtrar por nome do fornecedor, descrição do produto, nome interno ou unidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm mt-4"
+              />
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -131,7 +154,6 @@ const VisaoDeConversoes: React.FC = () => {
                     <TableRow>
                       <TableHead>Fornecedor</TableHead>
                       <TableHead>Descrição do Produto Fornecedor</TableHead>
-                      {/* <TableHead>Cód. Produto Fornecedor</TableHead> <-- REMOVIDO */}
                       <TableHead>Nome Interno</TableHead>
                       <TableHead>Unidade Fornecedor</TableHead>
                       <TableHead>Unidade Interna</TableHead>
@@ -144,22 +166,29 @@ const VisaoDeConversoes: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {convertedData?.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                        <TableCell>{item.supplier_product_description}</TableCell>
-                        {/* <TableCell>{item.supplier_product_code}</TableCell> <-- REMOVIDO */}
-                        <TableCell>{item.product_display_name}</TableCell>
-                        <TableCell>{item.supplier_unit}</TableCell>
-                        <TableCell>{item.internal_unit}</TableCell>
-                        <TableCell className="text-right">{item.conversion_factor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.total_original_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.total_converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.average_converted_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                    {filteredConvertedData.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={11} className="h-24 text-center">
+                          Nenhum resultado encontrado para "{searchTerm}".
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredConvertedData.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                          <TableCell>{item.supplier_product_description}</TableCell>
+                          <TableCell>{item.product_display_name}</TableCell>
+                          <TableCell>{item.supplier_unit}</TableCell>
+                          <TableCell>{item.internal_unit}</TableCell>
+                          <TableCell className="text-right">{item.conversion_factor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_original_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          <TableCell className="text-right">{item.average_converted_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
