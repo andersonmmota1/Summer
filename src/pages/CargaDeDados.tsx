@@ -235,6 +235,9 @@ const CargaDeDados: React.FC = () => {
         // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
         datesToProcess.add(format(fileSaleDate, 'yyyy-MM-dd'));
 
+        // Lendo o arquivo Excel
+        const data = await readExcelFile(file); // <-- CORREÇÃO AQUI: 'data' agora é definida
+
         const formattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
           const totalValue = parseBrazilianFloat(row['Valor']) || 0;
