@@ -16,14 +16,9 @@ interface SoldItemDetailed {
   id: string;
   user_id: string;
   sale_date: string;
-  group_name: string | null;
-  subgroup_name: string | null;
-  base_product_name: string | null;
-  additional_code: string | null;
-  product_name: string; // Agora é o 'Adicional'
+  product_name: string;
   quantity_sold: number;
   unit_price: number;
-  total_value_sold: number; // Nova coluna
   created_at: string;
 }
 
@@ -96,12 +91,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       sortableItems = sortableItems.filter(item =>
         item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.subgroup_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.base_product_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
-        item.total_value_sold.toFixed(2).includes(lowerCaseSearchTerm) ||
+        item.unit_price.toFixed(2).includes(lowerCaseSearchTerm) ||
         format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
       );
     }
@@ -144,7 +135,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
 
   // Calcular o somatório total da receita
   const totalRevenueSum = useMemo(() => {
-    return filteredAndSortedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+    return filteredAndSortedData.reduce((sum, item) => sum + (item.quantity_sold * item.unit_price), 0);
   }, [filteredAndSortedData]);
 
   const handleExportSoldItemsToExcel = () => {
@@ -154,25 +145,17 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     }
 
     const headers = [
-      'Data Caixa',
-      'Grupo',
-      'Subgrupo',
-      'Produto Base',
-      'Código Adicional',
-      'Adicional (Nome do Produto)',
+      'Data da Venda',
+      'Nome do Produto',
       'Quantidade Vendida',
-      'Valor Total Vendido',
+      'Preço Unitário',
     ];
 
     const formattedData = filteredAndSortedData.map(item => ({
-      'Data Caixa': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
-      'Grupo': item.group_name || 'N/A',
-      'Subgrupo': item.subgroup_name || 'N/A',
-      'Produto Base': item.base_product_name || 'N/A',
-      'Código Adicional': item.additional_code || 'N/A',
-      'Adicional (Nome do Produto)': item.product_name,
+      'Data da Venda': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+      'Nome do Produto': item.product_name,
       'Quantidade Vendida': item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      'Valor Total Vendido': item.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      'Preço Unitário': item.unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
     }));
 
     const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
@@ -224,7 +207,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
               </Button>
             </div>
             <Input
-              placeholder="Filtrar por nome do produto, grupo, subgrupo, código adicional, quantidade ou valor..."
+              placeholder="Filtrar por nome do produto, quantidade ou valor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm mt-4"
@@ -246,59 +229,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('sale_date')}
                         className="px-0 py-0 h-auto"
                       >
-                        Data Caixa
+                        Data da Venda
                         {sortConfig.key === 'sale_date' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('group_name')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Grupo
-                        {sortConfig.key === 'group_name' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('subgroup_name')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Subgrupo
-                        {sortConfig.key === 'subgroup_name' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('additional_code')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Cód. Adicional
-                        {sortConfig.key === 'additional_code' && (
                           <ArrowUpDown
                             className={cn(
                               "ml-2 h-4 w-4 transition-transform",
@@ -314,7 +246,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('product_name')}
                         className="px-0 py-0 h-auto"
                       >
-                        Adicional (Produto)
+                        Nome do Produto
                         {sortConfig.key === 'product_name' && (
                           <ArrowUpDown
                             className={cn(
@@ -345,11 +277,11 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                     <TableHead className="text-right">
                       <Button
                         variant="ghost"
-                        onClick={() => handleSort('total_value_sold')}
+                        onClick={() => handleSort('unit_price')}
                         className="px-0 py-0 h-auto justify-end w-full"
                       >
-                        Valor Total
-                        {sortConfig.key === 'total_value_sold' && (
+                        Preço Unitário
+                        {sortConfig.key === 'unit_price' && (
                           <ArrowUpDown
                             className={cn(
                               "ml-2 h-4 w-4 transition-transform",
@@ -364,7 +296,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={4} className="h-24 text-center">
                         Nenhum resultado encontrado para "{searchTerm}".
                       </TableCell>
                     </TableRow>
@@ -372,12 +304,9 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                     filteredAndSortedData.map((item, index) => (
                       <TableRow key={item.id || index}>
                         <TableCell className="font-medium">{format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell>{item.group_name || 'N/A'}</TableCell>
-                        <TableCell>{item.subgroup_name || 'N/A'}</TableCell>
-                        <TableCell>{item.additional_code || 'N/A'}</TableCell>
-                        <TableCell className="font-medium">{item.product_name}</TableCell>
+                        <TableCell>{item.product_name}</TableCell>
                         <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{item.unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                       </TableRow>
                     ))
                   )}
