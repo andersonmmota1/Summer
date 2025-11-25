@@ -22,9 +22,11 @@ import { useSession } from '@/components/SessionContextProvider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils'; // Importar a nova função
+import { useQueryClient } from '@tanstack/react-query'; // Importar useQueryClient
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
+  const queryClient = useQueryClient(); // Inicializar queryClient
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const [selectedSoldItemsExcelFiles, setSelectedSoldItemsExcelFiles] = useState<File[]>([]); // Alterado para array
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
@@ -149,6 +151,16 @@ const CargaDeDados: React.FC = () => {
     dismissToast(loadingToastId);
     if (!hasError) {
       showSuccess(`Carga de ${selectedXmlFiles.length} arquivo(s) XML concluída. Total de ${totalItemsLoaded} itens carregados.`);
+      // Invalida as queries relacionadas a itens comprados e suas agregações
+      queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_supplier_products'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -247,6 +259,12 @@ const CargaDeDados: React.FC = () => {
     dismissToast(loadingToastId);
     if (!hasError) {
       showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoaded} itens carregados.`);
+      // Invalida as queries relacionadas a itens vendidos e suas agregações
+      queryClient.invalidateQueries({ queryKey: ['sold_items'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
     } else {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -292,6 +310,12 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} fichas técnicas de produtos do Excel carregados com sucesso!`);
       setSelectedProductRecipeExcelFile(null);
+      // Invalida as queries relacionadas a fichas técnicas e estoque/custo
+      queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
     } catch (error: any) {
       console.error('Erro ao carregar dados da ficha técnica de produtos do Excel:', error);
       showError(`Erro ao carregar dados da ficha técnica de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -340,6 +364,13 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos do Excel carregados com sucesso!`);
       setSelectedProductNameConversionExcelFile(null);
+      // Invalida as queries relacionadas a mapeamentos de nomes
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
       console.error('Erro ao carregar conversões de nomes de produtos do Excel:', error);
       showError(`Erro ao carregar conversões de nomes de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -390,6 +421,12 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} conversões de unidades do Excel carregados com sucesso!`);
       setSelectedUnitConversionExcelFile(null);
+      // Invalida as queries relacionadas a conversões de unidades
+      queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
       console.error('Erro ao carregar conversões de unidades do Excel:', error);
       showError(`Erro ao carregar conversões de unidades do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -753,6 +790,15 @@ const CargaDeDados: React.FC = () => {
       if (error) throw error;
 
       showSuccess('Todos os itens comprados foram removidos com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_supplier_products'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
       console.error('Erro ao limpar itens comprados:', error);
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -776,6 +822,11 @@ const CargaDeDados: React.FC = () => {
       if (error) throw error;
 
       showSuccess('Todos os produtos vendidos foram removidos com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['sold_items'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
     } catch (error: any) {
       console.error('Erro ao limpar produtos vendidos:', error);
       showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -799,6 +850,11 @@ const CargaDeDados: React.FC = () => {
       if (error) throw error;
 
       showSuccess('Todas as fichas técnicas de produtos foram removidas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
+      queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
     } catch (error: any) {
       console.error('Erro ao limpar fichas técnicas de produtos:', error);
       showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -822,6 +878,12 @@ const CargaDeDados: React.FC = () => {
       if (error) throw error;
 
       showSuccess('Todas as conversões de nomes de produtos foram removidas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
       console.error('Erro ao limpar conversões de nomes de produtos:', error);
       showError(`Erro ao limpar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -845,6 +907,11 @@ const CargaDeDados: React.FC = () => {
       if (error) throw error;
 
       showSuccess('Todas as conversões de unidades foram removidas com sucesso!');
+      queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
     } catch (error: any) {
       console.error('Erro ao limpar conversões de unidades:', error);
       showError(`Erro ao limpar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
