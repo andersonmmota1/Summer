@@ -22,10 +22,10 @@ import { useSession } from '@/components/SessionContextProvider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Adicionado aqui!
+import { useQueryClient } from '@tanstack/react-query';
+// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Removido, pois a tabela de preview não será mais usada
 
-// Interface para os itens comprados diretamente do Supabase
+// Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
 interface PurchasedItem {
   id: string;
   user_id: string;
@@ -51,38 +51,39 @@ const CargaDeDados: React.FC = () => {
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
-  // Estado temporário para exibir dados XML parseados
-  const [parsedXmlDataPreview, setParsedXmlDataPreview] = useState<any[] | null>(null);
+  // Removido o estado temporário para exibir dados XML parseados:
+  // const [parsedXmlDataPreview, setParsedXmlDataPreview] = useState<any[] | null>(null);
+
+  // Removida a query para buscar itens comprados diretamente da tabela purchased_items:
+  // const { data: directPurchasedItems, isLoading: isLoadingDirectPurchasedItems, refetch: refetchDirectPurchasedItems } = useQuery<PurchasedItem[], Error>({
+  //   queryKey: ['direct_purchased_items', user?.id],
+  //   queryFn: async () => {
+  //     if (!user?.id) return [];
+  //     const { data, error } = await supabase
+  //       .from('purchased_items')
+  //       .select('*')
+  //       .eq('user_id', user.id)
+  //       .order('created_at', { ascending: false });
+  //     if (error) throw error;
+  //     return data || [];
+  //   },
+  //   enabled: !!user?.id,
+  //   staleTime: 1000 * 10, // Curto staleTime para depuração
+  // });
+
 
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
 
-  // Query para buscar itens comprados diretamente da tabela purchased_items
-  const { data: directPurchasedItems, isLoading: isLoadingDirectPurchasedItems, refetch: refetchDirectPurchasedItems } = useQuery<PurchasedItem[], Error>({
-    queryKey: ['direct_purchased_items', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('purchased_items')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-    staleTime: 1000 * 10, // Curto staleTime para depuração
-  });
-
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setSelectedXmlFiles(Array.from(event.target.files));
-      setParsedXmlDataPreview(null); // Limpa o preview ao selecionar novos arquivos
+      // setParsedXmlDataPreview(null); // Limpa o preview ao selecionar novos arquivos
     } else {
       setSelectedXmlFiles([]);
-      setParsedXmlDataPreview(null);
+      // setParsedXmlDataPreview(null);
     }
   };
 
@@ -136,7 +137,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
     let hasError = false;
-    const allParsedData: any[] = [];
+    // const allParsedData: any[] = []; // Removido, pois não há preview
 
     for (const file of selectedXmlFiles) {
       try {
@@ -164,7 +165,7 @@ const CargaDeDados: React.FC = () => {
           x_fant: row.x_fant,
         }));
         console.log(`Formatted data for ${file.name}:`, formattedData);
-        allParsedData.push(...formattedData); // Adiciona para o preview
+        // allParsedData.push(...formattedData); // Removido, pois não há preview
 
         const { error } = await supabase
           .from('purchased_items')
@@ -188,8 +189,8 @@ const CargaDeDados: React.FC = () => {
     }
 
     dismissToast(loadingToastId);
-    setParsedXmlDataPreview(allParsedData); // Define os dados parseados para preview
-    refetchDirectPurchasedItems(); // Atualiza a lista de itens comprados diretamente
+    // setParsedXmlDataPreview(allParsedData); // Removido, pois não há preview
+    // refetchDirectPurchasedItems(); // Removido, pois não há preview
 
     if (!hasError) {
       showSuccess(`Carga de ${selectedXmlFiles.length} arquivo(s) XML concluída. Total de ${totalItemsLoaded} itens carregados.`);
@@ -835,7 +836,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
-      refetchDirectPurchasedItems(); // Atualiza a lista de itens comprados diretamente
+      // refetchDirectPurchasedItems(); // Removido, pois não há preview
     } catch (error: any) {
       console.error('Erro ao limpar itens comprados:', error);
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -1003,7 +1004,8 @@ const CargaDeDados: React.FC = () => {
               </Button>
             </div>
 
-            {/* Seção de Depuração para XML */}
+            {/* Seção de Depuração para XML - REMOVIDA */}
+            {/*
             <div className="mt-8 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Verificação de Carga XML</h4>
               <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
@@ -1058,6 +1060,7 @@ const CargaDeDados: React.FC = () => {
                 </div>
               )}
             </div>
+            */}
           </div>
         </TabsContent>
 
