@@ -75,7 +75,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         (item.total_quantity_sold !== null ? item.total_quantity_sold.toString() : '0').includes(lowerCaseSearchTerm) ||
         (item.total_revenue !== null ? item.total_revenue.toFixed(2) : '0.00').includes(lowerCaseSearchTerm) ||
         (item.average_unit_price !== null ? item.average_unit_price.toFixed(2) : '0.00').includes(lowerCaseSearchTerm) ||
-        (item.last_sale_date && format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm))
+        (item.last_sale_date && format(new Date(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)) // Alterado aqui
       );
     }
 
@@ -268,7 +268,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         <TableCell className="text-right">{(item.total_quantity_sold ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{(item.total_revenue ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell className="text-right">{(item.average_unit_price ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell>{item.last_sale_date ? format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
+                        <TableCell>{item.last_sale_date ? format(new Date(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell> {/* Alterado aqui */}
                       </TableRow>
                     ))
                   )}
