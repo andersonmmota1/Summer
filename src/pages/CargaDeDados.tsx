@@ -19,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from '@/components/SessionContextProvider';
-import { format, parseISO, parse } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns'; // Adicionado addDays
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
@@ -275,12 +275,17 @@ const CargaDeDados: React.FC = () => {
 
     // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
     for (const dateString of datesToProcess) {
+      const startOfDay = `${dateString}T00:00:00Z`; // Início do dia em UTC
+      const nextDay = format(addDays(parseISO(dateString), 1), 'yyyy-MM-dd'); // Dia seguinte
+      const startOfNextDay = `${nextDay}T00:00:00Z`; // Início do dia seguinte em UTC
+
       // Primeiro, verifica se existem registros para esta data e usuário
       const { count, error: countError } = await supabase
         .from('sold_items')
         .select('id', { count: 'exact' })
         .eq('user_id', user.id)
-        .eq('sale_date', dateString);
+        .gte('sale_date', startOfDay) // Maior ou igual ao início do dia
+        .lt('sale_date', startOfNextDay); // Menor que o início do dia seguinte
 
       if (countError) {
         showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
@@ -293,7 +298,8 @@ const CargaDeDados: React.FC = () => {
           .from('sold_items')
           .delete()
           .eq('user_id', user.id)
-          .eq('sale_date', dateString);
+          .gte('sale_date', startOfDay)
+          .lt('sale_date', startOfNextDay);
 
         if (deleteError) {
           showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
