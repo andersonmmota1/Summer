@@ -276,19 +276,34 @@ const CargaDeDados: React.FC = () => {
 
         // --- Lógica de exclusão por data ---
         for (const dateString of datesToProcess) {
-          const { error: deleteError } = await supabase
+          // Primeiro, verifica se existem registros para esta data e usuário
+          const { count, error: countError } = await supabase
             .from('sold_items')
-            .delete()
+            .select('id', { count: 'exact' })
             .eq('user_id', user.id)
-            .eq('sale_date', dateString); // Filtra pela data (yyyy-MM-dd)
+            .eq('sale_date', dateString);
 
-          if (deleteError) {
-            console.error(`Erro ao limpar produtos vendidos para a data ${dateString}:`, deleteError);
-            showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+          if (countError) {
+            console.error(`Erro ao verificar produtos vendidos existentes para a data ${dateString}:`, countError);
+            showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
             hasError = true;
-            // Não interrompe o loop, tenta processar as próximas datas
-          } else {
-            showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+            continue; // Pula a exclusão para esta data se não puder verificar
+          }
+
+          if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
+            const { error: deleteError } = await supabase
+              .from('sold_items')
+              .delete()
+              .eq('user_id', user.id)
+              .eq('sale_date', dateString);
+
+            if (deleteError) {
+              console.error(`Erro ao limpar produtos vendidos para a data ${dateString}:`, deleteError);
+              showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+              hasError = true;
+            } else {
+              showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+            }
           }
         }
         // --- Fim da lógica de exclusão por data ---
