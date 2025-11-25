@@ -56,6 +56,16 @@ const Inicio: React.FC = () => {
       throw error;
     }
 
+    // Adicionando logs para depuração
+    console.log('Inicio: Raw data from Supabase for sold_items:', data);
+    const problematicDateData = data?.filter(item => item.sale_date === '2025-11-01');
+    if (problematicDateData && problematicDateData.length > 0) {
+      const sumProblematicDate = problematicDateData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+      console.log(`Inicio: Supabase data for 2025-11-01 (before client aggregation):`, problematicDateData);
+      console.log(`Inicio: Sum of total_value_sold for 2025-11-01 from Supabase (before client aggregation): ${sumProblematicDate}`);
+    }
+
+
     // Agregação manual dos dados por data
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
 
