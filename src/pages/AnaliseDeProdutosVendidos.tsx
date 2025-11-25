@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 interface AggregatedSoldProduct {
   product_name: string;
-  total_quantity_sold: number;
-  total_revenue: number;
-  average_unit_price: number;
+  total_quantity_sold: number | null; // Permitir que seja null
+  total_revenue: number | null;      // Permitir que seja null
+  average_unit_price: number | null; // Permitir que seja null
   last_sale_date: string | null; // Permitir que last_sale_date seja null
 }
 
@@ -72,9 +72,9 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       sortableItems = sortableItems.filter(item =>
         item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        item.total_quantity_sold.toString().includes(lowerCaseSearchTerm) ||
-        item.total_revenue.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
-        item.average_unit_price.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
+        (item.total_quantity_sold !== null ? item.total_quantity_sold.toString() : '0').includes(lowerCaseSearchTerm) ||
+        (item.total_revenue !== null ? item.total_revenue.toFixed(2) : '0.00').includes(lowerCaseSearchTerm) ||
+        (item.average_unit_price !== null ? item.average_unit_price.toFixed(2) : '0.00').includes(lowerCaseSearchTerm) ||
         (item.last_sale_date && format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
@@ -255,9 +255,9 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                     filteredAndSortedData.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.average_unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{(item.total_quantity_sold ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{(item.total_revenue ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{(item.average_unit_price ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell>{item.last_sale_date ? format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
                       </TableRow>
                     ))
