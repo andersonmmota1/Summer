@@ -19,7 +19,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Fluxo de Caixa', path: '/fluxo-de-caixa' },
     { name: 'Carga de Dados', path: '/carga-de-dados' },
     { name: 'Visão de Notas Fiscais', path: '/visao-de-notas-fiscais' },
-    { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
+    // Removido: { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
     { name: 'Vendas por Data', path: '/vendas-por-data' }, 
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
