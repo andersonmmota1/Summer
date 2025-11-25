@@ -79,14 +79,19 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleUploadXml = async () => {
+    console.log('handleUploadXml called.');
+
     if (selectedXmlFiles.length === 0) {
+      console.warn('No XML files selected.');
       showError('Por favor, selecione um ou mais arquivos XML para carregar.');
       return;
     }
     if (!user?.id) {
+      console.error('User not authenticated. Cannot upload purchased items.');
       showError('Usuário não autenticado. Não é possível carregar itens comprados.');
       return;
     }
+    console.log('User ID:', user.id);
 
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
@@ -94,9 +99,12 @@ const CargaDeDados: React.FC = () => {
 
     for (const file of selectedXmlFiles) {
       try {
+        console.log(`Processing file: ${file.name}`);
         const data = await readXmlFile(file);
+        console.log(`XML data read for ${file.name}:`, data);
 
         if (!data || data.length === 0) {
+          console.warn(`XML file "${file.name}" is empty or contains no valid data.`);
           showError(`O arquivo XML "${file.name}" está vazio ou não contém dados válidos.`);
           hasError = true;
           continue;
@@ -114,22 +122,25 @@ const CargaDeDados: React.FC = () => {
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
+        console.log(`Formatted data for ${file.name}:`, formattedData);
+
 
         const { error } = await supabase
           .from('purchased_items')
           .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
 
         if (error) {
-          console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (XML):`, error);
+          console.error(`Supabase upsert error for "${file.name}" (XML):`, error);
           showError(`Erro ao carregar dados do XML "${file.name}": ${error.message}`);
           hasError = true;
           continue;
         }
+        console.log(`Successfully upserted data for ${file.name}.`);
 
         totalItemsLoaded += formattedData.length;
         showSuccess(`Dados de ${formattedData.length} itens de "${file.name}" carregados com sucesso!`);
       } catch (error: any) {
-        console.error(`Erro ao carregar dados do XML "${file.name}":`, error);
+        console.error(`Unexpected error during XML upload for "${file.name}":`, error);
         showError(`Erro ao carregar dados do XML "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
         hasError = true;
       }
@@ -141,7 +152,7 @@ const CargaDeDados: React.FC = () => {
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
-    setSelectedXmlFiles([]);
+    setSelectedXmlFiles([]); // Isso limpa os arquivos selecionados no input
   };
 
   const handleUploadSoldItemsExcel = async () => {
