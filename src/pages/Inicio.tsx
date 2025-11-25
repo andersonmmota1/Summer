@@ -1,12 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO } from 'date-fns'; // Importar parseISO
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SalesByDate {
   sale_date: string; // Agora será uma string 'YYYY-MM-DD'
@@ -14,8 +24,25 @@ interface SalesByDate {
   total_value_sold: number;
 }
 
+interface SoldItemDetailed {
+  id: string;
+  sale_date: string;
+  group_name: string | null;
+  subgroup_name: string | null;
+  additional_code: string | null;
+  product_name: string;
+  quantity_sold: number;
+  unit_price: number;
+  total_value_sold: number | null;
+  created_at: string;
+}
+
 const Inicio: React.FC = () => {
   const { user } = useSession();
+  const [selectedDateForDetails, setSelectedDateForDetails] = useState<string | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+  const [detailedSoldItems, setDetailedSoldItems] = useState<SoldItemDetailed[]>([]);
+  const [loadingDetailedItems, setLoadingDetailedItems] = useState(false);
 
   const fetchSalesByDate = async (): Promise<SalesByDate[]> => {
     if (!user?.id) {
@@ -85,6 +112,39 @@ const Inicio: React.FC = () => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_value_sold, 0) || 0;
   }, [salesByDate]);
 
+  const fetchDetailedSoldItems = async (date: string) => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar detalhes de vendas.');
+      return;
+    }
+    setLoadingDetailedItems(true);
+    const loadingToastId = showLoading(`Carregando detalhes de vendas para ${format(parseISO(date), 'dd/MM/yyyy')}...`);
+    try {
+      const { data, error } = await supabase
+        .from('sold_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('sale_date', date)
+        .order('product_name', { ascending: true });
+
+      if (error) throw error;
+      setDetailedSoldItems(data || []);
+      showSuccess('Detalhes de vendas carregados com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao carregar detalhes de vendas:', error);
+      showError(`Erro ao carregar detalhes: ${error.message}`);
+    } finally {
+      setLoadingDetailedItems(false);
+      dismissToast(loadingToastId);
+    }
+  };
+
+  const handleViewDetails = async (date: string) => {
+    setSelectedDateForDetails(date);
+    await fetchDetailedSoldItems(date);
+    setIsDetailsDialogOpen(true);
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -99,7 +159,7 @@ const Inicio: React.FC = () => {
           <CardHeader>
             <CardTitle>Vendas por Data</CardTitle>
             <CardDescription>
-              Somatório de produtos vendidos e valor total por data.
+              Somatório de produtos vendidos e valor total por data. Clique em "Detalhes" para ver os itens individuais.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -124,17 +184,22 @@ const Inicio: React.FC = () => {
                         <TableHead>Data da Venda</TableHead>
                         <TableHead className="text-right">Qtd. Total Vendida</TableHead>
                         <TableHead className="text-right">Valor Total Vendido</TableHead>
+                        <TableHead className className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {salesByDate.map((sale, index) => {
-                        // parseISO pode ser usado para converter a string 'YYYY-MM-DD' em um objeto Date
                         const displayDate = parseISO(sale.sale_date);
                         return (
                           <TableRow key={index}>
                             <TableCell className="font-medium">{format(displayDate, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                             <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                             <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" onClick={() => handleViewDetails(sale.sale_date)}>
+                                Detalhes
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -150,6 +215,57 @@ const Inicio: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Detalhes de Vendas para {selectedDateForDetails ? format(parseISO(selectedDateForDetails), 'dd/MM/yyyy', { locale: ptBR }) : ''}</DialogTitle>
+            <DialogDescription>
+              Lista de todos os produtos vendidos individualmente nesta data.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow pr-4">
+            {loadingDetailedItems ? (
+              <div className="text-center text-gray-600 dark:text-gray-400 py-8">
+                Carregando detalhes...
+              </div>
+            ) : detailedSoldItems.length === 0 ? (
+              <p className="text-center text-gray-600 dark:text-gray-400 py-8">
+                Nenhum item vendido encontrado para esta data.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Grupo</TableHead>
+                      <TableHead>Subgrupo</TableHead>
+                      <TableHead>Código</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">Valor Unitário</TableHead>
+                      <TableHead className="text-right">Valor Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailedSoldItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.product_name}</TableCell>
+                        <TableCell>{item.group_name || 'N/A'}</TableCell>
+                        <TableCell>{item.subgroup_name || 'N/A'}</TableCell>
+                        <TableCell>{item.additional_code || 'N/A'}</TableCell>
+                        <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{(item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
