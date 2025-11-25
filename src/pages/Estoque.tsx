@@ -4,8 +4,8 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -26,6 +26,7 @@ const Estoque: React.FC = () => {
   const [stockData, setStockData] = useState<CurrentStockSummary[]>([]);
   const [internalProductUsage, setInternalProductUsage] = useState<InternalProductUsage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({}); // Novo estado para controlar linhas abertas
 
   useEffect(() => {
     fetchStockData();
@@ -70,6 +71,14 @@ const Estoque: React.FC = () => {
       return acc;
     }, {} as Record<string, InternalProductUsage[]>);
   }, [internalProductUsage]);
+
+  // Função para alternar o estado de abertura de uma linha
+  const handleToggleRow = (productName: string) => {
+    setOpenRows(prev => ({
+      ...prev,
+      [productName]: !prev[productName]
+    }));
+  };
 
   if (loading) {
     return (
@@ -123,44 +132,45 @@ const Estoque: React.FC = () => {
                 <TableBody>
                   {stockData.map((item, index) => (
                     <React.Fragment key={index}>
-                      <Collapsible asChild>
+                      <TableRow>
+                        <TableCell className="font-medium">{item.internal_product_name}</TableCell>
+                        <TableCell>{item.internal_unit}</TableCell>
+                        <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-9 p-0"
+                            onClick={() => handleToggleRow(item.internal_product_name)}
+                          >
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
+                            <span className="sr-only">Toggle detalhes de uso</span>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      {openRows[item.internal_product_name] && (
                         <TableRow>
-                          <TableCell className="font-medium">{item.internal_product_name}</TableCell>
-                          <TableCell>{item.internal_unit}</TableCell>
-                          <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">
-                            <CollapsibleTrigger asChild>
-                              <Button variant="ghost" size="sm" className="w-9 p-0">
-                                <ChevronDown className="h-4 w-4" />
-                                <span className="sr-only">Toggle detalhes de uso</span>
-                              </Button>
-                            </CollapsibleTrigger>
+                          <TableCell colSpan={7} className="py-0 pl-12 pr-4">
+                            <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
+                              <p className="font-semibold mb-1">Utilizado em:</p>
+                              {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
+                                <ul className="list-disc list-inside space-y-0.5">
+                                  {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
+                                    <li key={i}>
+                                      {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
-                        <CollapsibleContent asChild>
-                          <TableRow>
-                            <TableCell colSpan={7} className="py-0 pl-12 pr-4">
-                              <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
-                                <p className="font-semibold mb-1">Utilizado em:</p>
-                                {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
-                                  <ul className="list-disc list-inside space-y-0.5">
-                                    {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
-                                      <li key={i}>
-                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        </CollapsibleContent>
-                      </Collapsible>
+                      )}
                     </React.Fragment>
                   ))}
                 </TableBody>
