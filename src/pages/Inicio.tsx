@@ -63,6 +63,10 @@ const Inicio: React.FC = () => {
     }
 
     console.log('Inicio: Raw data from sold_items (before aggregation):', data);
+    // Filter for the problematic date to inspect
+    const problematicDateItems = data?.filter(item => item.sale_date === '2025-11-01');
+    console.log('Inicio: Items for 2025-11-01 (before aggregation):', problematicDateItems);
+
 
     // Agregação manual dos dados por data
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
@@ -77,6 +81,8 @@ const Inicio: React.FC = () => {
     });
 
     console.log('Inicio: Aggregated data before final array conversion:', aggregatedData);
+    console.log('Inicio: Aggregated total for 2025-11-01:', aggregatedData['2025-11-01']);
+
 
     // Converte o objeto agregado de volta para um array e ordena por data
     const finalAggregatedArray = Object.keys(aggregatedData).map(dateKey => ({
@@ -183,7 +189,7 @@ const Inicio: React.FC = () => {
                       <TableRow>
                         <TableHead>Data da Venda</TableHead>
                         <TableHead className="text-right">Qtd. Total Vendida</TableHead>
-                        <TableHead className="text-right">Valor Total Vendido</TableHead>
+                        <TableHead className="text-right">Valor Total Vendida</TableHead>
                         <TableHead className className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
