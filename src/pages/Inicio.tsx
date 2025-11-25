@@ -45,11 +45,10 @@ const Inicio: React.FC = () => {
       .order('sale_date', { ascending: false }); // Ainda ordena para consistência, mas a agregação é no cliente
 
     if (error) {
-      console.error('Inicio: Erro ao carregar todos os itens vendidos:', error);
+      console.error('Erro ao carregar todos os itens vendidos:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
       throw error;
     }
-    console.log('Inicio: Raw data from Supabase (all items for user):', data);
     return data || [];
   };
 
@@ -62,7 +61,7 @@ const Inicio: React.FC = () => {
       // showSuccess('Dados brutos de vendas carregados com sucesso!');
     },
     onError: (err) => {
-      console.error('Inicio: Erro no React Query ao carregar dados brutos de vendas:', err);
+      console.error('Erro no React Query ao carregar dados brutos de vendas:', err);
       showError(`Erro ao carregar dados brutos de vendas: ${err.message}`);
     },
   });
@@ -80,16 +79,6 @@ const Inicio: React.FC = () => {
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
       aggregatedData[dateKey].total_value_sold += (item.total_value_sold ?? 0);
     });
-
-    const problematicDate = '2025-11-01';
-    const problematicDateRawItems = rawSoldItems.filter(item => item.sale_date === problematicDate);
-    if (problematicDateRawItems.length > 0) {
-      const sumProblematicDate = problematicDateRawItems.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
-      console.log(`Inicio: Raw items for ${problematicDate} (from all fetched data):`, problematicDateRawItems);
-      console.log(`Inicio: Sum of total_value_sold for ${problematicDate} (from all fetched data, client-side): ${sumProblematicDate}`);
-    } else {
-      console.log(`Inicio: No raw items found for ${problematicDate} in the fetched data.`);
-    }
 
     return Object.keys(aggregatedData).map(dateKey => ({
       sale_date: dateKey,
