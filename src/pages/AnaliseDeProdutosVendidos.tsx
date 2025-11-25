@@ -15,7 +15,7 @@ interface AggregatedSoldProduct {
   total_quantity_sold: number;
   total_revenue: number;
   average_unit_price: number;
-  last_sale_date: string;
+  last_sale_date: string | null; // Permitir que last_sale_date seja null
 }
 
 interface SortConfig {
@@ -75,7 +75,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         item.total_quantity_sold.toString().includes(lowerCaseSearchTerm) ||
         item.total_revenue.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
         item.average_unit_price.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
-        format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
+        (item.last_sale_date && format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
 
@@ -84,6 +84,11 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key!];
         const bValue = b[sortConfig.key!];
+
+        // Handle null/undefined values for sorting
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           // Ordenação de datas
@@ -253,7 +258,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell className="text-right">{item.average_unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell>{format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        <TableCell>{item.last_sale_date ? format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
                       </TableRow>
                     ))
                   )}
