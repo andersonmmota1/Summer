@@ -9,7 +9,7 @@ import { ptBR } from 'date-fns/locale';
 interface ConvertedUnitSummary {
   supplier_name: string;
   supplier_product_code: string;
-  supplier_product_description: string; // Adicionado
+  supplier_product_description: string;
   supplier_unit: string;
   internal_unit: string;
   conversion_factor: number;
@@ -17,7 +17,7 @@ interface ConvertedUnitSummary {
   total_original_quantity_purchased: number;
   total_converted_quantity: number;
   total_value_purchased: number;
-  average_original_unit_value: number;
+  average_converted_unit_value: number; // Nova propriedade
   last_purchase_date: string;
 }
 
@@ -106,7 +106,7 @@ const VisaoDeConversoes: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fornecedor</TableHead>
-                      <TableHead>Descrição do Produto Fornecedor</TableHead> {/* UPDATED: Added new column */}
+                      <TableHead>Descrição do Produto Fornecedor</TableHead>
                       <TableHead>Cód. Produto Fornecedor</TableHead>
                       <TableHead>Nome Interno</TableHead>
                       <TableHead>Unidade Fornecedor</TableHead>
@@ -115,6 +115,7 @@ const VisaoDeConversoes: React.FC = () => {
                       <TableHead className="text-right">Qtd. Original</TableHead>
                       <TableHead className="text-right">Qtd. Convertida</TableHead>
                       <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      <TableHead className="text-right">Valor Unitário (Convertido)</TableHead> {/* Nova coluna */}
                       <TableHead>Última Compra</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -122,7 +123,7 @@ const VisaoDeConversoes: React.FC = () => {
                     {convertedData.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.supplier_name}</TableCell>
-                        <TableCell>{item.supplier_product_description}</TableCell> {/* UPDATED: Added new cell */}
+                        <TableCell>{item.supplier_product_description}</TableCell>
                         <TableCell>{item.supplier_product_code}</TableCell>
                         <TableCell>{item.product_display_name}</TableCell>
                         <TableCell>{item.supplier_unit}</TableCell>
@@ -131,6 +132,7 @@ const VisaoDeConversoes: React.FC = () => {
                         <TableCell className="text-right">{item.total_original_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.total_converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{item.average_converted_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell> {/* Nova célula */}
                         <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                       </TableRow>
                     ))}
