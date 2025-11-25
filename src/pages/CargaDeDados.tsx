@@ -212,6 +212,7 @@ const CargaDeDados: React.FC = () => {
 
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
+        console.log(`[DEBUG] Data lida do arquivo "${file.name}":`, data); // NOVO LOG AQUI
 
         const fileFormattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
