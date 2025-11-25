@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
 
 interface ConvertedUnitSummary {
   supplier_name: string;
@@ -17,25 +18,33 @@ interface ConvertedUnitSummary {
   total_original_quantity_purchased: number;
   total_converted_quantity: number;
   total_value_purchased: number;
-  average_converted_unit_value: number; // Nova propriedade
+  average_converted_unit_value: number;
   last_purchase_date: string;
 }
 
 const VisaoDeConversoes: React.FC = () => {
+  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { selectedSupplier } = filters;
+
   const [convertedData, setConvertedData] = useState<ConvertedUnitSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchConvertedData();
-  }, []);
+  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
 
   const fetchConvertedData = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando visão de conversões...');
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('converted_units_summary')
         .select('*');
+
+      if (selectedSupplier) {
+        query = query.eq('supplier_name', selectedSupplier);
+      }
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -71,6 +80,14 @@ const VisaoDeConversoes: React.FC = () => {
         Aqui você pode verificar os produtos comprados que possuem conversão de unidade registrada,
         visualizando as quantidades originais e as quantidades convertidas para suas unidades internas.
       </p>
+
+      {selectedSupplier && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
+          </span>
+        </div>
+      )}
 
       {convertedData.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -115,7 +132,7 @@ const VisaoDeConversoes: React.FC = () => {
                       <TableHead className="text-right">Qtd. Original</TableHead>
                       <TableHead className="text-right">Qtd. Convertida</TableHead>
                       <TableHead className="text-right">Valor Total Gasto</TableHead>
-                      <TableHead className="text-right">Valor Unitário (Convertido)</TableHead> {/* Nova coluna */}
+                      <TableHead className="text-right">Valor Unitário (Convertido)</TableHead>
                       <TableHead>Última Compra</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -132,7 +149,7 @@ const VisaoDeConversoes: React.FC = () => {
                         <TableCell className="text-right">{item.total_original_quantity_purchased.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.total_converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.total_value_purchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.average_converted_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell> {/* Nova célula */}
+                        <TableCell className="text-right">{item.average_converted_unit_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         <TableCell>{format(new Date(item.last_purchase_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
                       </TableRow>
                     ))}

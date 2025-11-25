@@ -13,10 +13,11 @@ import AnaliseDeProdutosVendidos from "./pages/AnaliseDeProdutosVendidos";
 import ProdutosNaoMapeados from "./pages/ProdutosNaoMapeados";
 import VisaoDeConversoes from "./pages/VisaoDeConversoes";
 import VisaoDeNotasFiscais from "./pages/VisaoDeNotasFiscais";
-import CustoProdutos from "./pages/CustoProdutos"; // Importar a nova página
+import CustoProdutos from "./pages/CustoProdutos";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
+import { FilterProvider } from "./contexts/FilterContext"; // Import FilterProvider
 
 const queryClient = new QueryClient();
 
@@ -46,23 +47,25 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<ProtectedRoute><DashboardShell /></ProtectedRoute>}>
-              <Route index element={<Navigate to="/inicio" replace />} />
-              <Route path="inicio" element={<Inicio />} />
-              <Route path="estoque" element={<Estoque />} />
-              <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
-              <Route path="carga-de-dados" element={<CargaDeDados />} />
-              <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} />
-              <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} />
-              <Route path="produtos-nao-mapeados" element={<ProdutosNaoMapeados />} />
-              <Route path="visao-de-conversoes" element={<VisaoDeConversoes />} />
-              <Route path="visao-de-notas-fiscais" element={<VisaoDeNotasFiscais />} />
-              <Route path="custo-produtos" element={<CustoProdutos />} /> {/* Nova rota */}
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <FilterProvider> {/* Envolve com FilterProvider */}
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<ProtectedRoute><DashboardShell /></ProtectedRoute>}>
+                <Route index element={<Navigate to="/inicio" replace />} />
+                <Route path="inicio" element={<Inicio />} />
+                <Route path="estoque" element={<Estoque />} />
+                <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
+                <Route path="carga-de-dados" element={<CargaDeDados />} />
+                <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} />
+                <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} />
+                <Route path="produtos-nao-mapeados" element={<ProdutosNaoMapeados />} />
+                <Route path="visao-de-conversoes" element={<VisaoDeConversoes />} />
+                <Route path="visao-de-notas-fiscais" element={<VisaoDeNotasFiscais />} />
+                <Route path="custo-produtos" element={<CustoProdutos />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </FilterProvider>
         </SessionContextProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button'; // Import Button
-import { createExcelFile } from '@/utils/excel'; // Import createExcelFile
+import { Button } from '@/components/ui/button';
+import { createExcelFile } from '@/utils/excel';
+import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
 
 // Updated interface for unmapped name products
 interface UnmappedProductNameSummary {
@@ -19,35 +20,48 @@ interface UnmappedProductNameSummary {
 interface UnmappedUnitConversionSummary {
   c_prod: string;
   supplier_name: string;
-  descricao_do_produto: string; // Adicionado
+  descricao_do_produto: string;
   supplier_unit: string;
 }
 
 const ProdutosNaoMapeados: React.FC = () => {
+  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { selectedSupplier } = filters;
+
   const [unmappedNameProducts, setUnmappedNameProducts] = useState<UnmappedProductNameSummary[]>([]);
   const [unmappedUnitProducts, setUnmappedUnitProducts] = useState<UnmappedUnitConversionSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchUnmappedProducts();
-  }, []);
+  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
 
   const fetchUnmappedProducts = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando produtos não mapeados...');
     try {
-      // Fetch unmapped name products from the simplified view
-      const { data: nameData, error: nameError } = await supabase
-        .from('unmapped_purchased_products_summary') // This view is now simplified
+      // Busca produtos sem mapeamento de nome
+      let nameQuery = supabase
+        .from('unmapped_purchased_products_summary')
         .select('*');
+
+      if (selectedSupplier) {
+        nameQuery = nameQuery.eq('supplier_name', selectedSupplier);
+      }
+      const { data: nameData, error: nameError } = await nameQuery;
 
       if (nameError) throw nameError;
       setUnmappedNameProducts(nameData || []);
 
-      // Fetch unmapped unit products (this remains unchanged)
-      const { data: unitData, error: unitError } = await supabase
+      // Busca produtos sem mapeamento de unidade
+      let unitQuery = supabase
         .from('unmapped_unit_conversions_summary')
         .select('*');
+
+      if (selectedSupplier) {
+        unitQuery = unitQuery.eq('supplier_name', selectedSupplier);
+      }
+      const { data: unitData, error: unitError } = await unitQuery;
 
       if (unitError) throw unitError;
       setUnmappedUnitProducts(unitData || []);
@@ -93,7 +107,6 @@ const ProdutosNaoMapeados: React.FC = () => {
       return;
     }
 
-    // UPDATED: Include 'Descrição do Produto' in headers and formattedData
     const headers = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição do Produto', 'Unidade Fornecedor'];
     const formattedData = unmappedUnitProducts.map(item => ({
       'Código Fornecedor': item.c_prod,
@@ -114,7 +127,6 @@ const ProdutosNaoMapeados: React.FC = () => {
     showSuccess('Produtos sem mapeamento de unidade interna exportados com sucesso!');
   };
 
-
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -134,6 +146,14 @@ const ProdutosNaoMapeados: React.FC = () => {
         Esta página exibe produtos comprados de fornecedores que ainda não possuem um mapeamento para um nome interno ou uma conversão de unidade.
         Considere mapeá-los na página "Carga de Dados" (aba Conversões) para uma análise mais consistente.
       </p>
+
+      {selectedSupplier && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
+          </span>
+        </div>
+      )}
 
       {!hasUnmappedData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -196,7 +216,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                       <TableRow>
                         <TableHead>Cód. Fornecedor</TableHead>
                         <TableHead>Nome Fornecedor</TableHead>
-                        <TableHead>Descrição do Produto</TableHead> {/* UPDATED: Added new column */}
+                        <TableHead>Descrição do Produto</TableHead>
                         <TableHead>Unidade Fornecedor</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -205,7 +225,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.c_prod}</TableCell>
                           <TableCell>{item.supplier_name}</TableCell>
-                          <TableCell>{item.descricao_do_produto}</TableCell> {/* UPDATED: Added new cell */}
+                          <TableCell>{item.descricao_do_produto}</TableCell>
                           <TableCell>{item.supplier_unit}</TableCell>
                         </TableRow>
                       ))}

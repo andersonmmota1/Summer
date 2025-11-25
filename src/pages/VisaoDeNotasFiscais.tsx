@@ -5,31 +5,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
 
 interface InvoiceSummary {
-  invoice_id: string; // Chave de acesso da NFe (identificador único)
-  invoice_number_display: string; // Número sequencial da nota (para exibição)
+  invoice_id: string;
+  invoice_number_display: string;
   supplier_name: string;
   invoice_date: string;
   total_invoice_value: number;
 }
 
 const VisaoDeNotasFiscais: React.FC = () => {
+  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { selectedSupplier } = filters;
+
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchInvoiceSummary();
-  }, []);
+  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
 
   const fetchInvoiceSummary = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando resumo das notas fiscais...');
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('invoice_summary')
-        .select('*')
-        .order('invoice_date', { ascending: false });
+        .select('*');
+
+      if (selectedSupplier) {
+        query = query.eq('supplier_name', selectedSupplier);
+      }
+      query = query.order('invoice_date', { ascending: false });
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -61,6 +71,14 @@ const VisaoDeNotasFiscais: React.FC = () => {
         Visualize um resumo das notas fiscais carregadas, incluindo o fornecedor, data de emissão e valor total.
       </p>
 
+      {selectedSupplier && (
+        <div className="mb-4">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
+          </span>
+        </div>
+      )}
+
       {invoices.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhuma nota fiscal encontrada.</p>
@@ -78,11 +96,21 @@ const VisaoDeNotasFiscais: React.FC = () => {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow><TableHead>Número da Nota</TableHead><TableHead>Fornecedor</TableHead><TableHead>Data de Emissão</TableHead><TableHead className="text-right">Total da Nota</TableHead></TableRow>
+                  <TableRow>
+                    <TableHead>Número da Nota</TableHead>
+                    <TableHead>Fornecedor</TableHead>
+                    <TableHead>Data de Emissão</TableHead>
+                    <TableHead className="text-right">Total da Nota</TableHead>
+                  </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invoices.map((invoice, index) => (
-                    <TableRow key={invoice.invoice_id || index}><TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell><TableCell>{invoice.supplier_name || 'N/A'}</TableCell><TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell><TableCell className="text-right">{invoice.total_invoice_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell></TableRow>
+                    <TableRow key={invoice.invoice_id || index}>
+                      <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell>
+                      <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
+                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      <TableCell className="text-right">{invoice.total_invoice_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>

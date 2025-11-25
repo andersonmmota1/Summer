@@ -2,12 +2,16 @@ import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
-import Sidebar from './Sidebar'; // Importar o novo componente Sidebar
-import { Button } from '@/components/ui/button'; // Manter o botão de sair no cabeçalho, se necessário
+import Sidebar from './Sidebar';
+import { Button } from '@/components/ui/button';
+import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
+import { XCircle } from 'lucide-react'; // Import an icon for clearing filter
 
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { filters, clearFilters } = useFilter(); // Usa o contexto de filtro
+  const { selectedSupplier } = filters;
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
@@ -19,7 +23,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
     { name: 'Visão de Conversões', path: '/visao-de-conversoes' },
-    { name: 'Custo de Produtos', path: '/custo-produtos' }, // Nova entrada
+    { name: 'Custo de Produtos', path: '/custo-produtos' },
   ];
 
   const handleLogout = async () => {
@@ -39,14 +43,23 @@ const DashboardShell: React.FC = () => {
 
       {/* Área de Conteúdo Principal */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Cabeçalho (agora mais simples) */}
+        {/* Cabeçalho */}
         <header className="bg-white dark:bg-gray-800 shadow-sm p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="container mx-auto flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               Gestão de Restaurante
             </h1>
-            {/* O botão de sair foi movido para a sidebar, mas pode ser mantido aqui se desejar um segundo ponto de saída */}
-            {/* <Button onClick={handleLogout} variant="destructive">Sair</Button> */}
+            {selectedSupplier && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Filtrando: <span className="font-semibold">{selectedSupplier}</span>
+                </span>
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-auto p-1">
+                  <XCircle className="h-4 w-4 text-red-500" />
+                  <span className="sr-only">Limpar filtro</span>
+                </Button>
+              </div>
+            )}
           </div>
         </header>
 

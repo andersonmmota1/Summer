@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
+import { Button } from '@/components/ui/button'; // Import Button for clear filter
 
 interface AggregatedSupplierProduct {
   supplier_name: string;
@@ -23,46 +25,63 @@ interface TotalBySupplier {
 }
 
 interface TotalByInternalProduct {
-  product_display_name: string; // Usar o nome da view
+  product_display_name: string;
   total_value_spent: number;
 }
 
 const AnaliseDeFornecedor: React.FC = () => {
+  const { filters, setFilter, clearFilters } = useFilter(); // Usa o contexto de filtro
+  const { selectedSupplier } = filters;
+
   const [aggregatedData, setAggregatedData] = useState<AggregatedSupplierProduct[]>([]);
   const [totalBySupplier, setTotalBySupplier] = useState<TotalBySupplier[]>([]);
-  const [totalByInternalProduct, setTotalByInternalProduct] = useState<TotalByInternalProduct[]>([]); // Novo estado
+  const [totalByInternalProduct, setTotalByInternalProduct] = useState<TotalByInternalProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAnalysisData();
-  }, []);
+  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
 
   const fetchAnalysisData = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Carregando dados de análise de fornecedor...');
     try {
-      // Fetch aggregated supplier products
-      const { data: aggregatedDataResult, error: aggregatedError } = await supabase
+      // Busca produtos agregados por fornecedor
+      let aggregatedQuery = supabase
         .from('aggregated_supplier_products')
-        .select('*')
+        .select('*');
+
+      if (selectedSupplier) {
+        aggregatedQuery = aggregatedQuery.eq('supplier_name', selectedSupplier);
+      }
+      aggregatedQuery = aggregatedQuery
         .order('supplier_name', { ascending: true })
         .order('supplier_product_description', { ascending: true });
+
+      const { data: aggregatedDataResult, error: aggregatedError } = await aggregatedQuery;
 
       if (aggregatedError) throw aggregatedError;
       setAggregatedData(aggregatedDataResult || []);
 
-      // Fetch total purchased by supplier
-      const { data: totalBySupplierResult, error: totalBySupplierError } = await supabase
+      // Busca total comprado por fornecedor
+      let totalBySupplierQuery = supabase
         .from('total_purchased_by_supplier')
-        .select('*')
+        .select('*');
+
+      if (selectedSupplier) {
+        totalBySupplierQuery = totalBySupplierQuery.eq('supplier_name', selectedSupplier);
+      }
+      totalBySupplierQuery = totalBySupplierQuery
         .order('total_value_spent', { ascending: false });
+
+      const { data: totalBySupplierResult, error: totalBySupplierError } = await totalBySupplierQuery;
 
       if (totalBySupplierError) throw totalBySupplierError;
       setTotalBySupplier(totalBySupplierResult || []);
 
-      // Fetch total purchased by internal product (using the new view)
+      // Busca total comprado por produto interno (mantido sem filtro direto por fornecedor)
       const { data: totalByInternalProductResult, error: totalByInternalProductError } = await supabase
-        .from('total_purchased_by_internal_product') // Usando a nova view
+        .from('total_purchased_by_internal_product')
         .select('*')
         .order('total_value_spent', { ascending: false });
 
@@ -79,7 +98,12 @@ const AnaliseDeFornecedor: React.FC = () => {
     }
   };
 
-  // Calcular o valor total gasto por fornecedor
+  // Handler para clicar no nome de um fornecedor
+  const handleSupplierClick = (supplierName: string) => {
+    setFilter({ selectedSupplier: supplierName });
+  };
+
+  // Calcula o valor total gasto por fornecedor
   const totalValueSpentBySupplier = useMemo(() => {
     return totalBySupplier.reduce((sum, item) => sum + item.total_value_spent, 0);
   }, [totalBySupplier]);
@@ -99,7 +123,19 @@ const AnaliseDeFornecedor: React.FC = () => {
       </h2>
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Visualize informações agregadas sobre os produtos comprados de cada fornecedor.
+        Clique no nome de um fornecedor na tabela "Total Comprado por Fornecedor" para filtrar os dados.
       </p>
+
+      {selectedSupplier && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Fornecedor: <span className="font-bold text-primary">{selectedSupplier}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={clearFilters}>
+            Limpar Filtro
+          </Button>
+        </div>
+      )}
 
       {aggregatedData.length === 0 && totalByInternalProduct.length === 0 && totalBySupplier.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -132,7 +168,11 @@ const AnaliseDeFornecedor: React.FC = () => {
                     <TableBody>
                       {totalBySupplier.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <Button variant="link" onClick={() => handleSupplierClick(item.supplier_name)} className="p-0 h-auto text-left">
+                              {item.supplier_name}
+                            </Button>
+                          </TableCell>
                           <TableCell className="text-right">{item.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         </TableRow>
                       ))}
