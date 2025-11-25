@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -77,6 +77,15 @@ const Inicio: React.FC = () => {
     },
   });
 
+  // Calcula o somatório total da quantidade e valor vendidos
+  const totalQuantitySoldSum = useMemo(() => {
+    return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
+  }, [salesByDate]);
+
+  const totalValueSoldSum = useMemo(() => {
+    return salesByDate?.reduce((sum, sale) => sum + sale.total_value_sold, 0) || 0;
+  }, [salesByDate]);
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -104,37 +113,43 @@ const Inicio: React.FC = () => {
                 Erro ao carregar vendas por data: {error?.message}
               </div>
             ) : (salesByDate && salesByDate.length > 0) ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Data da Venda</TableHead>
-                      <TableHead className="text-right">Qtd. Total Vendida</TableHead>
-                      <TableHead className="text-right">Valor Total Vendido</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {salesByDate.map((sale, index) => {
-                      const dateFromSupabase = new Date(sale.sale_date);
-                      // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
-                      const year = dateFromSupabase.getUTCFullYear();
-                      const month = dateFromSupabase.getUTCMonth(); // 0-indexed
-                      const day = dateFromSupabase.getUTCDate();
+              <>
+                <div className="mb-4 text-lg font-bold text-gray-900 dark:text-gray-100">
+                  <p>Total Geral Vendido: {totalQuantitySoldSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades</p>
+                  <p>Valor Total Geral: {totalValueSoldSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                </div>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data da Venda</TableHead>
+                        <TableHead className="text-right">Qtd. Total Vendida</TableHead>
+                        <TableHead className="text-right">Valor Total Vendido</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesByDate.map((sale, index) => {
+                        const dateFromSupabase = new Date(sale.sale_date);
+                        // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
+                        const year = dateFromSupabase.getUTCFullYear();
+                        const month = dateFromSupabase.getUTCMonth(); // 0-indexed
+                        const day = dateFromSupabase.getUTCDate();
 
-                      // Cria um novo objeto Date no fuso horário local usando os componentes UTC
-                      const localDateForDisplay = new Date(year, month, day);
+                        // Cria um novo objeto Date no fuso horário local usando os componentes UTC
+                        const localDateForDisplay = new Date(year, month, day);
 
-                      return (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{format(localDateForDisplay, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                          <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                        return (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{format(localDateForDisplay, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                            <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             ) : (
               <div className="text-center text-gray-600 dark:text-gray-400 py-4">
                 Nenhum dado de venda encontrado.
