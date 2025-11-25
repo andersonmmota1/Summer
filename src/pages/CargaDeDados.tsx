@@ -338,6 +338,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
     } else {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -893,6 +894,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
     } catch (error: any) {
       showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
