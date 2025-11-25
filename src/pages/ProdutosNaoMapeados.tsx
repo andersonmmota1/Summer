@@ -19,6 +19,7 @@ interface UnmappedProductNameSummary {
 interface UnmappedUnitConversionSummary {
   c_prod: string;
   supplier_name: string;
+  descricao_do_produto: string; // Adicionado
   supplier_unit: string;
 }
 
@@ -92,10 +93,12 @@ const ProdutosNaoMapeados: React.FC = () => {
       return;
     }
 
-    const headers = ['Código Fornecedor', 'Nome Fornecedor', 'Unidade Fornecedor'];
+    // UPDATED: Include 'Descrição do Produto' in headers and formattedData
+    const headers = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição do Produto', 'Unidade Fornecedor'];
     const formattedData = unmappedUnitProducts.map(item => ({
       'Código Fornecedor': item.c_prod,
       'Nome Fornecedor': item.supplier_name,
+      'Descrição do Produto': item.descricao_do_produto,
       'Unidade Fornecedor': item.supplier_unit,
     }));
 
@@ -193,6 +196,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                       <TableRow>
                         <TableHead>Cód. Fornecedor</TableHead>
                         <TableHead>Nome Fornecedor</TableHead>
+                        <TableHead>Descrição do Produto</TableHead> {/* UPDATED: Added new column */}
                         <TableHead>Unidade Fornecedor</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -201,6 +205,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                         <TableRow key={index}>
                           <TableCell className="font-medium">{item.c_prod}</TableCell>
                           <TableCell>{item.supplier_name}</TableCell>
+                          <TableCell>{item.descricao_do_produto}</TableCell> {/* UPDATED: Added new cell */}
                           <TableCell>{item.supplier_unit}</TableCell>
                         </TableRow>
                       ))}
