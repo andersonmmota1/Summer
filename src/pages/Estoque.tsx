@@ -80,6 +80,11 @@ const Estoque: React.FC = () => {
     }));
   };
 
+  // Calcular o valor total do estoque
+  const totalStockValue = useMemo(() => {
+    return stockData.reduce((sum, item) => sum + item.total_purchased_value, 0);
+  }, [stockData]);
+
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -108,76 +113,93 @@ const Estoque: React.FC = () => {
           </p>
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Estoque Atual de Produtos Internos</CardTitle>
-            <CardDescription>
-              Visão geral do estoque de cada produto interno, considerando compras e consumo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome Interno do Produto</TableHead>
-                    <TableHead>Unidade Interna</TableHead>
-                    <TableHead className="text-right">Estoque Atual</TableHead>
-                    <TableHead className="text-right">Qtd. Comprada (Convertida)</TableHead>
-                    <TableHead className="text-right">Qtd. Consumida (Vendas)</TableHead>
-                    <TableHead className="text-right">Valor Total Comprado</TableHead>
-                    <TableHead className="text-right">Detalhes de Uso</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stockData.map((item, index) => (
-                    <React.Fragment key={index}>
-                      <TableRow>
-                        <TableCell className="font-medium">{item.internal_product_name}</TableCell>
-                        <TableCell>{item.internal_unit}</TableCell>
-                        <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-9 p-0"
-                            onClick={() => handleToggleRow(item.internal_product_name)}
-                          >
-                            <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
-                            <span className="sr-only">Toggle detalhes de uso</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {openRows[item.internal_product_name] && (
+        <div className="space-y-6">
+          {/* Novo Card para o Somatório do Valor Total de Estoque */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Valor Total do Estoque</CardTitle>
+              <CardDescription>
+                Somatório do valor de compra de todos os produtos atualmente em estoque.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                R$ {totalStockValue.toFixed(2)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Estoque Atual de Produtos Internos</CardTitle>
+              <CardDescription>
+                Visão geral do estoque de cada produto interno, considerando compras e consumo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome Interno do Produto</TableHead>
+                      <TableHead>Unidade Interna</TableHead>
+                      <TableHead className="text-right">Estoque Atual</TableHead>
+                      <TableHead className="text-right">Qtd. Comprada (Convertida)</TableHead>
+                      <TableHead className="text-right">Qtd. Consumida (Vendas)</TableHead>
+                      <TableHead className="text-right">Valor Total Comprado</TableHead>
+                      <TableHead className="text-right">Detalhes de Uso</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockData.map((item, index) => (
+                      <React.Fragment key={index}>
                         <TableRow>
-                          <TableCell colSpan={7} className="py-0 pl-12 pr-4">
-                            <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
-                              <p className="font-semibold mb-1">Utilizado em:</p>
-                              {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
-                                <ul className="list-disc list-inside space-y-0.5">
-                                  {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
-                                    <li key={i}>
-                                      {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
-                              )}
-                            </div>
+                          <TableCell className="font-medium">{item.internal_product_name}</TableCell>
+                          <TableCell>{item.internal_unit}</TableCell>
+                          <TableCell className="text-right">{item.current_stock_quantity.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">R$ {item.total_purchased_value.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-9 p-0"
+                              onClick={() => handleToggleRow(item.internal_product_name)}
+                            >
+                              <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
+                              <span className="sr-only">Toggle detalhes de uso</span>
+                            </Button>
                           </TableCell>
                         </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                        {openRows[item.internal_product_name] && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="py-0 pl-12 pr-4">
+                              <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
+                                <p className="font-semibold mb-1">Utilizado em:</p>
+                                {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
+                                  <ul className="list-disc list-inside space-y-0.5">
+                                    {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
+                                      <li key={i}>
+                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toFixed(2)})
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
