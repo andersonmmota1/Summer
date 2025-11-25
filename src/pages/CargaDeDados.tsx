@@ -21,36 +21,73 @@ import {
 import { useSession } from '@/components/SessionContextProvider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { parseBrazilianFloat } from '@/lib/utils'; // Importar a nova função
-import { useQueryClient } from '@tanstack/react-query'; // Importar useQueryClient
+import { parseBrazilianFloat } from '@/lib/utils';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+
+// Interface para os itens comprados diretamente do Supabase
+interface PurchasedItem {
+  id: string;
+  user_id: string;
+  c_prod: string;
+  descricao_do_produto: string;
+  u_com: string;
+  q_com: number;
+  v_un_com: number;
+  created_at: string;
+  internal_product_name: string | null;
+  invoice_id: string | null;
+  item_sequence_number: number | null;
+  x_fant: string | null;
+  invoice_number: string | null;
+}
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
-  const queryClient = useQueryClient(); // Inicializar queryClient
+  const queryClient = useQueryClient();
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const [selectedSoldItemsExcelFiles, setSelectedSoldItemsExcelFiles] = useState<File[]>([]); // Alterado para array
+  const [selectedSoldItemsExcelFiles, setSelectedSoldItemsExcelFiles] = useState<File[]>([]);
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
+  // Estado temporário para exibir dados XML parseados
+  const [parsedXmlDataPreview, setParsedXmlDataPreview] = useState<any[] | null>(null);
 
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
 
+  // Query para buscar itens comprados diretamente da tabela purchased_items
+  const { data: directPurchasedItems, isLoading: isLoadingDirectPurchasedItems, refetch: refetchDirectPurchasedItems } = useQuery<PurchasedItem[], Error>({
+    queryKey: ['direct_purchased_items', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 10, // Curto staleTime para depuração
+  });
 
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setSelectedXmlFiles(Array.from(event.target.files));
+      setParsedXmlDataPreview(null); // Limpa o preview ao selecionar novos arquivos
     } else {
       setSelectedXmlFiles([]);
+      setParsedXmlDataPreview(null);
     }
   };
 
   const handleSoldItemsExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedSoldItemsExcelFiles(Array.from(event.target.files)); // Alterado para array
+      setSelectedSoldItemsExcelFiles(Array.from(event.target.files));
     } else {
       setSelectedSoldItemsExcelFiles([]);
     }
@@ -98,6 +135,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
     let hasError = false;
+    const allParsedData: any[] = [];
 
     for (const file of selectedXmlFiles) {
       try {
@@ -113,19 +151,19 @@ const CargaDeDados: React.FC = () => {
         }
 
         const formattedData = data.map((row: any) => ({
-          user_id: user.id, // Adicionando o user_id aqui
+          user_id: user.id,
           c_prod: String(row['ns1:cProd']),
           descricao_do_produto: String(row['descricao_do_produto']),
           u_com: String(row['ns1:uCom']),
-          q_com: parseBrazilianFloat(row['ns1:qCom']), // Usando parseBrazilianFloat
-          v_un_com: parseBrazilianFloat(row['ns1:vUnCom']), // Usando parseBrazilianFloat
-          invoice_id: row.invoice_id, // Chave de acesso
-          invoice_number: row.invoice_number, // Número sequencial da nota
+          q_com: parseBrazilianFloat(row['ns1:qCom']),
+          v_un_com: parseBrazilianFloat(row['ns1:vUnCom']),
+          invoice_id: row.invoice_id,
+          invoice_number: row.invoice_number,
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
         console.log(`Formatted data for ${file.name}:`, formattedData);
-
+        allParsedData.push(...formattedData); // Adiciona para o preview
 
         const { error } = await supabase
           .from('purchased_items')
@@ -149,6 +187,9 @@ const CargaDeDados: React.FC = () => {
     }
 
     dismissToast(loadingToastId);
+    setParsedXmlDataPreview(allParsedData); // Define os dados parseados para preview
+    refetchDirectPurchasedItems(); // Atualiza a lista de itens comprados diretamente
+
     if (!hasError) {
       showSuccess(`Carga de ${selectedXmlFiles.length} arquivo(s) XML concluída. Total de ${totalItemsLoaded} itens carregados.`);
       // Invalida as queries relacionadas a itens comprados e suas agregações
@@ -164,11 +205,11 @@ const CargaDeDados: React.FC = () => {
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
-    setSelectedXmlFiles([]); // Isso limpa os arquivos selecionados no input
+    setSelectedXmlFiles([]);
   };
 
   const handleUploadSoldItemsExcel = async () => {
-    if (selectedSoldItemsExcelFiles.length === 0) { // Alterado para array
+    if (selectedSoldItemsExcelFiles.length === 0) {
       showError('Por favor, selecione um ou mais arquivos Excel para carregar produtos vendidos.');
       return;
     }
@@ -177,11 +218,11 @@ const CargaDeDados: React.FC = () => {
       return;
     }
 
-    const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`); // Alterado para array
+    const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`);
     let totalItemsLoaded = 0;
     let hasError = false;
 
-    for (const file of selectedSoldItemsExcelFiles) { // Iterar sobre os arquivos
+    for (const file of selectedSoldItemsExcelFiles) {
       try {
         const data = await readExcelFile(file);
 
@@ -192,17 +233,15 @@ const CargaDeDados: React.FC = () => {
         }
 
         let fileDate: Date | null = null;
-        const fileName = file.name; // Usar o nome do arquivo atual
-        // Regex para encontrar DD.MM.YYYY no nome do arquivo
+        const fileName = file.name;
         const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})/);
 
         if (dateMatch) {
           const day = parseInt(dateMatch[1], 10);
-          const month = parseInt(dateMatch[2], 10) - 1; // Mês é 0-indexado em JS Date
+          const month = parseInt(dateMatch[2], 10) - 1;
           const year = parseInt(dateMatch[3], 10);
           const parsedDate = new Date(year, month, day);
 
-          // Validação básica para garantir que é uma data válida
           if (!isNaN(parsedDate.getTime()) && parsedDate.getDate() === day && parsedDate.getMonth() === month && parsedDate.getFullYear() === year) {
             fileDate = parsedDate;
             showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo "${file.name}" e será usada para as vendas.`);
@@ -216,22 +255,21 @@ const CargaDeDados: React.FC = () => {
         const formattedData = data.map((row: any) => {
           let saleDate: string;
           if (fileDate) {
-            saleDate = fileDate.toISOString(); // Prioriza a data do nome do arquivo
+            saleDate = fileDate.toISOString();
           } else {
-            saleDate = new Date().toISOString(); // Padrão para a data atual
+            saleDate = new Date().toISOString();
           }
 
-          const totalValue = parseBrazilianFloat(row['Valor']) || 0; // Usando parseBrazilianFloat
-          const quantity = parseBrazilianFloat(row['Quantidade']) || 0; // Usando parseBrazilianFloat
-          
-          // Calcula o preço unitário médio: Valor Total / Quantidade
+          const totalValue = parseBrazilianFloat(row['Valor']) || 0;
+          const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
+
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
           return {
             user_id: user.id,
             product_name: String(row['Produto']),
-            quantity_sold: quantity, // Quantidade vendida
-            unit_price: calculatedUnitPrice, // Preço unitário médio calculado
+            quantity_sold: quantity,
+            unit_price: calculatedUnitPrice,
             sale_date: saleDate,
           };
         });
@@ -259,7 +297,6 @@ const CargaDeDados: React.FC = () => {
     dismissToast(loadingToastId);
     if (!hasError) {
       showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoaded} itens carregados.`);
-      // Invalida as queries relacionadas a itens vendidos e suas agregações
       queryClient.invalidateQueries({ queryKey: ['sold_items'] });
       queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
@@ -268,7 +305,7 @@ const CargaDeDados: React.FC = () => {
     } else {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
-    setSelectedSoldItemsExcelFiles([]); // Limpar seleção
+    setSelectedSoldItemsExcelFiles([]);
   };
 
   const handleUploadProductRecipeExcel = async () => {
@@ -296,7 +333,7 @@ const CargaDeDados: React.FC = () => {
         user_id: user.id,
         sold_product_name: String(row['Produto Vendido']),
         internal_product_name: String(row['Nome Interno']),
-        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']), // Usando parseBrazilianFloat
+        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']),
       }));
 
       const { error } = await supabase
@@ -310,7 +347,6 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} fichas técnicas de produtos do Excel carregados com sucesso!`);
       setSelectedProductRecipeExcelFile(null);
-      // Invalida as queries relacionadas a fichas técnicas e estoque/custo
       queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
@@ -355,7 +391,7 @@ const CargaDeDados: React.FC = () => {
 
       const { error } = await supabase
         .from('product_name_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name' }); // Upsert para evitar duplicatas
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name' });
 
       if (error) {
         console.error('Erro detalhado do Supabase (Conversão de Nomes Excel):', error);
@@ -364,7 +400,6 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos do Excel carregados com sucesso!`);
       setSelectedProductNameConversionExcelFile(null);
-      // Invalida as queries relacionadas a mapeamentos de nomes
       queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
       queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
       queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
@@ -407,12 +442,12 @@ const CargaDeDados: React.FC = () => {
         supplier_product_description: String(row['Descrição Produto Fornecedor']),
         supplier_unit: String(row['Unidade Fornecedor']),
         internal_unit: String(row['Unidade Interna']),
-        conversion_factor: parseBrazilianFloat(row['Fator de Conversão']), // Usando parseBrazilianFloat
+        conversion_factor: parseBrazilianFloat(row['Fator de Conversão']),
       }));
 
       const { error } = await supabase
         .from('unit_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit' }); // Upsert para evitar duplicatas
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit' });
 
       if (error) {
         console.error('Erro detalhado do Supabase (Conversão de Unidades Excel):', error);
@@ -421,7 +456,6 @@ const CargaDeDados: React.FC = () => {
 
       showSuccess(`Dados de ${formattedData.length} conversões de unidades do Excel carregados com sucesso!`);
       setSelectedUnitConversionExcelFile(null);
-      // Invalida as queries relacionadas a conversões de unidades
       queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
       queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
@@ -493,6 +527,7 @@ const CargaDeDados: React.FC = () => {
       const { data, error } = await supabase
         .from('purchased_items')
         .select('*')
+        .eq('user_id', user?.id) // Filtrar por user_id
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -560,7 +595,7 @@ const CargaDeDados: React.FC = () => {
       const { data, error } = await supabase
         .from('sold_items')
         .select('*')
-        .eq('user_id', user.id) // Filtrar por user_id
+        .eq('user_id', user.id)
         .order('sale_date', { ascending: false });
 
       if (error) throw error;
@@ -616,7 +651,7 @@ const CargaDeDados: React.FC = () => {
       const { data, error } = await supabase
         .from('product_recipes')
         .select('*')
-        .eq('user_id', user.id) // Filtrar por user_id
+        .eq('user_id', user.id)
         .order('sold_product_name', { ascending: true });
 
       if (error) throw error;
@@ -785,7 +820,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('purchased_items')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta todos os registros
+        .eq('user_id', user?.id); // Deleta apenas os registros do usuário logado
 
       if (error) throw error;
 
@@ -799,6 +834,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      refetchDirectPurchasedItems(); // Atualiza a lista de itens comprados diretamente
     } catch (error: any) {
       console.error('Erro ao limpar itens comprados:', error);
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -817,7 +853,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('sold_items')
         .delete()
-        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -845,7 +881,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('product_recipes')
         .delete()
-        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -902,7 +938,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('unit_conversions')
         .delete()
-        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -965,6 +1001,62 @@ const CargaDeDados: React.FC = () => {
                 Carregar XML(s)
               </Button>
             </div>
+
+            {/* Seção de Depuração para XML */}
+            <div className="mt-8 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
+              <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Verificação de Carga XML</h4>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                Esta seção mostra os dados do XML que foram *recentemente parseados* e os itens *diretamente da tabela `purchased_items`* para o seu usuário.
+                Use-a para confirmar se o XML está sendo lido e inserido corretamente.
+              </p>
+
+              {parsedXmlDataPreview && parsedXmlDataPreview.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="font-semibold text-gray-800 dark:text-gray-200">Dados XML Parseados (antes de enviar ao Supabase):</h5>
+                  <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-xs overflow-auto max-h-48">
+                    {JSON.stringify(parsedXmlDataPreview, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {isLoadingDirectPurchasedItems ? (
+                <p className="text-gray-700 dark:text-gray-300">Carregando itens comprados diretamente...</p>
+              ) : (
+                <div>
+                  <h5 className="font-semibold text-gray-800 dark:text-gray-200">Itens Comprados do Supabase (direto da tabela `purchased_items`):</h5>
+                  {directPurchasedItems && directPurchasedItems.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table className="min-w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Cód. Prod.</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Qtd.</TableHead>
+                            <TableHead>Valor Unit.</TableHead>
+                            <TableHead>Fornecedor</TableHead>
+                            <TableHead>Nota ID</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {directPurchasedItems.map((item) => (
+                            <TableRow key={item.id}>
+                              <TableCell className="text-xs">{item.c_prod}</TableCell>
+                              <TableCell className="text-xs">{item.descricao_do_produto}</TableCell>
+                              <TableCell className="text-xs">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                              <TableCell className="text-xs">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                              <TableCell className="text-xs">{item.x_fant}</TableCell>
+                              <TableCell className="text-xs">{item.invoice_id ? item.invoice_id.substring(0, 8) + '...' : 'N/A'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Nenhum item comprado encontrado para o seu usuário na tabela `purchased_items`.</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -978,22 +1070,22 @@ const CargaDeDados: React.FC = () => {
               A data da venda será extraída do nome do arquivo (formato <code>DD.MM.YYYY</code>, ex: "VENDAS 01.11.2025"). Se nenhuma data for encontrada no nome do arquivo, a data atual será usada.
             </p>
 
-            <div className="flex flex-col space-y-2"> {/* Alterado para flex-col para melhor layout */}
-              <Label htmlFor="sold-items-excel-file-upload">Selecionar arquivos Excel</Label> {/* Adicionado Label */}
+            <div className="flex flex-col space-y-2">
+              <Label htmlFor="sold-items-excel-file-upload">Selecionar arquivos Excel</Label>
               <Input
                 id="sold-items-excel-file-upload"
                 type="file"
                 accept=".xlsx, .xls, .csv"
-                multiple // Permitir múltiplos arquivos
+                multiple
                 onChange={handleSoldItemsExcelFileChange}
                 className="flex-grow"
               />
-              {selectedSoldItemsExcelFiles.length > 0 && ( // Exibir contagem de arquivos
+              {selectedSoldItemsExcelFiles.length > 0 && (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {selectedSoldItemsExcelFiles.length} arquivo(s) selecionado(s): {selectedSoldItemsExcelFiles.map(f => f.name).join(', ')}
                 </p>
               )}
-              <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}> {/* Alterado para array */}
+              <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}>
                 Carregar Produtos Vendidos
               </Button>
             </div>
@@ -1039,7 +1131,6 @@ const CargaDeDados: React.FC = () => {
               Gerencie as regras de conversão para nomes de produtos e unidades de fornecedores para seus padrões internos.
             </p>
 
-            {/* Seção de Conversão de Nomes de Produtos */}
             <div className="space-y-4 border p-4 rounded-md">
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Nomes de Produtos</h4>
               <p className="text-gray-600 dark:text-gray-400">
@@ -1063,7 +1154,6 @@ const CargaDeDados: React.FC = () => {
               </Button>
             </div>
 
-            {/* Seção de Conversão de Unidades */}
             <div className="space-y-4 border p-4 rounded-md">
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Unidades</h4>
               <p className="text-gray-600 dark:text-gray-400">
