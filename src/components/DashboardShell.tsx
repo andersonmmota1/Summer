@@ -24,7 +24,8 @@ const DashboardShell: React.FC = () => {
     { name: 'Mapeamento de Produtos', path: '/mapeamento-de-produtos' },
     { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
-    { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' }, // Novo item de navegação
+    { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
+    { name: 'Visão de Conversões', path: '/visao-de-conversoes' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {
