@@ -72,7 +72,7 @@ const CargaDeDados: React.FC = () => {
   // });
 
 
-  // Removida 'Data Caixa' daqui, pois ela será inferida do nome do arquivo
+  // 'Data Caixa' será inferida do nome do arquivo, não do Excel
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
@@ -238,9 +238,9 @@ const CargaDeDados: React.FC = () => {
         const month = dateMatch[2];
         const year = dateMatch[3];
         const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-        const saleDate = parseISO(saleDateString);
+        const fileSaleDate = parseISO(saleDateString); // Renomeado para evitar conflito
 
-        if (isNaN(saleDate.getTime())) {
+        if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
         }
 
@@ -252,17 +252,17 @@ const CargaDeDados: React.FC = () => {
           continue;
         }
 
+        // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
+        datesToProcess.add(format(fileSaleDate, 'yyyy-MM-dd'));
+
         const formattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
           const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
-          // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
-          datesToProcess.add(format(saleDate, 'yyyy-MM-dd'));
-
           return {
             user_id: user.id,
-            sale_date: saleDate.toISOString(), // Converte para ISO string para o Supabase
+            sale_date: fileSaleDate.toISOString(), // Usa a data extraída do nome do arquivo
             group_name: String(row['Grupo'] || ''),
             subgroup_name: String(row['Subgrupo'] || ''),
             additional_code: String(row['Codigo'] || ''),
