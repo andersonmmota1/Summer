@@ -167,7 +167,7 @@ const CargaDeDados: React.FC = () => {
 
         const { error } = await supabase
           .from('purchased_items')
-          .upsert(formattedData, { onConflict: 'invoice_id, item_sequence_number', ignoreDuplicates: true });
+          .upsert(formattedData, { onConflict: 'user_id, invoice_id, item_sequence_number', ignoreDuplicates: true }); // ATUALIZADO AQUI!
 
         if (error) {
           console.error(`Supabase upsert error for "${file.name}" (XML):`, error);
