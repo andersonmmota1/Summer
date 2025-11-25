@@ -97,7 +97,6 @@ const Inicio: React.FC = () => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
   }, [salesByDate]);
 
-  // Mantém o cálculo do valor total, mas não será exibido diretamente
   const totalValueSoldSum = useMemo(() => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_value_sold, 0) || 0;
   }, [salesByDate]);
@@ -111,7 +110,7 @@ const Inicio: React.FC = () => {
         Use a navegação acima para explorar as diferentes seções da gestão do seu restaurante.
       </p>
 
-      <div className="mt-8">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Adicionado grid para os cards */}
         <Card>
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
@@ -131,6 +130,31 @@ const Inicio: React.FC = () => {
             ) : (
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {totalQuantitySoldSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Novo Card para o Valor Total Vendido */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Valor Total Vendido</CardTitle>
+            <CardDescription>
+              Somatório do valor total de todos os produtos vendidos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center text-gray-600 dark:text-gray-400 py-4">
+                Carregando valor total vendido...
+              </div>
+            ) : isError ? (
+              <div className="text-center text-red-600 dark:text-red-400 py-4">
+                Erro ao carregar valor total vendido: {error?.message}
+              </div>
+            ) : (
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                {totalValueSoldSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
             )}
           </CardContent>
