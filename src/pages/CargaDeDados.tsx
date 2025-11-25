@@ -237,6 +237,9 @@ const CargaDeDados: React.FC = () => {
 
         const formattedData = data.map((row: any) => {
           const rawDate = String(row['Data Caixa']);
+          if (!rawDate || rawDate === 'undefined') { // Adicionado tratamento para 'undefined'
+            throw new Error(`Formato de data inválido na coluna 'Data Caixa': valor ausente ou inválido. Esperado DD/MM/YYYY ou DD-MM-YYYY.`);
+          }
           let saleDate: Date;
 
           // Tenta parsear a data no formato DD/MM/YYYY ou DD-MM-YYYY
@@ -264,11 +267,11 @@ const CargaDeDados: React.FC = () => {
             group_name: String(row['Grupo'] || ''),
             subgroup_name: String(row['Subgrupo'] || ''),
             additional_code: String(row['Codigo'] || ''),
-            base_product_name: String(row['Produto'] || ''),
-            product_name: String(row['Produto']), // Mapeando 'Produto' do Excel para 'product_name' no DB
+            base_product_name: String(row['Produto'] || ''), // 'Produto' do Excel
+            product_name: String(row['Produto']), // 'Produto' do Excel, usado como nome principal
             quantity_sold: quantity,
             unit_price: calculatedUnitPrice,
-            total_value_sold: totalValue, // Nova coluna
+            total_value_sold: totalValue,
           };
         });
 
@@ -627,7 +630,7 @@ const CargaDeDados: React.FC = () => {
         'Data Caixa',
         'Grupo',
         'Subgrupo',
-        'Código',
+        'Codigo',
         'Produto',
         'Quantidade Vendida',
         'Valor Total Vendido',
@@ -639,8 +642,8 @@ const CargaDeDados: React.FC = () => {
         'Data Caixa': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
         'Grupo': item.group_name || 'N/A',
         'Subgrupo': item.subgroup_name || 'N/A',
-        'Código': item.additional_code || 'N/A',
-        'Produto': item.product_name, // Usando product_name do DB
+        'Codigo': item.additional_code || 'N/A',
+        'Produto': item.product_name,
         'Quantidade Vendida': item.quantity_sold,
         'Valor Total Vendido': item.total_value_sold,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
