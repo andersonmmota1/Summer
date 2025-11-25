@@ -72,7 +72,8 @@ const CargaDeDados: React.FC = () => {
   // });
 
 
-  const soldItemsTemplateHeaders = ['Data Caixa', 'Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
+  // Removida 'Data Caixa' daqui, pois ela será inferida do nome do arquivo
+  const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
@@ -227,6 +228,22 @@ const CargaDeDados: React.FC = () => {
 
     for (const file of selectedSoldItemsExcelFiles) {
       try {
+        // Extrair a data do nome do arquivo (ex: "DD.MM.YYYY.xlsx")
+        const fileName = file.name;
+        const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})\.xlsx$/);
+        if (!dateMatch) {
+          throw new Error(`Nome de arquivo inválido para produtos vendidos: "${fileName}". Esperado formato "DD.MM.YYYY.xlsx".`);
+        }
+        const day = dateMatch[1];
+        const month = dateMatch[2];
+        const year = dateMatch[3];
+        const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
+        const saleDate = parseISO(saleDateString);
+
+        if (isNaN(saleDate.getTime())) {
+          throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
+        }
+
         const data = await readExcelFile(file);
 
         if (!data || data.length === 0) {
@@ -236,24 +253,6 @@ const CargaDeDados: React.FC = () => {
         }
 
         const formattedData = data.map((row: any) => {
-          const rawDate = String(row['Data Caixa']);
-          if (!rawDate || rawDate === 'undefined') { // Adicionado tratamento para 'undefined'
-            throw new Error(`Formato de data inválido na coluna 'Data Caixa': valor ausente ou inválido. Esperado DD/MM/YYYY ou DD-MM-YYYY.`);
-          }
-          let saleDate: Date;
-
-          // Tenta parsear a data no formato DD/MM/YYYY ou DD-MM-YYYY
-          const parsedDate = parse(rawDate, 'dd/MM/yyyy', new Date(), { locale: ptBR });
-          if (isNaN(parsedDate.getTime())) {
-            const parsedDateHyphen = parse(rawDate, 'dd-MM-yyyy', new Date(), { locale: ptBR });
-            if (isNaN(parsedDateHyphen.getTime())) {
-              throw new Error(`Formato de data inválido na coluna 'Data Caixa': ${rawDate}. Esperado DD/MM/YYYY ou DD-MM-YYYY.`);
-            }
-            saleDate = parsedDateHyphen;
-          } else {
-            saleDate = parsedDate;
-          }
-
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
           const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
@@ -1093,8 +1092,9 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
-              O arquivo deve conter as colunas: <code>Data Caixa</code> (formato DD/MM/YYYY ou DD-MM-YYYY), <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
-              Para cada data presente na planilha, todos os produtos vendidos existentes para essa data serão **removidos** e substituídos pelos dados da carga.
+              A **data da venda será inferida do nome do arquivo** (ex: "DD.MM.YYYY.xlsx").
+              O arquivo Excel deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
+              Para cada data inferida do nome do arquivo, todos os produtos vendidos existentes para essa data serão **removidos** e substituídos pelos dados da carga.
             </p>
 
             <div className="flex flex-col space-y-2">
