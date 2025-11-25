@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFilter } from '@/contexts/FilterContext';
-import { useQuery } from '@tanstack/react-query'; // Importar useQuery
+import { useQuery } from '@tanstack/react-query';
+import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
 
 interface InvoiceSummary {
   invoice_id: string;
@@ -19,8 +20,14 @@ interface InvoiceSummary {
 const VisaoDeNotasFiscais: React.FC = () => {
   const { filters } = useFilter();
   const { selectedSupplier } = filters;
+  const { user } = useSession(); // Obter o usuário da sessão
 
   const fetchInvoiceSummary = async (): Promise<InvoiceSummary[]> => {
+    if (!user?.id) {
+      // Se não houver usuário logado, não há dados para buscar
+      return [];
+    }
+
     let query = supabase
       .from('invoice_summary')
       .select('*');
@@ -28,6 +35,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
     if (selectedSupplier) {
       query = query.eq('supplier_name', selectedSupplier);
     }
+    // A view já filtra por user_id, então não precisamos adicionar aqui novamente
     query = query.order('invoice_date', { ascending: false });
 
     const { data, error } = await query;
@@ -35,18 +43,19 @@ const VisaoDeNotasFiscais: React.FC = () => {
     if (error) {
       console.error('Erro ao carregar resumo das notas fiscais:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
-      throw error; // Lançar o erro para o React Query
+      throw error;
     }
 
     return data || [];
   };
 
   const { data: invoices, isLoading, isError, error } = useQuery<InvoiceSummary[], Error>({
-    queryKey: ['invoice_summary', selectedSupplier], // A chave da query inclui o filtro de fornecedor
+    queryKey: ['invoice_summary', user?.id, selectedSupplier], // Inclui user.id na chave da query
     queryFn: fetchInvoiceSummary,
-    staleTime: 1000 * 60 * 5, // Dados considerados 'frescos' por 5 minutos
+    enabled: !!user?.id, // A query só será executada se houver um user.id
+    staleTime: 1000 * 60 * 5,
     onSuccess: () => {
-      // showSuccess('Resumo das notas fiscais carregado com sucesso!'); // Removido para evitar toast excessivo
+      // showSuccess('Resumo das notas fiscais carregado com sucesso!');
     },
     onError: (err) => {
       console.error('Erro no React Query ao carregar notas fiscais:', err);
