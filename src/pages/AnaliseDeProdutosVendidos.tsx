@@ -116,6 +116,11 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     return sortableItems;
   }, [aggregatedSoldData, searchTerm, sortConfig]);
 
+  // Calcular o somatório total da receita
+  const totalRevenueSum = useMemo(() => {
+    return filteredAndSortedData.reduce((sum, item) => sum + (item.total_revenue ?? 0), 0);
+  }, [filteredAndSortedData]);
+
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -153,6 +158,11 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
             />
           </CardHeader>
           <CardContent>
+            <div className="mb-4 text-right">
+              <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                Receita Total Geral: {totalRevenueSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </p>
+            </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
