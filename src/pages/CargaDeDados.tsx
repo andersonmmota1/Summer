@@ -19,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from '@/components/SessionContextProvider';
-import { format } from 'date-fns';
+import { format, parseISO, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
@@ -72,7 +72,7 @@ const CargaDeDados: React.FC = () => {
   // });
 
 
-  const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
+  const soldItemsTemplateHeaders = ['Data Caixa', 'Grupo', 'Subgrupo', 'Produto', 'Código Adicional', 'Adicional', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
@@ -223,6 +223,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`);
     let totalItemsLoaded = 0;
     let hasError = false;
+    const processedDates = new Set<string>(); // Para rastrear as datas processadas e evitar exclusões duplicadas
 
     for (const file of selectedSoldItemsExcelFiles) {
       try {
@@ -234,55 +235,69 @@ const CargaDeDados: React.FC = () => {
           continue;
         }
 
-        let fileDate: Date | null = null;
-        const fileName = file.name;
-        const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})/);
-
-        if (dateMatch) {
-          const day = parseInt(dateMatch[1], 10);
-          const month = parseInt(dateMatch[2], 10) - 1;
-          const year = parseInt(dateMatch[3], 10);
-          const parsedDate = new Date(year, month, day);
-
-          if (!isNaN(parsedDate.getTime()) && parsedDate.getDate() === day && parsedDate.getMonth() === month && parsedDate.getFullYear() === year) {
-            fileDate = parsedDate;
-            showSuccess(`Data "${format(fileDate, 'dd/MM/yyyy', { locale: ptBR })}" extraída do nome do arquivo "${file.name}" e será usada para as vendas.`);
-          } else {
-            showWarning(`Não foi possível validar a data no nome do arquivo "${fileName}". Tentando usar a data atual.`);
-          }
-        } else {
-          showWarning(`Nenhuma data no formato DD.MM.YYYY encontrada no nome do arquivo "${fileName}". Usando a data atual.`);
-        }
-
         const formattedData = data.map((row: any) => {
-          let saleDate: string;
-          if (fileDate) {
-            saleDate = fileDate.toISOString();
+          const rawDate = String(row['Data Caixa']);
+          let saleDate: Date;
+
+          // Tenta parsear a data no formato DD/MM/YYYY ou DD-MM-YYYY
+          const parsedDate = parse(rawDate, 'dd/MM/yyyy', new Date(), { locale: ptBR });
+          if (isNaN(parsedDate.getTime())) {
+            const parsedDateHyphen = parse(rawDate, 'dd-MM-yyyy', new Date(), { locale: ptBR });
+            if (isNaN(parsedDateHyphen.getTime())) {
+              throw new Error(`Formato de data inválido na coluna 'Data Caixa': ${rawDate}. Esperado DD/MM/YYYY ou DD-MM-YYYY.`);
+            }
+            saleDate = parsedDateHyphen;
           } else {
-            saleDate = new Date().toISOString();
+            saleDate = parsedDate;
           }
 
-          const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
-
+          const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
+
+          // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas processadas
+          processedDates.add(format(saleDate, 'yyyy-MM-dd'));
 
           return {
             user_id: user.id,
-            product_name: String(row['Produto']),
+            sale_date: saleDate.toISOString(), // Converte para ISO string para o Supabase
+            group_name: String(row['Grupo'] || ''),
+            subgroup_name: String(row['Subgrupo'] || ''),
+            base_product_name: String(row['Produto'] || ''),
+            additional_code: String(row['Código Adicional'] || ''),
+            product_name: String(row['Adicional']), // Usando 'Adicional' como product_name
             quantity_sold: quantity,
             unit_price: calculatedUnitPrice,
-            sale_date: saleDate,
+            total_value_sold: totalValue, // Nova coluna
           };
         });
 
-        const { error } = await supabase
+        // --- Lógica de exclusão por data ---
+        for (const dateString of processedDates) {
+          const { error: deleteError } = await supabase
+            .from('sold_items')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('sale_date', dateString); // Filtra pela data (yyyy-MM-dd)
+
+          if (deleteError) {
+            console.error(`Erro ao limpar produtos vendidos para a data ${dateString}:`, deleteError);
+            showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+            hasError = true;
+            // Não interrompe o loop, tenta processar as próximas datas
+          } else {
+            showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+          }
+        }
+        // --- Fim da lógica de exclusão por data ---
+
+        const { error: insertError } = await supabase
           .from('sold_items')
           .insert(formattedData);
 
-        if (error) {
-          console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (Produtos Vendidos Excel):`, error);
-          showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message}`);
+        if (insertError) {
+          console.error(`Erro detalhado do Supabase ao carregar "${file.name}" (Produtos Vendidos Excel):`, insertError);
+          showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${insertError.message}`);
           hasError = true;
           continue;
         }
@@ -609,19 +624,29 @@ const CargaDeDados: React.FC = () => {
 
       const headers = [
         'ID da Venda',
-        'Nome do Produto',
+        'Data Caixa',
+        'Grupo',
+        'Subgrupo',
+        'Produto Base',
+        'Código Adicional',
+        'Adicional (Nome do Produto)',
         'Quantidade Vendida',
-        'Preço Unitário',
-        'Data da Venda',
+        'Valor Unitário',
+        'Valor Total Vendido',
         'Data de Registro',
       ];
 
       const formattedData = data.map(item => ({
         'ID da Venda': item.id,
-        'Nome do Produto': item.product_name,
+        'Data Caixa': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+        'Grupo': item.group_name || 'N/A',
+        'Subgrupo': item.subgroup_name || 'N/A',
+        'Produto Base': item.base_product_name || 'N/A',
+        'Código Adicional': item.additional_code || 'N/A',
+        'Adicional (Nome do Produto)': item.product_name,
         'Quantidade Vendida': item.quantity_sold,
-        'Preço Unitário': item.unit_price,
-        'Data da Venda': format(new Date(item.sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Valor Unitário': item.unit_price,
+        'Valor Total Vendido': item.total_value_sold,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
@@ -1069,9 +1094,8 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
-              O arquivo deve conter as colunas: <code>Grupo</code>, <code>Subgrupo</code>, <code>Codigo</code>, <code>Produto</code>, <code>Quantidade</code> e <code>Valor</code>.
-              A coluna <code>Valor</code> será tratada como o valor total da venda para a <code>Quantidade</code> informada, e o preço unitário será calculado como <code>Valor / Quantidade</code>.
-              A data da venda será extraída do nome do arquivo (formato <code>DD.MM.YYYY</code>, ex: "VENDAS 01.11.2025"). Se nenhuma data for encontrada no nome do arquivo, a data atual será usada.
+              O arquivo deve conter as colunas: <code>Data Caixa</code> (formato DD/MM/YYYY ou DD-MM-YYYY), <code>Grupo</code>, <code>Subgrupo</code>, <code>Produto</code> (base), <code>Código Adicional</code>, <code>Adicional</code> (o produto real vendido), <code>Quantidade</code> e <code>Valor</code>.
+              Para cada data presente na planilha, todos os produtos vendidos existentes para essa data serão **removidos** e substituídos pelos dados da carga.
             </p>
 
             <div className="flex flex-col space-y-2">
