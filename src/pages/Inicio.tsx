@@ -62,10 +62,10 @@ const Inicio: React.FC = () => {
       throw error;
     }
 
-    console.log('Inicio: Raw data from sold_items (before aggregation):', data);
+    console.log('Inicio: Raw data from sold_items (before aggregation):', JSON.stringify(data, null, 2));
     // Filter for the problematic date to inspect
     const problematicDateItems = data?.filter(item => item.sale_date === '2025-11-01');
-    console.log('Inicio: Items for 2025-11-01 (before aggregation):', problematicDateItems);
+    console.log('Inicio: Items for 2025-11-01 (before aggregation):', JSON.stringify(problematicDateItems, null, 2));
 
 
     // Agregação manual dos dados por data
@@ -91,7 +91,7 @@ const Inicio: React.FC = () => {
       total_value_sold: aggregatedData[dateKey].total_value_sold,
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()); // Ordena do mais recente para o mais antigo
 
-    console.log('Inicio: Final aggregated and sorted data:', finalAggregatedArray);
+    console.log('Inicio: Final aggregated and sorted data:', JSON.stringify(finalAggregatedArray, null, 2));
     return finalAggregatedArray;
   };
 
