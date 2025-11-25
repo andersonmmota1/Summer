@@ -7,8 +7,10 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
 import { Button } from '@/components/ui/button'; // Import Button for clear filter
+import { useSession } from '@/components/SessionContextProvider'; // Import useSession
 
 interface AggregatedSupplierProduct {
+  user_id: string; // Adicionado user_id
   supplier_name: string;
   supplier_product_code: string;
   supplier_product_description: string;
@@ -20,11 +22,13 @@ interface AggregatedSupplierProduct {
 }
 
 interface TotalBySupplier {
+  user_id: string; // Adicionado user_id
   supplier_name: string;
   total_value_spent: number;
 }
 
 interface TotalByInternalProduct {
+  user_id: string; // Adicionado user_id
   product_display_name: string;
   total_value_spent: number;
 }
@@ -32,6 +36,7 @@ interface TotalByInternalProduct {
 const AnaliseDeFornecedor: React.FC = () => {
   const { filters, setFilter, clearFilters } = useFilter(); // Usa o contexto de filtro
   const { selectedSupplier } = filters;
+  const { user } = useSession(); // Obter o usuário da sessão
 
   const [aggregatedData, setAggregatedData] = useState<AggregatedSupplierProduct[]>([]);
   const [totalBySupplier, setTotalBySupplier] = useState<TotalBySupplier[]>([]);
@@ -39,8 +44,12 @@ const AnaliseDeFornecedor: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchAnalysisData();
-  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
+    if (user?.id) { // Só busca dados se o user.id estiver disponível
+      fetchAnalysisData();
+    } else {
+      setLoading(false); // Se não houver user.id, para o loading
+    }
+  }, [selectedSupplier, user?.id]); // Busca dados novamente quando selectedSupplier ou user.id muda
 
   const fetchAnalysisData = async () => {
     setLoading(true);
@@ -49,7 +58,8 @@ const AnaliseDeFornecedor: React.FC = () => {
       // Busca produtos agregados por fornecedor
       let aggregatedQuery = supabase
         .from('aggregated_supplier_products')
-        .select('*');
+        .select('*')
+        .eq('user_id', user?.id); // Filtra por user_id
 
       if (selectedSupplier) {
         aggregatedQuery = aggregatedQuery.eq('supplier_name', selectedSupplier);
@@ -66,7 +76,8 @@ const AnaliseDeFornecedor: React.FC = () => {
       // Busca total comprado por fornecedor
       let totalBySupplierQuery = supabase
         .from('total_purchased_by_supplier')
-        .select('*');
+        .select('*')
+        .eq('user_id', user?.id); // Filtra por user_id
 
       if (selectedSupplier) {
         totalBySupplierQuery = totalBySupplierQuery.eq('supplier_name', selectedSupplier);
@@ -86,6 +97,7 @@ const AnaliseDeFornecedor: React.FC = () => {
         totalByInternalProductQuery = supabase
           .from('total_purchased_by_internal_product_and_supplier')
           .select('product_display_name, total_value_spent')
+          .eq('user_id', user?.id) // Filtra por user_id
           .eq('supplier_name', selectedSupplier)
           .order('total_value_spent', { ascending: false });
       } else {
@@ -93,6 +105,7 @@ const AnaliseDeFornecedor: React.FC = () => {
         totalByInternalProductQuery = supabase
           .from('total_purchased_by_internal_product')
           .select('*')
+          .eq('user_id', user?.id) // Filtra por user_id
           .order('total_value_spent', { ascending: false });
       }
 
