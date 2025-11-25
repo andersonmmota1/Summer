@@ -4,12 +4,13 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { parseBrazilianFloat } from '@/lib/utils'; // Importar a função de parsing
+// parseBrazilianFloat não é mais necessário para total_value_sold se ele vier como número
+// import { parseBrazilianFloat } from '@/lib/utils'; 
 
 interface SoldItemRaw {
   sale_date: string;
   quantity_sold: number;
-  total_value_sold: string | null; // Alterado para string
+  total_value_sold: number | null; // Alterado de volta para number
 }
 
 interface SalesByDate {
@@ -27,7 +28,7 @@ const Inicio: React.FC = () => {
     }
     const { data, error } = await supabase
       .from('sold_items')
-      .select('sale_date, quantity_sold, total_value_sold::text') // Cast para text aqui
+      .select('sale_date, quantity_sold, total_value_sold') // Removido ::text
       .eq('user_id', user.id)
       .order('sale_date', { ascending: false });
 
@@ -36,7 +37,7 @@ const Inicio: React.FC = () => {
       showError(`Erro ao carregar dados: ${error.message}`);
       throw error;
     }
-    console.log('Inicio: Raw data from Supabase (all items for user):', data);
+    console.log('Inicio: Raw data from Supabase (all items for user):', data); // Manter este log para dados gerais
     return data || [];
   };
 
@@ -63,12 +64,11 @@ const Inicio: React.FC = () => {
 
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
-      const rawTotalValueString = item.total_value_sold;
-      const parsedTotalValue = rawTotalValueString ? parseBrazilianFloat(rawTotalValueString) : 0;
+      const itemTotalValue = item.total_value_sold ?? 0; // Deve ser um número diretamente
       
       if (dateKey === problematicDate) {
-        console.log(`Inicio: Item for ${problematicDate} - raw string: "${rawTotalValueString}", parsed float: ${parsedTotalValue}`);
-        debugSumProblematicDate += parsedTotalValue;
+        console.log(`Inicio: Item for ${problematicDate} - received number: ${itemTotalValue}`); // Novo log
+        debugSumProblematicDate += itemTotalValue;
         console.log(`Inicio: Running sum for ${problematicDate}: ${debugSumProblematicDate}`);
       }
 
@@ -76,7 +76,7 @@ const Inicio: React.FC = () => {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
-      aggregatedData[dateKey].total_value_sold += parsedTotalValue;
+      aggregatedData[dateKey].total_value_sold += itemTotalValue;
     });
 
     if (aggregatedData[problematicDate]) {
