@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
-import { readXmlFile } from '@/utils/xml';
+import { readXmlFile } => '@/utils/xml';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,11 +19,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from '@/components/SessionContextProvider';
-import { format, parseISO } from 'date-fns'; // Removido addDays, pois não é mais necessário para o tipo DATE
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-// import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Removido, pois a tabela de preview não será mais usada
 
 // Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
 interface PurchasedItem {
@@ -51,28 +50,6 @@ const CargaDeDados: React.FC = () => {
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
-  // Removido o estado temporário para exibir dados XML parseados:
-  // const [parsedXmlDataPreview, setParsedXmlDataPreview] = useState<any[] | null>(null);
-
-  // Removida a query para buscar itens comprados diretamente da tabela purchased_items:
-  // const { data: directPurchasedItems, isLoading: isLoadingDirectPurchasedItems, refetch: refetchDirectPurchasedItems } = useQuery<PurchasedItem[], Error>({
-  //   queryKey: ['direct_purchased_items', user?.id],
-  //   queryFn: async () => {
-  //     if (!user?.id) return [];
-  //     const { data, error } = await supabase
-  //       .from('purchased_items')
-  //       .select('*')
-  //       .eq('user_id', user.id)
-  //       .order('created_at', { ascending: false });
-  //     if (error) throw error;
-  //     return data || [];
-  //   },
-  //   enabled: !!user?.id,
-  //   staleTime: 1000 * 10, // Curto staleTime para depuração
-  // });
-
-
-  // 'Data Caixa' será inferida do nome do arquivo, não do Excel
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
@@ -81,10 +58,8 @@ const CargaDeDados: React.FC = () => {
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setSelectedXmlFiles(Array.from(event.target.files));
-      // setParsedXmlDataPreview(null); // Limpa o preview ao selecionar novos arquivos
     } else {
       setSelectedXmlFiles([]);
-      // setParsedXmlDataPreview(null);
     }
   };
 
@@ -133,7 +108,6 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
     let hasError = false;
-    // const allParsedData: any[] = []; // Removido, pois não há preview
 
     for (const file of selectedXmlFiles) {
       try {
@@ -157,7 +131,6 @@ const CargaDeDados: React.FC = () => {
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
         }));
-        // allParsedData.push(...formattedData); // Removido, pois não há preview
 
         const { error } = await supabase
           .from('purchased_items')
@@ -178,12 +151,9 @@ const CargaDeDados: React.FC = () => {
     }
 
     dismissToast(loadingToastId);
-    // setParsedXmlDataPreview(allParsedData); // Removido, pois não há preview
-    // refetchDirectPurchasedItems(); // Removido, pois não há preview
 
     if (!hasError) {
       showSuccess(`Carga de ${selectedXmlFiles.length} arquivo(s) XML concluída. Total de ${totalItemsLoaded} itens carregados.`);
-      // Invalida as queries relacionadas a itens comprados e suas agregações
       queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
       queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
       queryClient.invalidateQueries({ queryKey: ['aggregated_supplier_products'] });
@@ -215,6 +185,9 @@ const CargaDeDados: React.FC = () => {
     const datesToProcess = new Set<string>(); // Para rastrear as datas únicas na carga
     const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
 
+    console.log('--- Starting Sold Items Excel Upload ---');
+    console.log('Selected files:', selectedSoldItemsExcelFiles.map(f => f.name));
+
     for (const file of selectedSoldItemsExcelFiles) {
       try {
         // Extrair a data do nome do arquivo (ex: "DD.MM.YYYY.xlsx")
@@ -227,8 +200,9 @@ const CargaDeDados: React.FC = () => {
         const month = dateMatch[2];
         const year = dateMatch[3];
         const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-        const fileSaleDate = parseISO(saleDateString); // parseISO trata 'YYYY-MM-DD' como data sem fuso horário
+        console.log(`File: ${fileName}, Extracted sale_date: ${saleDateString}`);
 
+        const fileSaleDate = parseISO(saleDateString);
         if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
         }
@@ -273,8 +247,11 @@ const CargaDeDados: React.FC = () => {
       return;
     }
 
+    console.log('Unique dates to process (for deletion/insertion):', Array.from(datesToProcess));
+
     // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
     for (const dateString of datesToProcess) {
+      console.log(`Checking for existing sold items for date: ${dateString}`);
       // Primeiro, verifica se existem registros para esta data e usuário
       const { count, error: countError } = await supabase
         .from('sold_items')
@@ -289,6 +266,7 @@ const CargaDeDados: React.FC = () => {
       }
 
       if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
+        console.log(`Found ${count} existing items for date ${dateString}. Deleting...`);
         const { error: deleteError } = await supabase
           .from('sold_items')
           .delete()
@@ -300,7 +278,10 @@ const CargaDeDados: React.FC = () => {
           hasError = true;
         } else {
           showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+          console.log(`Successfully deleted items for date: ${dateString}`);
         }
+      } else {
+        console.log(`No existing items found for date: ${dateString}.`);
       }
     }
     // --- Fim da lógica de exclusão por data ---
@@ -315,6 +296,7 @@ const CargaDeDados: React.FC = () => {
 
     // Inserir todos os dados formatados de uma vez
     if (allFormattedData.length > 0) {
+      console.log('Attempting to insert all formatted data:', allFormattedData.length, 'items');
       const { error: insertError } = await supabase
         .from('sold_items')
         .insert(allFormattedData);
@@ -325,6 +307,7 @@ const CargaDeDados: React.FC = () => {
       } else {
         totalItemsLoaded = allFormattedData.length;
         showSuccess(`Total de ${totalItemsLoaded} produtos vendidos carregados com sucesso!`);
+        console.log(`Successfully inserted ${totalItemsLoaded} items.`);
       }
     } else {
       showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados.');
@@ -343,6 +326,7 @@ const CargaDeDados: React.FC = () => {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
     setSelectedSoldItemsExcelFiles([]);
+    console.log('--- Sold Items Excel Upload Finished ---');
   };
 
   const handleUploadProductRecipeExcel = async () => {
@@ -649,7 +633,7 @@ const CargaDeDados: React.FC = () => {
 
       const formattedData = data.map(item => ({
         'ID da Venda': item.id,
-        'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }), // Ajustado para parseISO
+        'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
         'Grupo': item.group_name || 'N/A',
         'Subgrupo': item.subgroup_name || 'N/A',
         'Codigo': item.additional_code || 'N/A',
@@ -866,7 +850,6 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
-      // refetchDirectPurchasedItems(); // Removido, pois não há preview
     } catch (error: any) {
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -1029,64 +1012,6 @@ const CargaDeDados: React.FC = () => {
                 Carregar XML(s)
               </Button>
             </div>
-
-            {/* Seção de Depuração para XML - REMOVIDA */}
-            {/*
-            <div className="mt-8 p-4 border rounded-md bg-gray-50 dark:bg-gray-700">
-              <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">Verificação de Carga XML</h4>
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                Esta seção mostra os dados do XML que foram *recentemente parseados* e os itens *diretamente da tabela `purchased_items`* para o seu usuário.
-                Use-a para confirmar se o XML está sendo lido e inserido corretamente.
-              </p>
-
-              {parsedXmlDataPreview && parsedXmlDataPreview.length > 0 && (
-                <div className="mb-4">
-                  <h5 className="font-semibold text-gray-800 dark:text-gray-200">Dados XML Parseados (antes de enviar ao Supabase):</h5>
-                  <pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded-md text-xs overflow-auto max-h-48">
-                    {JSON.stringify(parsedXmlDataPreview, null, 2)}
-                  </pre>
-                </div>
-              )}
-
-              {isLoadingDirectPurchasedItems ? (
-                <p className="text-gray-700 dark:text-gray-300">Carregando itens comprados diretamente...</p>
-              ) : (
-                <div>
-                  <h5 className="font-semibold text-gray-800 dark:text-gray-200">Itens Comprados do Supabase (direto da tabela `purchased_items`):</h5>
-                  {directPurchasedItems && directPurchasedItems.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <Table className="min-w-full">
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Cód. Prod.</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Qtd.</TableHead>
-                            <TableHead>Valor Unit.</TableHead>
-                            <TableHead>Fornecedor</TableHead>
-                            <TableHead>Nota ID</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {directPurchasedItems.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell className="text-xs">{item.c_prod}</TableCell>
-                              <TableCell className="text-xs">{item.descricao_do_produto}</TableCell>
-                              <TableCell className="text-xs">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                              <TableCell className="text-xs">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                              <TableCell className="text-xs">{item.x_fant}</TableCell>
-                              <TableCell className="text-xs">{item.invoice_id ? item.invoice_id.substring(0, 8) + '...' : 'N/A'}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">Nenhum item comprado encontrado para o seu usuário na tabela `purchased_items`.</p>
-                  )}
-                </div>
-              )}
-            </div>
-            */}
           </div>
         </TabsContent>
 
