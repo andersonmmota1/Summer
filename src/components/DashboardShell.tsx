@@ -4,13 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import Sidebar from './Sidebar';
 import { Button } from '@/components/ui/button';
-import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
-import { XCircle } from 'lucide-react'; // Import an icon for clearing filter
+import { useFilter } from '@/contexts/FilterContext';
+import { XCircle } from 'lucide-react';
 
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { filters, clearFilters } = useFilter(); // Usa o contexto de filtro
+  const { filters, clearFilters } = useFilter();
   const { selectedSupplier } = filters;
 
   const navItems = [
@@ -21,6 +21,7 @@ const DashboardShell: React.FC = () => {
     { name: 'Visão de Notas Fiscais', path: '/visao-de-notas-fiscais' },
     { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
+    { name: 'Vendas por Data', path: '/vendas-por-data' }, {/* Nova entrada no menu */}
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
     { name: 'Visão de Conversões', path: '/visao-de-conversoes' },
     { name: 'Custo de Produtos', path: '/custo-produtos' },
