@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Input } from '@/components/ui/input';
+// Removido: import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createExcelFile } from '@/utils/excel';
 import { useSession } from '@/components/SessionContextProvider';
-import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
+// Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldItemDetailed {
   id: string;
@@ -35,21 +35,21 @@ interface SortConfig {
 
 const AnaliseDeProdutosVendidos: React.FC = () => {
   const { user } = useSession();
-  const { filters } = useFilter(); // Usar o contexto de filtro
-  const { selectedProduct } = filters; // Obter selectedProduct
+  // Removido: const { filters } = useFilter();
+  // Removido: const { selectedProduct } = filters;
   const [allSoldItems, setAllSoldItems] = useState<SoldItemDetailed[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  // Removido: const [searchTerm, setSearchTerm] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sale_date', direction: 'desc' });
 
-  // Sincronizar searchTerm com selectedProduct do contexto
-  useEffect(() => {
-    if (selectedProduct) {
-      setSearchTerm(selectedProduct);
-    } else {
-      setSearchTerm(''); // Limpa o termo de busca se o filtro de produto for removido
-    }
-  }, [selectedProduct]);
+  // Removido: Sincronizar searchTerm com selectedProduct do contexto
+  // Removido: useEffect(() => {
+  // Removido:   if (selectedProduct) {
+  // Removido:     setSearchTerm(selectedProduct);
+  // Removido:   } else {
+  // Removido:     setSearchTerm(''); // Limpa o termo de busca se o filtro de produto for removido
+  // Removido:   }
+  // Removido: }, [selectedProduct]);
 
   useEffect(() => {
     if (user?.id) {
@@ -93,19 +93,19 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     let sortableItems = [...allSoldItems];
 
-    // 1. Filtragem
-    if (searchTerm) {
-      const lowerCaseSearchTerm = searchTerm.toLowerCase();
-      sortableItems = sortableItems.filter(item =>
-        item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.subgroup_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
-        (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) ||
-        format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
-      );
-    }
+    // 1. Filtragem (removida a lógica de searchTerm)
+    // Removido: if (searchTerm) {
+    // Removido:   const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    // Removido:   sortableItems = sortableItems.filter(item =>
+    // Removido:     item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+    // Removido:     (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+    // Removido:     (item.subgroup_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+    // Removido:     (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+    // Removido:     item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
+    // Removido:     (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) ||
+    // Removido:     format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
+    // Removido:   );
+    // Removido: }
 
     // 2. Ordenação
     if (sortConfig.key) {
@@ -135,7 +135,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     }
 
     return sortableItems;
-  }, [allSoldItems, searchTerm, sortConfig]);
+  }, [allSoldItems, sortConfig]); // Removido searchTerm das dependências
 
   const totalRevenueSum = useMemo(() => {
     return filteredAndSortedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
@@ -196,13 +196,13 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         Visualize informações detalhadas sobre os produtos que foram vendidos.
       </p>
 
-      {selectedProduct && (
+      {/* Removido: {selectedProduct && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       {allSoldItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -223,12 +223,12 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                 <Download className="h-4 w-4" /> Exportar para Excel
               </Button>
             </div>
-            <Input
+            {/* Removido: <Input
               placeholder="Filtrar por nome do produto, grupo, subgrupo, código, quantidade ou valor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm mt-4"
-            />
+            /> */}
           </CardHeader>
           <CardContent>
             <div className="mb-4 text-right">
@@ -365,7 +365,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center">
-                        Nenhum resultado encontrado para "{searchTerm}".
+                        Nenhum resultado encontrado.
                       </TableCell>
                     </TableRow>
                   ) : (

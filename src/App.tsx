@@ -14,11 +14,11 @@ import ProdutosNaoMapeados from "./pages/ProdutosNaoMapeados";
 import VisaoDeConversoes from "./pages/VisaoDeConversoes";
 import VisaoDeNotasFiscais from "./pages/VisaoDeNotasFiscais";
 import CustoProdutos from "./pages/CustoProdutos";
-import VendasPorData from "./pages/VendasPorData"; // Importar a nova página
+import VendasPorData from "./pages/VendasPorData"; 
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
-import { FilterProvider } from "./contexts/FilterContext";
+// Removido: import { FilterProvider } from "./contexts/FilterContext";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +48,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <SessionContextProvider>
-          <FilterProvider>
+          {/* Removido: <FilterProvider> */}
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<ProtectedRoute><DashboardShell /></ProtectedRoute>}>
@@ -63,11 +63,11 @@ const App = () => (
                 <Route path="visao-de-conversoes" element={<VisaoDeConversoes />} />
                 <Route path="visao-de-notas-fiscais" element={<VisaoDeNotasFiscais />} />
                 <Route path="custo-produtos" element={<CustoProdutos />} />
-                <Route path="vendas-por-data" element={<VendasPorData />} /> {/* Nova rota */}
+                <Route path="vendas-por-data" element={<VendasPorData />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </FilterProvider>
+          {/* Removido: </FilterProvider> */}
         </SessionContextProvider>
       </BrowserRouter>
     </TooltipProvider>

@@ -3,15 +3,15 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import Sidebar from './Sidebar';
-import { Button } from '@/components/ui/button';
-import { useFilter } from '@/contexts/FilterContext';
-import { XCircle } from 'lucide-react';
+// Removido: import { Button } from '@/components/ui/button';
+// Removido: import { useFilter } from '@/contexts/FilterContext';
+// Removido: import { XCircle } from 'lucide-react';
 
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { filters, clearFilters, setFilter } = useFilter();
-  const { selectedProduct } = filters; // selectedSupplier foi removido
+  // Removido: const { filters, clearFilters, setFilter } = useFilter();
+  // Removido: const { selectedProduct } = filters;
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
@@ -37,9 +37,9 @@ const DashboardShell: React.FC = () => {
     }
   };
 
-  const handleClearProductFilter = () => {
-    setFilter({ selectedProduct: null });
-  };
+  // Removido: const handleClearProductFilter = () => {
+  // Removido:   setFilter({ selectedProduct: null });
+  // Removido: };
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -55,8 +55,7 @@ const DashboardShell: React.FC = () => {
               Gestão de Restaurante
             </h1>
             <div className="flex items-center gap-4">
-              {/* Removido o filtro de fornecedor */}
-              {selectedProduct && (
+              {/* Removido: {selectedProduct && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-700 dark:text-gray-300">
                     Produto: <span className="font-semibold">{selectedProduct}</span>
@@ -66,7 +65,7 @@ const DashboardShell: React.FC = () => {
                     <span className="sr-only">Limpar filtro de produto</span>
                   </Button>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </header>

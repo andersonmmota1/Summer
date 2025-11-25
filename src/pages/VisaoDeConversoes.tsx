@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFilter } from '@/contexts/FilterContext';
+// Removido: import { useFilter } from '@/contexts/FilterContext';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
-import { Input } from '@/components/ui/input';
+// Removido: import { Input } from '@/components/ui/input';
 
 interface ConvertedUnitSummary {
   user_id: string;
@@ -27,13 +27,13 @@ interface ConvertedUnitSummary {
 }
 
 const VisaoDeConversoes: React.FC = () => {
-  const { filters } = useFilter();
-  const { selectedProduct } = filters; // selectedSupplier foi removido
+  // Removido: const { filters } = useFilter();
+  // Removido: const { selectedProduct } = filters;
   const { user } = useSession();
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  // Removido: const [searchTerm, setSearchTerm] = useState<string>('');
 
   const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
-    queryKey: ['converted_units_summary', user?.id, selectedProduct], // Removido selectedSupplier da chave
+    queryKey: ['converted_units_summary', user?.id], // Removido selectedProduct da chave
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -41,10 +41,9 @@ const VisaoDeConversoes: React.FC = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      // Removido o filtro por selectedSupplier
-      if (selectedProduct) {
-        query = query.eq('product_display_name', selectedProduct); // Filtrar por nome interno do produto
-      }
+      // Removido: if (selectedProduct) {
+      // Removido:   query = query.eq('product_display_name', selectedProduct);
+      // Removido: }
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -66,17 +65,18 @@ const VisaoDeConversoes: React.FC = () => {
 
   const filteredConvertedData = useMemo(() => {
     if (!convertedData) return [];
-    if (!searchTerm) return convertedData;
+    // Removido: if (!searchTerm) return convertedData;
 
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return convertedData.filter(item =>
-      item.supplier_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.supplier_product_description.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.product_display_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.supplier_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm)
-    );
-  }, [convertedData, searchTerm]);
+    // Removido: const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    // Removido: return convertedData.filter(item =>
+    // Removido:   item.supplier_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+    // Removido:   item.supplier_product_description.toLowerCase().includes(lowerCaseSearchTerm) ||
+    // Removido:   item.product_display_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+    // Removido:   item.supplier_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
+    // Removido:   item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm)
+    // Removido: );
+    return convertedData; // Retorna todos os dados sem filtro
+  }, [convertedData]); // Removido searchTerm
 
   if (isLoading) {
     return (
@@ -105,14 +105,14 @@ const VisaoDeConversoes: React.FC = () => {
         visualizando as quantidades originais e as quantidades convertidas para suas unidades internas.
       </p>
 
-      {selectedProduct && ( // Apenas exibe o filtro de produto, se ativo
+      {/* Removido: {selectedProduct && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtros Ativos:
-            <span className="ml-2 font-bold text-primary">Produto: {selectedProduct}</span>
+            <span className="ml-2 font-bold text-primary">{selectedProduct}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       {convertedData && convertedData.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -141,12 +141,12 @@ const VisaoDeConversoes: React.FC = () => {
               <CardDescription>
                 Lista detalhada de cada produto com sua conversão de unidade aplicada.
               </CardDescription>
-              <Input
+              {/* Removido: <Input
                 placeholder="Filtrar por nome do fornecedor, descrição do produto, nome interno ou unidade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm mt-4"
-              />
+              /> */}
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -170,7 +170,7 @@ const VisaoDeConversoes: React.FC = () => {
                     {filteredConvertedData.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={11} className="h-24 text-center">
-                          Nenhum resultado encontrado para "{searchTerm}".
+                          Nenhum resultado encontrado.
                         </TableCell>
                       </TableRow>
                     ) : (

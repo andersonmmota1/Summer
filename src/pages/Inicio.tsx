@@ -4,7 +4,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
+// Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldItemRaw {
   sale_date: string;
@@ -22,8 +22,8 @@ interface SalesByDate {
 
 const Inicio: React.FC = () => {
   const { user } = useSession();
-  const { filters } = useFilter(); // Usar o contexto de filtro
-  const { selectedProduct } = filters; // Obter selectedProduct
+  // Removido: const { filters } = useFilter();
+  // Removido: const { selectedProduct } = filters;
 
   const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
@@ -41,9 +41,9 @@ const Inicio: React.FC = () => {
         .select('sale_date, product_name, quantity_sold, total_value_sold') // Selecionar product_name
         .eq('user_id', user.id);
 
-      if (selectedProduct) {
-        query = query.eq('product_name', selectedProduct); // Filtrar por product_name
-      }
+      // Removido: if (selectedProduct) {
+      // Removido:   query = query.eq('product_name', selectedProduct); // Filtrar por product_name
+      // Removido: }
 
       const { data, error } = await query
         .order('sale_date', { ascending: false })
@@ -69,7 +69,7 @@ const Inicio: React.FC = () => {
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_raw', user?.id, selectedProduct], // Adicionar selectedProduct à chave
+    queryKey: ['all_sold_items_raw', user?.id], // Removido selectedProduct da chave
     queryFn: fetchAllSoldItemsRaw,
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
@@ -124,13 +124,13 @@ const Inicio: React.FC = () => {
         Use a navegação acima para explorar as diferentes seções da gestão do seu restaurante.
       </p>
 
-      {selectedProduct && (
+      {/* Removido: {selectedProduct && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>

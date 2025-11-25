@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
+// Removido: import { useFilter } from '@/contexts/FilterContext';
 import { useSession } from '@/components/SessionContextProvider';
 
 interface CurrentStockSummary {
@@ -26,8 +26,8 @@ interface InternalProductUsage {
 
 const Estoque: React.FC = () => {
   const { user } = useSession();
-  const { filters } = useFilter(); // Usar o contexto de filtro
-  const { selectedProduct } = filters; // Obter selectedProduct
+  // Removido: const { filters } = useFilter();
+  // Removido: const { selectedProduct } = filters;
   const [stockData, setStockData] = useState<CurrentStockSummary[]>([]);
   const [internalProductUsage, setInternalProductUsage] = useState<InternalProductUsage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,7 +39,7 @@ const Estoque: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user?.id, selectedProduct]); // Adicionar selectedProduct às dependências
+  }, [user?.id]); // Removido selectedProduct das dependências
 
   const fetchStockData = async () => {
     setLoading(true);
@@ -51,9 +51,9 @@ const Estoque: React.FC = () => {
         .eq('user_id', user?.id) // Filtrar por user_id
         .order('internal_product_name', { ascending: true });
 
-      if (selectedProduct) {
-        stockQuery = stockQuery.eq('internal_product_name', selectedProduct);
-      }
+      // Removido: if (selectedProduct) {
+      // Removido:   stockQuery = stockQuery.eq('internal_product_name', selectedProduct);
+      // Removido: }
 
       const { data: stockResult, error: stockError } = await stockQuery;
 
@@ -66,9 +66,9 @@ const Estoque: React.FC = () => {
         .eq('user_id', user?.id) // Filtrar por user_id
         .order('internal_product_name', { ascending: true });
 
-      if (selectedProduct) {
-        usageQuery = usageQuery.eq('internal_product_name', selectedProduct);
-      }
+      // Removido: if (selectedProduct) {
+      // Removido:   usageQuery = usageQuery.eq('internal_product_name', selectedProduct);
+      // Removido: }
 
       const { data: usageResult, error: usageError } = await usageQuery;
 
@@ -125,13 +125,13 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
-      {selectedProduct && (
+      {/* Removido: {selectedProduct && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       {stockData.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
-import { useFilter } from '@/contexts/FilterContext'; // Importar useFilter
+// Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldProductCost {
   sold_product_name: string;
@@ -25,8 +25,8 @@ interface SoldProductRecipeDetail {
 
 const CustoProdutos: React.FC = () => {
   const { user } = useSession();
-  const { filters } = useFilter(); // Usar o contexto de filtro
-  const { selectedProduct } = filters; // Obter selectedProduct
+  // Removido: const { filters } = useFilter();
+  // Removido: const { selectedProduct } = filters;
   const [soldProductCosts, setSoldProductCosts] = useState<SoldProductCost[]>([]);
   const [recipeDetails, setRecipeDetails] = useState<SoldProductRecipeDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +38,7 @@ const CustoProdutos: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user?.id, selectedProduct]); // Adicionar selectedProduct às dependências
+  }, [user?.id]); // Removido selectedProduct das dependências
 
   const fetchProductCostsAndRecipes = async () => {
     setLoading(true);
@@ -64,9 +64,9 @@ const CustoProdutos: React.FC = () => {
         .order('sold_product_name', { ascending: true })
         .order('internal_product_name', { ascending: true });
 
-      if (selectedProduct) {
-        detailsQuery = detailsQuery.eq('internal_product_name', selectedProduct); // Filtrar por nome interno do produto
-      }
+      // Removido: if (selectedProduct) {
+      // Removido:   detailsQuery = detailsQuery.eq('internal_product_name', selectedProduct); // Filtrar por nome interno do produto
+      // Removido: }
 
       const { data: detailsData, error: detailsError } = await detailsQuery;
 
@@ -118,13 +118,13 @@ const CustoProdutos: React.FC = () => {
         Expanda cada produto para ver os detalhes da sua ficha técnica e o custo individual de cada componente.
       </p>
 
-      {selectedProduct && (
+      {/* Removido: {selectedProduct && (
         <div className="mb-4">
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtrando por Produto Interno: <span className="font-bold text-primary">{selectedProduct}</span>
           </span>
         </div>
-      )}
+      )} */}
 
       {soldProductCosts.length === 0 && recipeDetails.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
