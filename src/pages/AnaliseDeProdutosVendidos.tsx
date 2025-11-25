@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns'; // Importar parseISO
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { useSession } from '@/components/SessionContextProvider';
 interface SoldItemDetailed {
   id: string;
   user_id: string;
-  sale_date: string;
+  sale_date: string; // Agora será uma string 'YYYY-MM-DD'
   group_name: string | null;
   subgroup_name: string | null;
   additional_code: string | null;
@@ -91,7 +91,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
         (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) || // Usar optional chaining
-        format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
+        format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm) // Ajustado para parseISO
       );
     }
 
@@ -107,10 +107,9 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           if (sortConfig.key === 'sale_date') {
-            const dateA = new Date(aValue).getTime();
-            const dateB = new Date(bValue).getTime();
-            if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
-            if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+            // Comparar strings YYYY-MM-DD diretamente funciona para ordenação cronológica
+            if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
             return 0;
           }
           if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -149,7 +148,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     ];
 
     const formattedData = filteredAndSortedData.map(item => ({
-      'Data Caixa': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+      'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }), // Ajustado para parseISO
       'Grupo': item.group_name || '',
       'Subgrupo': item.subgroup_name || '',
       'Codigo': item.additional_code || '',
@@ -354,7 +353,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                   ) : (
                     filteredAndSortedData.map((item, index) => (
                       <TableRow key={item.id || index}>
-                        <TableCell className="font-medium">{format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                        <TableCell className="font-medium">{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                         <TableCell>{item.group_name || 'N/A'}</TableCell>
                         <TableCell>{item.subgroup_name || 'N/A'}</TableCell>
                         <TableCell>{item.additional_code || 'N/A'}</TableCell>

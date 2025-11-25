@@ -19,7 +19,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useSession } from '@/components/SessionContextProvider';
-import { format, parseISO, addDays } from 'date-fns'; // Adicionado addDays
+import { format, parseISO } from 'date-fns'; // Removido addDays, pois não é mais necessário para o tipo DATE
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat } from '@/lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
@@ -227,14 +227,14 @@ const CargaDeDados: React.FC = () => {
         const month = dateMatch[2];
         const year = dateMatch[3];
         const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-        const fileSaleDate = parseISO(saleDateString);
+        const fileSaleDate = parseISO(saleDateString); // parseISO trata 'YYYY-MM-DD' como data sem fuso horário
 
         if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
         }
 
         // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
-        datesToProcess.add(format(fileSaleDate, 'yyyy-MM-dd'));
+        datesToProcess.add(saleDateString); // Usar a string YYYY-MM-DD diretamente
 
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
@@ -246,7 +246,7 @@ const CargaDeDados: React.FC = () => {
 
           return {
             user_id: user.id,
-            sale_date: fileSaleDate.toISOString(), // Usa a data extraída do nome do arquivo
+            sale_date: saleDateString, // Inserir como string YYYY-MM-DD
             group_name: String(row['Grupo'] || ''),
             subgroup_name: String(row['Subgrupo'] || ''),
             additional_code: String(row['Codigo'] || ''),
@@ -275,17 +275,12 @@ const CargaDeDados: React.FC = () => {
 
     // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
     for (const dateString of datesToProcess) {
-      const startOfDay = `${dateString}T00:00:00Z`; // Início do dia em UTC
-      const nextDay = format(addDays(parseISO(dateString), 1), 'yyyy-MM-dd'); // Dia seguinte
-      const startOfNextDay = `${nextDay}T00:00:00Z`; // Início do dia seguinte em UTC
-
       // Primeiro, verifica se existem registros para esta data e usuário
       const { count, error: countError } = await supabase
         .from('sold_items')
         .select('id', { count: 'exact' })
         .eq('user_id', user.id)
-        .gte('sale_date', startOfDay) // Maior ou igual ao início do dia
-        .lt('sale_date', startOfNextDay); // Menor que o início do dia seguinte
+        .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
 
       if (countError) {
         showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
@@ -298,8 +293,7 @@ const CargaDeDados: React.FC = () => {
           .from('sold_items')
           .delete()
           .eq('user_id', user.id)
-          .gte('sale_date', startOfDay)
-          .lt('sale_date', startOfNextDay);
+          .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
 
         if (deleteError) {
           showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
@@ -655,7 +649,7 @@ const CargaDeDados: React.FC = () => {
 
       const formattedData = data.map(item => ({
         'ID da Venda': item.id,
-        'Data Caixa': format(new Date(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+        'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }), // Ajustado para parseISO
         'Grupo': item.group_name || 'N/A',
         'Subgrupo': item.subgroup_name || 'N/A',
         'Codigo': item.additional_code || 'N/A',

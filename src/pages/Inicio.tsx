@@ -5,11 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns'; // Importar parseISO
 import { ptBR } from 'date-fns/locale';
 
 interface SalesByDate {
-  sale_date: string;
+  sale_date: string; // Agora será uma string 'YYYY-MM-DD'
   total_quantity_sold: number;
   total_value_sold: number;
 }
@@ -37,17 +37,7 @@ const Inicio: React.FC = () => {
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
 
     data?.forEach(item => {
-      const dateFromSupabase = new Date(item.sale_date);
-      // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
-      const year = dateFromSupabase.getUTCFullYear();
-      const month = dateFromSupabase.getUTCMonth(); // 0-indexed
-      const day = dateFromSupabase.getUTCDate();
-
-      // Cria um novo objeto Date no fuso horário local usando os componentes UTC
-      // Isso garante que o dia do calendário seja preservado, independentemente do fuso horário local
-      const localDateForDisplay = new Date(year, month, day);
-      
-      const dateKey = format(localDateForDisplay, 'yyyy-MM-dd'); 
+      const dateKey = item.sale_date; // A data já vem como 'YYYY-MM-DD'
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
       }
@@ -129,18 +119,11 @@ const Inicio: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {salesByDate.map((sale, index) => {
-                        const dateFromSupabase = new Date(sale.sale_date);
-                        // Extrai os componentes da data UTC para criar uma data local sem deslocamento de fuso horário
-                        const year = dateFromSupabase.getUTCFullYear();
-                        const month = dateFromSupabase.getUTCMonth(); // 0-indexed
-                        const day = dateFromSupabase.getUTCDate();
-
-                        // Cria um novo objeto Date no fuso horário local usando os componentes UTC
-                        const localDateForDisplay = new Date(year, month, day);
-
+                        // parseISO pode ser usado para converter a string 'YYYY-MM-DD' em um objeto Date
+                        const displayDate = parseISO(sale.sale_date);
                         return (
                           <TableRow key={index}>
-                            <TableCell className="font-medium">{format(localDateForDisplay, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                            <TableCell className="font-medium">{format(displayDate, 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                             <TableCell className="text-right">{sale.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                             <TableCell className="text-right">{sale.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           </TableRow>
