@@ -48,7 +48,7 @@ const AnaliseDeFornecedor: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user?.id]); // Removido selectedSupplier e selectedProduct das dependências
+  }, [user?.id]);
 
   const fetchAnalysisData = async () => {
     setLoading(true);
