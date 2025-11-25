@@ -18,6 +18,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/components/SessionContextProvider';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -50,6 +61,10 @@ const CargaDeDados: React.FC = () => {
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
+  // Novo estado para a pré-visualização dos dados de produtos vendidos
+  const [loadedSoldItemsPreview, setLoadedSoldItemsPreview] = useState<Record<string, any[] | null>>({});
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
@@ -66,8 +81,10 @@ const CargaDeDados: React.FC = () => {
   const handleSoldItemsExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setSelectedSoldItemsExcelFiles(Array.from(event.target.files));
+      setLoadedSoldItemsPreview({}); // Limpa a prévia ao selecionar novos arquivos
     } else {
       setSelectedSoldItemsExcelFiles([]);
+      setLoadedSoldItemsPreview({}); // Limpa a prévia se nenhum arquivo for selecionado
     }
   };
 
@@ -184,6 +201,7 @@ const CargaDeDados: React.FC = () => {
     let hasError = false;
     const datesToProcess = new Set<string>(); // Para rastrear as datas únicas na carga
     const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
+    const currentFilesData: Record<string, any[]> = {}; // Para a pré-visualização
 
     console.log('--- Starting Sold Items Excel Upload ---');
     console.log('Selected files:', selectedSoldItemsExcelFiles.map(f => f.name));
@@ -212,7 +230,7 @@ const CargaDeDados: React.FC = () => {
 
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
-        console.log(`[DEBUG] Data lida do arquivo "${file.name}":`, data); // NOVO LOG AQUI
+        currentFilesData[file.name] = data; // Armazena para pré-visualização
 
         const fileFormattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
@@ -239,6 +257,8 @@ const CargaDeDados: React.FC = () => {
         hasError = true;
       }
     }
+
+    setLoadedSoldItemsPreview(currentFilesData); // Atualiza o estado de pré-visualização
 
     // Se houve erros durante a leitura dos arquivos, para a execução aqui.
     if (hasError) {
@@ -970,6 +990,12 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  // Extrai os cabeçalhos de forma dinâmica do primeiro item, se houver
+  const getTableHeaders = (data: any[]) => {
+    if (data.length === 0) return [];
+    return Object.keys(data[0]);
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -1042,9 +1068,75 @@ const CargaDeDados: React.FC = () => {
                   {selectedSoldItemsExcelFiles.length} arquivo(s) selecionado(s): {selectedSoldItemsExcelFiles.map(f => f.name).join(', ')}
                 </p>
               )}
-              <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}>
-                Carregar Produtos Vendidos
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}>
+                  Carregar Produtos Vendidos
+                </Button>
+                <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      disabled={Object.keys(loadedSoldItemsPreview).length === 0 && selectedSoldItemsExcelFiles.length === 0}
+                      onClick={() => setIsPreviewDialogOpen(true)}
+                    >
+                      Visualizar Prévia dos Dados
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Prévia dos Dados de Produtos Vendidos</DialogTitle>
+                      <DialogDescription>
+                        Conteúdo lido dos arquivos Excel selecionados.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="flex-grow pr-4">
+                      {Object.keys(loadedSoldItemsPreview).length === 0 ? (
+                        <p className="text-center text-gray-600 dark:text-gray-400 py-8">
+                          Nenhum dado de prévia disponível. Selecione e carregue arquivos para ver a prévia.
+                        </p>
+                      ) : (
+                        Object.entries(loadedSoldItemsPreview).map(([fileName, data], index) => (
+                          <Card key={index} className="mb-6">
+                            <CardHeader>
+                              <CardTitle className="text-lg">{fileName}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {data && data.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        {getTableHeaders(data).map((header, i) => (
+                                          <TableHead key={i}>{header}</TableHead>
+                                        ))}
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {data.map((row, rowIndex) => (
+                                        <TableRow key={rowIndex}>
+                                          {getTableHeaders(data).map((header, colIndex) => (
+                                            <TableCell key={colIndex}>
+                                              {typeof row[header] === 'number' 
+                                                ? row[header].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                : String(row[header])}
+                                            </TableCell>
+                                          ))}
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              ) : (
+                                <p className="text-gray-500 dark:text-gray-400">Nenhum dado encontrado neste arquivo.</p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))
+                      )}
+                    </ScrollArea>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <Button variant="outline" onClick={handleDownloadSoldItemsTemplate}>
