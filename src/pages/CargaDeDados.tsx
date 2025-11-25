@@ -243,6 +243,7 @@ const CargaDeDados: React.FC = () => {
         if (isNaN(fileSaleDate.getTime())) {
           throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
         }
+        console.log(`DEBUG: File "${fileName}" parsed to sale_date (ISO): ${fileSaleDate.toISOString()}`); // Adicionado log aqui
 
         const data = await readExcelFile(file);
 

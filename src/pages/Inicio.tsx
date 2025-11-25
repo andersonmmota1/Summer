@@ -37,6 +37,7 @@ const Inicio: React.FC = () => {
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
 
     data?.forEach(item => {
+      console.log(`DEBUG: Raw sale_date from Supabase: ${item.sale_date}`); // Adicionado log aqui
       // Garante que a data seja formatada consistentemente para a chave de agregação
       const dateKey = format(new Date(item.sale_date), 'yyyy-MM-dd'); 
       if (!aggregatedData[dateKey]) {
