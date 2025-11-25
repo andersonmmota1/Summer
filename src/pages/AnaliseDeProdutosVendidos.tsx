@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Input } from '@/components/ui/input'; // Importar o componente Input
+import { Button } from '@/components/ui/button'; // Importar Button para os cabeçalhos da tabela
+import { ArrowUpDown } from 'lucide-react'; // Importar ícone de ordenação
+import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 interface AggregatedSoldProduct {
   product_name: string;
@@ -14,9 +18,16 @@ interface AggregatedSoldProduct {
   last_sale_date: string;
 }
 
+interface SortConfig {
+  key: keyof AggregatedSoldProduct | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const AnaliseDeProdutosVendidos: React.FC = () => {
   const [aggregatedSoldData, setAggregatedSoldData] = useState<AggregatedSoldProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Estado para o termo de busca
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: null }); // Estado para a configuração de ordenação
 
   useEffect(() => {
     fetchAggregatedSoldData();
@@ -28,8 +39,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('aggregated_sold_products')
-        .select('*')
-        .order('total_revenue', { ascending: false });
+        .select('*'); // Removido o order inicial para permitir ordenação client-side
 
       if (error) throw error;
 
@@ -43,6 +53,63 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       dismissToast(loadingToastId);
     }
   };
+
+  // Função para lidar com a ordenação
+  const handleSort = (key: keyof AggregatedSoldProduct) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Dados filtrados e ordenados
+  const filteredAndSortedData = useMemo(() => {
+    let sortableItems = [...aggregatedSoldData];
+
+    // 1. Filtragem
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      sortableItems = sortableItems.filter(item =>
+        item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        item.total_quantity_sold.toString().includes(lowerCaseSearchTerm) ||
+        item.total_revenue.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
+        item.average_unit_price.toFixed(2).includes(lowerCaseSearchTerm) || // Filtrar por valor formatado
+        format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
+
+    // 2. Ordenação
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          // Ordenação de datas
+          if (sortConfig.key === 'last_sale_date') {
+            const dateA = new Date(aValue).getTime();
+            const dateB = new Date(bValue).getTime();
+            if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+          }
+          // Ordenação de strings
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          // Ordenação de números
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+
+    return sortableItems;
+  }, [aggregatedSoldData, searchTerm, sortConfig]);
 
   if (loading) {
     return (
@@ -73,29 +140,123 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
             <CardDescription>
               Dados agregados de todos os produtos vendidos.
             </CardDescription>
+            <Input
+              placeholder="Filtrar por nome do produto, quantidade, receita ou preço..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm mt-4"
+            />
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome do Produto</TableHead>
-                    <TableHead className="text-right">Qtd. Total Vendida</TableHead>
-                    <TableHead className="text-right">Receita Total</TableHead>
-                    <TableHead className="text-right">Preço Unitário Médio</TableHead>
-                    <TableHead>Última Venda</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('product_name')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Nome do Produto
+                        {sortConfig.key === 'product_name' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_quantity_sold')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Qtd. Total Vendida
+                        {sortConfig.key === 'total_quantity_sold' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_revenue')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Receita Total
+                        {sortConfig.key === 'total_revenue' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('average_unit_price')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Preço Unitário Médio
+                        {sortConfig.key === 'average_unit_price' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('last_sale_date')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Última Venda
+                        {sortConfig.key === 'last_sale_date' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {aggregatedSoldData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{item.product_name}</TableCell>
-                      <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell className="text-right">{item.average_unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell>{format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                  {filteredAndSortedData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-24 text-center">
+                        Nenhum resultado encontrado para "{searchTerm}".
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredAndSortedData.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{item.product_name}</TableCell>
+                        <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell className="text-right">{item.average_unit_price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        <TableCell>{format(new Date(item.last_sale_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
