@@ -141,15 +141,52 @@ const AnaliseDeFornecedor: React.FC = () => {
       setAggregatedData(aggregatedDataResult || []);
 
       // 3. Busca total comprado por fornecedor (para o card "Total Comprado por Fornecedor")
-      // Este card não será filtrado por selectedProduct, apenas por selectedSupplier
       let totalBySupplierQuery = supabase
         .from('total_purchased_by_supplier')
         .select('*')
         .eq('user_id', user?.id);
 
-      if (selectedSupplier) {
-        totalBySupplierQuery = totalBySupplierQuery.eq('supplier_name', selectedSupplier);
+      let finalSupplierNamesFilter: string[] | null = null;
+
+      if (selectedProduct) {
+        const { data: mappedSuppliers, error: mapSupplierError } = await supabase
+          .from('product_name_conversions')
+          .select('supplier_name')
+          .eq('user_id', user?.id)
+          .eq('internal_product_name', selectedProduct);
+
+        if (mapSupplierError) throw mapSupplierError;
+        finalSupplierNamesFilter = mappedSuppliers.map(s => s.supplier_name);
+
+        if (finalSupplierNamesFilter.length === 0) {
+          setTotalBySupplier([]);
+          dismissToast(loadingToastId);
+          setLoading(false);
+          return; // Exit early as no data will be found
+        }
       }
+
+      if (selectedSupplier) {
+        if (finalSupplierNamesFilter) {
+          // If both selectedSupplier and selectedProduct are active,
+          // we need suppliers that match selectedSupplier AND are in finalSupplierNamesFilter
+          finalSupplierNamesFilter = finalSupplierNamesFilter.filter(name => name === selectedSupplier);
+          if (finalSupplierNamesFilter.length === 0) {
+            setTotalBySupplier([]);
+            dismissToast(loadingToastId);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Only selectedSupplier is active
+          finalSupplierNamesFilter = [selectedSupplier];
+        }
+      }
+
+      if (finalSupplierNamesFilter) {
+        totalBySupplierQuery = totalBySupplierQuery.in('supplier_name', finalSupplierNamesFilter);
+      }
+
       totalBySupplierQuery = totalBySupplierQuery.order('total_value_spent', { ascending: false });
 
       const { data: totalBySupplierResult, error: totalBySupplierError } = await totalBySupplierQuery;
@@ -362,8 +399,8 @@ const AnaliseDeFornecedor: React.FC = () => {
                     </TableBody>
                   </Table>
                 </div>
-              )}
-            </CardContent>
+              </CardContent>
+            </Card>
           </Card>
         </>
       )}
