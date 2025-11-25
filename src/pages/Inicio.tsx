@@ -63,9 +63,12 @@ const Inicio: React.FC = () => {
     }
 
     console.log('Inicio: Raw data from sold_items (before aggregation):', JSON.stringify(data, null, 2));
-    // Filter for the problematic date to inspect
+    
     const problematicDateItems = data?.filter(item => item.sale_date === '2025-11-01');
-    console.log('Inicio: Items for 2025-11-01 (before aggregation):', JSON.stringify(problematicDateItems, null, 2));
+    console.log('Inicio: Items for 2025-11-01 (before aggregation):');
+    problematicDateItems?.forEach((item, index) => {
+      console.log(`  Item ${index + 1}: Qty=${item.quantity_sold}, Value=${item.total_value_sold}`);
+    });
 
 
     // Agregação manual dos dados por data
@@ -81,7 +84,12 @@ const Inicio: React.FC = () => {
     });
 
     console.log('Inicio: Aggregated data before final array conversion:', JSON.stringify(aggregatedData, null, 2));
-    console.log('Inicio: Aggregated total for 2025-11-01:', aggregatedData['2025-11-01'] ? `Qtd: ${aggregatedData['2025-11-01'].total_quantity_sold}, Valor: ${aggregatedData['2025-11-01'].total_value_sold}` : 'N/A');
+    const aggregatedTotalForProblematicDate = aggregatedData['2025-11-01'];
+    if (aggregatedTotalForProblematicDate) {
+      console.log(`Inicio: Aggregated total for 2025-11-01: Qtd=${aggregatedTotalForProblematicDate.total_quantity_sold}, Valor=${aggregatedTotalForProblematicDate.total_value_sold}`);
+    } else {
+      console.log('Inicio: Aggregated total for 2025-11-01: N/A');
+    }
 
 
     // Converte o objeto agregado de volta para um array e ordena por data
