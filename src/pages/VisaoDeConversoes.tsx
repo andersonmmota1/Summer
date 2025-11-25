@@ -131,7 +131,7 @@ const VisaoDeConversoes: React.FC = () => {
                     <TableRow>
                       <TableHead>Fornecedor</TableHead>
                       <TableHead>Descrição do Produto Fornecedor</TableHead>
-                      <TableHead>Cód. Produto Fornecedor</TableHead>
+                      {/* <TableHead>Cód. Produto Fornecedor</TableHead> <-- REMOVIDO */}
                       <TableHead>Nome Interno</TableHead>
                       <TableHead>Unidade Fornecedor</TableHead>
                       <TableHead>Unidade Interna</TableHead>
@@ -148,7 +148,7 @@ const VisaoDeConversoes: React.FC = () => {
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.supplier_name}</TableCell>
                         <TableCell>{item.supplier_product_description}</TableCell>
-                        <TableCell>{item.supplier_product_code}</TableCell>
+                        {/* <TableCell>{item.supplier_product_code}</TableCell> <-- REMOVIDO */}
                         <TableCell>{item.product_display_name}</TableCell>
                         <TableCell>{item.supplier_unit}</TableCell>
                         <TableCell>{item.internal_unit}</TableCell>
