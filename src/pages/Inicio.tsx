@@ -1,26 +1,26 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-// parseBrazilianFloat não é mais necessário para total_value_sold se ele vier como número
-// import { parseBrazilianFloat } from '@/lib/utils'; 
 
 interface SoldItemRaw {
   sale_date: string;
   quantity_sold: number;
-  total_value_sold: number | null; // Alterado de volta para number
+  total_value_sold: number | null;
 }
 
 interface SalesByDate {
   sale_date: string;
   total_quantity_sold: number;
   total_value_sold: number;
+  itemCount: number; // Adicionado para armazenar a contagem de itens por data
 }
 
 const Inicio: React.FC = () => {
   const { user } = useSession();
+  const problematicDate = '2025-11-01'; // Data problemática para depuração
 
   const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
@@ -28,7 +28,7 @@ const Inicio: React.FC = () => {
     }
     const { data, error } = await supabase
       .from('sold_items')
-      .select('sale_date, quantity_sold, total_value_sold') // Removido ::text
+      .select('sale_date, quantity_sold, total_value_sold')
       .eq('user_id', user.id)
       .order('sale_date', { ascending: false });
 
@@ -37,7 +37,7 @@ const Inicio: React.FC = () => {
       showError(`Erro ao carregar dados: ${error.message}`);
       throw error;
     }
-    console.log('Inicio: Raw data from Supabase (all items for user):', data); // Manter este log para dados gerais
+    console.log('Inicio: Raw data from Supabase (all items for user):', data);
     return data || [];
   };
 
@@ -58,29 +58,32 @@ const Inicio: React.FC = () => {
   const salesByDate = useMemo(() => {
     if (!rawSoldItems) return [];
 
-    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
-    const problematicDate = '2025-11-01';
+    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
     let debugSumProblematicDate = 0;
+    let debugCountProblematicDate = 0;
 
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
-      const itemTotalValue = item.total_value_sold ?? 0; // Deve ser um número diretamente
+      const itemTotalValue = item.total_value_sold ?? 0;
       
       if (dateKey === problematicDate) {
-        console.log(`Inicio: Item for ${problematicDate} - received number: ${itemTotalValue}`); // Novo log
+        console.log(`Inicio: Item for ${problematicDate} - received number: ${itemTotalValue}`);
         debugSumProblematicDate += itemTotalValue;
-        console.log(`Inicio: Running sum for ${problematicDate}: ${debugSumProblematicDate}`);
+        debugCountProblematicDate++;
+        console.log(`Inicio: Running sum for ${problematicDate}: ${debugSumProblematicDate}, Running count: ${debugCountProblematicDate}`);
       }
 
       if (!aggregatedData[dateKey]) {
-        aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0 };
+        aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
       aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
       aggregatedData[dateKey].total_value_sold += itemTotalValue;
+      aggregatedData[dateKey].itemCount++;
     });
 
     if (aggregatedData[problematicDate]) {
       console.log(`Inicio: Final aggregated total_value_sold for ${problematicDate} (client-side): ${aggregatedData[problematicDate].total_value_sold}`);
+      console.log(`Inicio: Final aggregated item count for ${problematicDate} (client-side): ${aggregatedData[problematicDate].itemCount}`);
     } else {
       console.log(`Inicio: No aggregated data found for ${problematicDate}.`);
     }
@@ -89,8 +92,29 @@ const Inicio: React.FC = () => {
       sale_date: dateKey,
       total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
       total_value_sold: aggregatedData[dateKey].total_value_sold,
+      itemCount: aggregatedData[dateKey].itemCount,
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
+
+  // Novo useEffect para buscar a contagem diretamente do Supabase para a data problemática
+  useEffect(() => {
+    const checkSupabaseCount = async () => {
+      if (!user?.id) return;
+      
+      const { count, error } = await supabase
+        .from('sold_items')
+        .select('id', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('sale_date', problematicDate);
+
+      if (error) {
+        console.error(`Inicio: Erro ao buscar contagem de itens para ${problematicDate} no Supabase:`, error);
+      } else {
+        console.log(`Inicio: Total items for ${problematicDate} directly from Supabase (count query): ${count}`);
+      }
+    };
+    checkSupabaseCount();
+  }, [user?.id, problematicDate]); // Dependência de user.id e problematicDate
 
   const totalQuantitySoldSum = useMemo(() => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
