@@ -65,10 +65,11 @@ const Inicio: React.FC = () => {
     console.log('Inicio: Raw data from sold_items (before aggregation):', JSON.stringify(data, null, 2));
     
     const problematicDateItems = data?.filter(item => item.sale_date === '2025-11-01');
-    console.log('Inicio: Items for 2025-11-01 (before aggregation):');
-    problematicDateItems?.forEach((item, index) => {
-      console.log(`  Item ${index + 1}: Qty=${item.quantity_sold}, Value=${item.total_value_sold}`);
-    });
+    console.log('Inicio: Items for 2025-11-01 (before aggregation):', JSON.stringify(problematicDateItems, null, 2));
+
+    // NEW LOG: Calculate sum of total_value_sold from problematicDateItems
+    const sumProblematicValue = problematicDateItems?.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0) || 0;
+    console.log(`Inicio: Manual sum of total_value_sold for 2025-11-01 from raw items: ${sumProblematicValue}`);
 
 
     // Agregação manual dos dados por data
@@ -86,9 +87,9 @@ const Inicio: React.FC = () => {
     console.log('Inicio: Aggregated data before final array conversion:', JSON.stringify(aggregatedData, null, 2));
     const aggregatedTotalForProblematicDate = aggregatedData['2025-11-01'];
     if (aggregatedTotalForProblematicDate) {
-      console.log(`Inicio: Aggregated total for 2025-11-01: Qtd=${aggregatedTotalForProblematicDate.total_quantity_sold}, Valor=${aggregatedTotalForProblematicDate.total_value_sold}`);
+      console.log(`Inicio: Aggregated total for 2025-11-01 (from aggregatedData): Qtd=${aggregatedTotalForProblematicDate.total_quantity_sold}, Valor=${aggregatedTotalForProblematicDate.total_value_sold}`);
     } else {
-      console.log('Inicio: Aggregated total for 2025-11-01: N/A');
+      console.log('Inicio: Aggregated total for 2025-11-01 (from aggregatedData): N/A');
     }
 
 
@@ -100,6 +101,15 @@ const Inicio: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()); // Ordena do mais recente para o mais antigo
 
     console.log('Inicio: Final aggregated and sorted data:', JSON.stringify(finalAggregatedArray, null, 2));
+    
+    // NEW LOG: Find the problematic date in the final array
+    const finalProblematicDateEntry = finalAggregatedArray.find(item => item.sale_date === '2025-11-01');
+    if (finalProblematicDateEntry) {
+      console.log(`Inicio: Aggregated total for 2025-11-01 (from finalAggregatedArray): Qtd=${finalProblematicDateEntry.total_quantity_sold}, Valor=${finalProblematicDateEntry.total_value_sold}`);
+    } else {
+      console.log('Inicio: Aggregated total for 2025-11-01 (from finalAggregatedArray): N/A');
+    }
+
     return finalAggregatedArray;
   };
 
