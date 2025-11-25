@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
+import { useFilter } from '@/contexts/FilterContext';
+import { useQuery } from '@tanstack/react-query'; // Import useQuery
+import { useSession } from '@/components/SessionContextProvider'; // Import useSession
 
 interface ConvertedUnitSummary {
+  user_id: string; // Adicionado user_id
   supplier_name: string;
   supplier_product_code: string;
   supplier_product_description: string;
@@ -23,50 +26,54 @@ interface ConvertedUnitSummary {
 }
 
 const VisaoDeConversoes: React.FC = () => {
-  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { filters } = useFilter();
   const { selectedSupplier } = filters;
+  const { user } = useSession(); // Obter o usuário da sessão
 
-  const [convertedData, setConvertedData] = useState<ConvertedUnitSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchConvertedData();
-  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
-
-  const fetchConvertedData = async () => {
-    setLoading(true);
-    const loadingToastId = showLoading('Carregando visão de conversões...');
-    try {
+  const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
+    queryKey: ['converted_units_summary', user?.id, selectedSupplier],
+    queryFn: async () => {
+      if (!user?.id) return [];
       let query = supabase
         .from('converted_units_summary')
-        .select('*');
+        .select('*')
+        .eq('user_id', user.id); // Filtra por user_id
 
       if (selectedSupplier) {
         query = query.eq('supplier_name', selectedSupplier);
       }
       const { data, error } = await query;
-
       if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
 
-      setConvertedData(data || []);
-      showSuccess('Visão de conversões carregada com sucesso!');
-    } catch (error: any) {
+  useEffect(() => {
+    if (isError) {
       console.error('Erro ao carregar visão de conversões:', error);
-      showError(`Erro ao carregar dados: ${error.message}`);
-    } finally {
-      setLoading(false);
-      dismissToast(loadingToastId);
+      showError(`Erro ao carregar dados: ${error?.message}`);
     }
-  };
+  }, [isError, error]);
 
   const totalConvertedQuantity = useMemo(() => {
-    return convertedData.reduce((sum, item) => sum + item.total_converted_quantity, 0);
+    return convertedData?.reduce((sum, item) => sum + item.total_converted_quantity, 0) || 0;
   }, [convertedData]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
         Carregando visão de conversões...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
+        <p>Ocorreu um erro ao carregar a visão de conversões: {error?.message}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
       </div>
     );
   }
@@ -89,7 +96,7 @@ const VisaoDeConversoes: React.FC = () => {
         </div>
       )}
 
-      {convertedData.length === 0 ? (
+      {convertedData && convertedData.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum item com conversão de unidade encontrada.</p>
           <p className="text-sm mt-2">Certifique-se de ter carregado dados de compras e conversões de unidades na página "Carga de Dados".</p>
@@ -137,7 +144,7 @@ const VisaoDeConversoes: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {convertedData.map((item, index) => (
+                    {convertedData?.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.supplier_name}</TableCell>
                         <TableCell>{item.supplier_product_description}</TableCell>

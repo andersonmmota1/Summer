@@ -7,10 +7,13 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { createExcelFile } from '@/utils/excel';
-import { useFilter } from '@/contexts/FilterContext'; // Import useFilter
+import { useFilter } from '@/contexts/FilterContext';
+import { useQuery } from '@tanstack/react-query'; // Import useQuery
+import { useSession } from '@/components/SessionContextProvider'; // Import useSession
 
 // Updated interface for unmapped name products
 interface UnmappedProductNameSummary {
+  user_id: string; // Adicionado user_id
   c_prod: string;
   descricao_do_produto: string;
   supplier_name: string;
@@ -18,6 +21,7 @@ interface UnmappedProductNameSummary {
 
 // Updated interface for unmapped unit conversion summary
 interface UnmappedUnitConversionSummary {
+  user_id: string; // Adicionado user_id
   c_prod: string;
   supplier_name: string;
   descricao_do_produto: string;
@@ -25,59 +29,65 @@ interface UnmappedUnitConversionSummary {
 }
 
 const ProdutosNaoMapeados: React.FC = () => {
-  const { filters } = useFilter(); // Usa o contexto de filtro
+  const { filters } = useFilter();
   const { selectedSupplier } = filters;
+  const { user } = useSession(); // Obter o usuário da sessão
 
-  const [unmappedNameProducts, setUnmappedNameProducts] = useState<UnmappedProductNameSummary[]>([]);
-  const [unmappedUnitProducts, setUnmappedUnitProducts] = useState<UnmappedUnitConversionSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Fetch unmapped name products
+  const { data: unmappedNameProducts, isLoading: isLoadingNames, isError: isErrorNames, error: errorNames } = useQuery<UnmappedProductNameSummary[], Error>({
+    queryKey: ['unmapped_purchased_products_summary', user?.id, selectedSupplier],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      let query = supabase
+        .from('unmapped_purchased_products_summary')
+        .select('*')
+        .eq('user_id', user.id); // Filtra por user_id
+
+      if (selectedSupplier) {
+        query = query.eq('supplier_name', selectedSupplier);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch unmapped unit conversion products
+  const { data: unmappedUnitProducts, isLoading: isLoadingUnits, isError: isErrorUnits, error: errorUnits } = useQuery<UnmappedUnitConversionSummary[], Error>({
+    queryKey: ['unmapped_unit_conversions_summary', user?.id, selectedSupplier],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      let query = supabase
+        .from('unmapped_unit_conversions_summary')
+        .select('*')
+        .eq('user_id', user.id); // Filtra por user_id
+
+      if (selectedSupplier) {
+        query = query.eq('supplier_name', selectedSupplier);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const isLoading = isLoadingNames || isLoadingUnits;
+  const isError = isErrorNames || isErrorUnits;
+  const error = errorNames || errorUnits;
 
   useEffect(() => {
-    fetchUnmappedProducts();
-  }, [selectedSupplier]); // Busca dados novamente quando selectedSupplier muda
-
-  const fetchUnmappedProducts = async () => {
-    setLoading(true);
-    const loadingToastId = showLoading('Carregando produtos não mapeados...');
-    try {
-      // Busca produtos sem mapeamento de nome
-      let nameQuery = supabase
-        .from('unmapped_purchased_products_summary')
-        .select('*');
-
-      if (selectedSupplier) {
-        nameQuery = nameQuery.eq('supplier_name', selectedSupplier);
-      }
-      const { data: nameData, error: nameError } = await nameQuery;
-
-      if (nameError) throw nameError;
-      setUnmappedNameProducts(nameData || []);
-
-      // Busca produtos sem mapeamento de unidade
-      let unitQuery = supabase
-        .from('unmapped_unit_conversions_summary')
-        .select('*');
-
-      if (selectedSupplier) {
-        unitQuery = unitQuery.eq('supplier_name', selectedSupplier);
-      }
-      const { data: unitData, error: unitError } = await unitQuery;
-
-      if (unitError) throw unitError;
-      setUnmappedUnitProducts(unitData || []);
-
-      showSuccess('Produtos não mapeados carregados com sucesso!');
-    } catch (error: any) {
+    if (isError) {
       console.error('Erro ao carregar produtos não mapeados:', error);
-      showError(`Erro ao carregar dados: ${error.message}`);
-    } finally {
-      setLoading(false);
-      dismissToast(loadingToastId);
+      showError(`Erro ao carregar dados: ${error?.message}`);
     }
-  };
+  }, [isError, error]);
 
   const handleExportUnmappedNamesToExcel = () => {
-    if (unmappedNameProducts.length === 0) {
+    if (!unmappedNameProducts || unmappedNameProducts.length === 0) {
       showWarning('Não há produtos sem mapeamento de nome interno para exportar.');
       return;
     }
@@ -102,7 +112,7 @@ const ProdutosNaoMapeados: React.FC = () => {
   };
 
   const handleExportUnmappedUnitsToExcel = () => {
-    if (unmappedUnitProducts.length === 0) {
+    if (!unmappedUnitProducts || unmappedUnitProducts.length === 0) {
       showWarning('Não há produtos sem mapeamento de unidade interna para exportar.');
       return;
     }
@@ -127,7 +137,7 @@ const ProdutosNaoMapeados: React.FC = () => {
     showSuccess('Produtos sem mapeamento de unidade interna exportados com sucesso!');
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
         Carregando produtos não mapeados...
@@ -135,7 +145,16 @@ const ProdutosNaoMapeados: React.FC = () => {
     );
   }
 
-  const hasUnmappedData = unmappedNameProducts.length > 0 || unmappedUnitProducts.length > 0;
+  if (isError) {
+    return (
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
+        <p>Ocorreu um erro ao carregar os produtos não mapeados: {error?.message}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
+      </div>
+    );
+  }
+
+  const hasUnmappedData = (unmappedNameProducts && unmappedNameProducts.length > 0) || (unmappedUnitProducts && unmappedUnitProducts.length > 0);
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -162,7 +181,7 @@ const ProdutosNaoMapeados: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-8">
-          {unmappedNameProducts.length > 0 && (
+          {unmappedNameProducts && unmappedNameProducts.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Produtos sem Mapeamento de Nome Interno</CardTitle>
@@ -198,7 +217,7 @@ const ProdutosNaoMapeados: React.FC = () => {
             </Card>
           )}
 
-          {unmappedUnitProducts.length > 0 && (
+          {unmappedUnitProducts && unmappedUnitProducts.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Produtos sem Mapeamento de Unidade Interna</CardTitle>
