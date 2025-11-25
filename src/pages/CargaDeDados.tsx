@@ -203,8 +203,8 @@ const CargaDeDados: React.FC = () => {
     const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
     const currentFilesData: Record<string, any[]> = {}; // Para a pré-visualização
 
-    console.log('--- Starting Sold Items Excel Upload ---');
-    console.log('Selected files:', selectedSoldItemsExcelFiles.map(f => f.name));
+    console.log('CargaDeDados: --- Starting Sold Items Excel Upload ---');
+    console.log('CargaDeDados: Selected files:', selectedSoldItemsExcelFiles.map(f => f.name));
 
     for (const file of selectedSoldItemsExcelFiles) {
       try {
@@ -218,7 +218,7 @@ const CargaDeDados: React.FC = () => {
         const month = dateMatch[2];
         const year = dateMatch[3];
         const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-        console.log(`File: ${fileName}, Extracted sale_date: ${saleDateString}`);
+        console.log(`CargaDeDados: File: ${fileName}, Extracted sale_date: ${saleDateString}`);
 
         const fileSaleDate = parseISO(saleDateString);
         if (isNaN(fileSaleDate.getTime())) {
@@ -231,13 +231,15 @@ const CargaDeDados: React.FC = () => {
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
         currentFilesData[file.name] = data; // Armazena para pré-visualização
+        console.log(`CargaDeDados: Raw data from Excel file "${fileName}":`, JSON.stringify(data, null, 2));
+
 
         const fileFormattedData = data.map((row: any) => {
           const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
           const totalValue = parseBrazilianFloat(row['Valor']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
-          return {
+          const formattedItem = {
             user_id: user.id,
             sale_date: saleDateString, // Inserir como string YYYY-MM-DD
             group_name: String(row['Grupo'] || ''),
@@ -249,7 +251,18 @@ const CargaDeDados: React.FC = () => {
             unit_price: calculatedUnitPrice,
             total_value_sold: totalValue,
           };
+          // Log cada item formatado para a data problemática
+          if (saleDateString === '2025-11-01') {
+            console.log(`CargaDeDados: Formatted item for 2025-11-01 from "${fileName}":`, JSON.stringify(formattedItem, null, 2));
+          }
+          return formattedItem;
         });
+        
+        if (saleDateString === '2025-11-01') {
+          const sumForFile = fileFormattedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+          console.log(`CargaDeDados: Sum of total_value_sold for 2025-11-01 from "${fileName}" (after parsing): ${sumForFile}`);
+        }
+
         allFormattedData.push(...fileFormattedData); // Acumula dados de todos os arquivos
 
       } catch (error: any) {
@@ -268,11 +281,17 @@ const CargaDeDados: React.FC = () => {
       return;
     }
 
-    console.log('Unique dates to process (for deletion/insertion):', Array.from(datesToProcess));
+    console.log('CargaDeDados: Unique dates to process (for deletion/insertion):', Array.from(datesToProcess));
+    console.log('CargaDeDados: All formatted data to be inserted:', JSON.stringify(allFormattedData, null, 2));
+    const finalSumForProblematicDate = allFormattedData
+      .filter(item => item.sale_date === '2025-11-01')
+      .reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+    console.log(`CargaDeDados: Final sum of total_value_sold for 2025-11-01 (before Supabase insert): ${finalSumForProblematicDate}`);
+
 
     // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
     for (const dateString of datesToProcess) {
-      console.log(`Checking for existing sold items for date: ${dateString}`);
+      console.log(`CargaDeDados: Checking for existing sold items for date: ${dateString}`);
       // Primeiro, verifica se existem registros para esta data e usuário
       const { count, error: countError } = await supabase
         .from('sold_items')
@@ -280,7 +299,7 @@ const CargaDeDados: React.FC = () => {
         .eq('user_id', user.id)
         .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
 
-      console.log(`[DEBUG] For date ${dateString}, existing items count: ${count}`); // Adicionado log de depuração
+      console.log(`CargaDeDados: For date ${dateString}, existing items count: ${count}`); // Adicionado log de depuração
 
       if (countError) {
         showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
@@ -289,7 +308,7 @@ const CargaDeDados: React.FC = () => {
       }
 
       if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
-        console.log(`Found ${count} existing items for date ${dateString}. Deleting...`);
+        console.log(`CargaDeDados: Found ${count} existing items for date ${dateString}. Deleting...`);
         const { error: deleteError } = await supabase
           .from('sold_items')
           .delete()
@@ -301,10 +320,10 @@ const CargaDeDados: React.FC = () => {
           hasError = true;
         } else {
           showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
-          console.log(`Successfully deleted items for date: ${dateString}`);
+          console.log(`CargaDeDados: Successfully deleted items for date: ${dateString}`);
         }
       } else {
-        console.log(`No existing items found for date: ${dateString}.`);
+        console.log(`CargaDeDados: No existing items found for date: ${dateString}.`);
       }
     }
     // --- Fim da lógica de exclusão por data ---
@@ -319,7 +338,7 @@ const CargaDeDados: React.FC = () => {
 
     // Inserir todos os dados formatados de uma vez
     if (allFormattedData.length > 0) {
-      console.log('Attempting to insert all formatted data:', allFormattedData.length, 'items');
+      console.log('CargaDeDados: Attempting to insert all formatted data:', allFormattedData.length, 'items');
       const { error: insertError } = await supabase
         .from('sold_items')
         .insert(allFormattedData);
@@ -330,7 +349,7 @@ const CargaDeDados: React.FC = () => {
       } else {
         totalItemsLoaded = allFormattedData.length;
         showSuccess(`Total de ${totalItemsLoaded} produtos vendidos carregados com sucesso!`);
-        console.log(`Successfully inserted ${totalItemsLoaded} items.`);
+        console.log(`CargaDeDados: Successfully inserted ${totalItemsLoaded} items.`);
       }
     } else {
       showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados.');
@@ -349,7 +368,7 @@ const CargaDeDados: React.FC = () => {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
     setSelectedSoldItemsExcelFiles([]);
-    console.log('--- Sold Items Excel Upload Finished ---');
+    console.log('CargaDeDados: --- Sold Items Excel Upload Finished ---');
   };
 
   const handleUploadProductRecipeExcel = async () => {
