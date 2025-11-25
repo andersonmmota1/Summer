@@ -1,4 +1,5 @@
 import { showWarning } from "./toast";
+import { parseBrazilianFloat } from '@/lib/utils'; // Importar a nova função
 
 export const readXmlFile = (file: File): Promise<any[]> => {
   return new Promise((resolve, reject) => {
@@ -64,8 +65,8 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'ns1:cProd': cProd,
                   'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
                   'ns1:uCom': uCom,
-                  'ns1:qCom': parseFloat(qCom),
-                  'ns1:vUnCom': parseFloat(vUnCom),
+                  'ns1:qCom': parseBrazilianFloat(qCom), // Usando parseBrazilianFloat
+                  'ns1:vUnCom': parseBrazilianFloat(vUnCom), // Usando parseBrazilianFloat
                   'invoice_id': invoiceId, // Chave de acesso
                   'invoice_number': invoiceNumber, // Número sequencial da nota
                   'item_sequence_number': itemSequenceNumber,
@@ -90,8 +91,8 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'ns1:cProd': cProd,
                 'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
                 'ns1:uCom': uCom,
-                'ns1:qCom': parseFloat(qCom),
-                'ns1:vUnCom': parseFloat(vUnCom),
+                'ns1:qCom': parseBrazilianFloat(qCom), // Usando parseBrazilianFloat
+                'ns1:vUnCom': parseBrazilianFloat(vUnCom), // Usando parseBrazilianFloat
                 'invoice_id': invoiceId, // Chave de acesso
                 'invoice_number': invoiceNumber, // Número sequencial da nota
                 'item_sequence_number': null,
