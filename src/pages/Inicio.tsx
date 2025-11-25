@@ -26,37 +26,20 @@ const Inicio: React.FC = () => {
     if (!user?.id) {
       return [];
     }
+    // A consulta agora será simples, confiando no limite de linhas configurado no Supabase
+    const { data, error } = await supabase
+      .from('sold_items')
+      .select('sale_date, quantity_sold, total_value_sold')
+      .eq('user_id', user.id)
+      .order('sale_date', { ascending: false });
 
-    let allData: SoldItemRaw[] = [];
-    let offset = 0;
-    const limit = 1000; // Buscar em chunks de 1000
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('sold_items')
-        .select('sale_date, quantity_sold, total_value_sold')
-        .eq('user_id', user.id)
-        .order('sale_date', { ascending: false })
-        .range(offset, offset + limit - 1); // Buscar do offset até offset + limit - 1
-
-      if (error) {
-        console.error('Inicio: Erro ao carregar todos os itens vendidos (paginação):', error);
-        showError(`Erro ao carregar dados: ${error.message}`);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        allData = allData.concat(data);
-        offset += data.length; // Aumenta o offset pelo número de itens realmente retornados
-        hasMore = data.length === limit; // Se o número de itens retornados for menor que o limite, não há mais dados
-      } else {
-        hasMore = false; // Não há mais dados
-      }
+    if (error) {
+      console.error('Inicio: Erro ao carregar todos os itens vendidos:', error);
+      showError(`Erro ao carregar dados: ${error.message}`);
+      throw error;
     }
-    
-    console.log('Inicio: Raw data from Supabase (all items for user, paginated):', allData);
-    return allData;
+    console.log('Inicio: Raw data from Supabase (all items for user):', data);
+    return data || [];
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
