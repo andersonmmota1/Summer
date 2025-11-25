@@ -9,7 +9,7 @@ import { ptBR } from 'date-fns/locale';
 interface ConvertedUnitSummary {
   supplier_name: string;
   supplier_product_code: string;
-  supplier_product_description: string;
+  supplier_product_description: string; // Adicionado
   supplier_unit: string;
   internal_unit: string;
   conversion_factor: number;
@@ -106,8 +106,8 @@ const VisaoDeConversoes: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Fornecedor</TableHead>
+                      <TableHead>Descrição do Produto Fornecedor</TableHead> {/* UPDATED: Added new column */}
                       <TableHead>Cód. Produto Fornecedor</TableHead>
-                      <TableHead>Descrição do Produto</TableHead>
                       <TableHead>Nome Interno</TableHead>
                       <TableHead>Unidade Fornecedor</TableHead>
                       <TableHead>Unidade Interna</TableHead>
@@ -122,8 +122,8 @@ const VisaoDeConversoes: React.FC = () => {
                     {convertedData.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.supplier_name}</TableCell>
+                        <TableCell>{item.supplier_product_description}</TableCell> {/* UPDATED: Added new cell */}
                         <TableCell>{item.supplier_product_code}</TableCell>
-                        <TableCell>{item.supplier_product_description}</TableCell>
                         <TableCell>{item.product_display_name}</TableCell>
                         <TableCell>{item.supplier_unit}</TableCell>
                         <TableCell>{item.internal_unit}</TableCell>

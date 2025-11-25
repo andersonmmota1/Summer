@@ -24,7 +24,6 @@ import { ptBR } from 'date-fns/locale';
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
-  // Removido: [selectedExcelFile, setSelectedExcelFile]
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
   const [selectedSoldItemsExcelFile, setSelectedSoldItemsExcelFile] = useState<File | null>(null);
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
@@ -32,14 +31,12 @@ const CargaDeDados: React.FC = () => {
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
 
-  // Removido: purchasedItemsTemplateHeaders
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
-  const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
+  // UPDATED: Added 'Descrição Produto Fornecedor' to unitConversionTemplateHeaders
+  const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
 
-
-  // Removido: handleExcelFileChange
 
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -81,8 +78,6 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
-  // Removido: handleUploadExcel
-
   const handleUploadXml = async () => {
     if (selectedXmlFiles.length === 0) {
       showError('Por favor, selecione um ou mais arquivos XML para carregar.');
@@ -109,7 +104,7 @@ const CargaDeDados: React.FC = () => {
           u_com: String(row['ns1:uCom']),
           q_com: parseFloat(row['ns1:qCom']),
           v_un_com: parseFloat(row['ns1:vUnCom']),
-          invoice_id: row.invoice_id, // Chave de acesso da NFe
+          invoice_id: row.invoice_id, // Chave de acesso
           invoice_number: row.invoice_number, // Número sequencial da nota
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
@@ -349,6 +344,8 @@ const CargaDeDados: React.FC = () => {
         user_id: user.id,
         supplier_product_code: String(row['Código Fornecedor']),
         supplier_name: String(row['Nome Fornecedor']),
+        // UPDATED: Include the new column
+        supplier_product_description: String(row['Descrição Produto Fornecedor']),
         supplier_unit: String(row['Unidade Fornecedor']),
         internal_unit: String(row['Unidade Interna']),
         conversion_factor: parseFloat(row['Fator de Conversão']),
@@ -372,8 +369,6 @@ const CargaDeDados: React.FC = () => {
       dismissToast(loadingToastId);
     }
   };
-
-  // Removido: handleDownloadPurchasedItemsTemplate
 
   const handleDownloadSoldItemsTemplate = () => {
     const blob = createEmptyExcelTemplate(soldItemsTemplateHeaders, 'Template_ProdutosVendidos');
@@ -415,6 +410,7 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleDownloadUnitConversionTemplate = () => {
+    // UPDATED: Use the updated headers for the template
     const blob = createEmptyExcelTemplate(unitConversionTemplateHeaders, 'Template_ConversaoUnidades');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -451,8 +447,8 @@ const CargaDeDados: React.FC = () => {
         'Valor Unitário',
         'Nome Interno',
         'Nome Fantasia Fornecedor',
-        'Número da Nota (Sequencial)', // Novo cabeçalho
-        'ID da Nota (Chave de Acesso)', // Cabeçalho clarificado
+        'Número da Nota (Sequencial)',
+        'ID da Nota (Chave de Acesso)',
         'Número do Item na Nota',
         'Data da Compra',
       ];
@@ -466,8 +462,8 @@ const CargaDeDados: React.FC = () => {
         'Valor Unitário': item.v_un_com,
         'Nome Interno': item.internal_product_name || 'Não Mapeado',
         'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
-        'Número da Nota (Sequencial)': item.invoice_number || 'N/A', // Novo campo
-        'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A', // Campo existente
+        'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
+        'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
         'Data da Compra': new Date(item.created_at).toLocaleString(),
       }));
@@ -683,6 +679,7 @@ const CargaDeDados: React.FC = () => {
         'ID da Conversão',
         'Código Fornecedor',
         'Nome Fornecedor',
+        'Descrição Produto Fornecedor', // UPDATED: Added new header
         'Unidade Fornecedor',
         'Unidade Interna',
         'Fator de Conversão',
@@ -693,6 +690,7 @@ const CargaDeDados: React.FC = () => {
         'ID da Conversão': item.id,
         'Código Fornecedor': item.supplier_product_code,
         'Nome Fornecedor': item.supplier_name,
+        'Descrição Produto Fornecedor': item.supplier_product_description || 'N/A', // UPDATED: Include new field
         'Unidade Fornecedor': item.supplier_unit,
         'Unidade Interna': item.internal_unit,
         'Fator de Conversão': item.conversion_factor,
@@ -815,7 +813,7 @@ const CargaDeDados: React.FC = () => {
       const { error } = await supabase
         .from('unit_conversions')
         .delete()
-        .eq('user_id', user.id);
+        .eq('user_id', user.id); // Deleta apenas os registros do usuário logado
 
       if (error) throw error;
 
@@ -837,16 +835,13 @@ const CargaDeDados: React.FC = () => {
         Gerencie a importação e exportação de dados para o sistema através de arquivos Excel ou XML.
       </p>
 
-      <Tabs defaultValue="xml-purchased" className="w-full"> {/* Default value changed */}
-        <TabsList className="grid w-full grid-cols-4"> {/* Changed from grid-cols-5 to grid-cols-4 */}
-          {/* Removido: <TabsTrigger value="excel-purchased">Itens Comprados (Excel)</TabsTrigger> */}
+      <Tabs defaultValue="xml-purchased" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
           <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
         </TabsList>
-
-        {/* Removido: TabsContent para excel-purchased */}
 
         <TabsContent value="xml-purchased" className="mt-4">
           <div className="space-y-4">
@@ -972,7 +967,7 @@ const CargaDeDados: React.FC = () => {
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Unidades</h4>
               <p className="text-gray-600 dark:text-gray-400">
                 Mapeie a unidade do fornecedor para uma unidade interna, com um fator de conversão.
-                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Unidade Fornecedor</code>, <code>Unidade Interna</code> e <code>Fator de Conversão</code>.
+                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code>, <code>Unidade Fornecedor</code>, <code>Unidade Interna</code> e <code>Fator de Conversão</code>.
               </p>
               <div className="flex items-center space-x-2">
                 <Input
