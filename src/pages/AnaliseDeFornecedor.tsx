@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import * as React from 'react'; // Alterado de 'import React from 'react';'
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,7 +43,7 @@ const AnaliseDeFornecedor: React.FC = () => {
   const [internalProductCosts, setInternalProductCosts] = useState<InternalProductAverageCost[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => { // Usando React.useEffect explicitamente
     if (user?.id) {
       fetchAnalysisData();
     } else {
@@ -96,7 +97,7 @@ const AnaliseDeFornecedor: React.FC = () => {
   };
 
   // Calcula o valor total gasto por fornecedor
-  const totalValueSpentBySupplier = useMemo(() => {
+  const totalValueSpentBySupplier = React.useMemo(() => { // Usando React.useMemo explicitamente
     return totalBySupplier.reduce((sum, item) => sum + item.total_value_spent, 0);
   }, [totalBySupplier]);
 
