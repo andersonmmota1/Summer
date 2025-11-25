@@ -21,6 +21,7 @@ import {
 import { useSession } from '@/components/SessionContextProvider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseBrazilianFloat } from '@/lib/utils'; // Importar a nova função
 
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
@@ -34,7 +35,6 @@ const CargaDeDados: React.FC = () => {
   const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
-  // UPDATED: Added 'Descrição Produto Fornecedor' to unitConversionTemplateHeaders
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
 
 
@@ -102,8 +102,8 @@ const CargaDeDados: React.FC = () => {
           c_prod: String(row['ns1:cProd']),
           descricao_do_produto: String(row['descricao_do_produto']),
           u_com: String(row['ns1:uCom']),
-          q_com: parseFloat(row['ns1:qCom']),
-          v_un_com: parseFloat(row['ns1:vUnCom']),
+          q_com: parseBrazilianFloat(row['ns1:qCom']), // Usando parseBrazilianFloat
+          v_un_com: parseBrazilianFloat(row['ns1:vUnCom']), // Usando parseBrazilianFloat
           invoice_id: row.invoice_id, // Chave de acesso
           invoice_number: row.invoice_number, // Número sequencial da nota
           item_sequence_number: row.item_sequence_number,
@@ -190,8 +190,8 @@ const CargaDeDados: React.FC = () => {
           saleDate = new Date().toISOString(); // Padrão para a data atual
         }
 
-        const totalValue = Number(row['Valor']) || 0;
-        const quantity = Number(row['Quantidade']) || 0;
+        const totalValue = parseBrazilianFloat(row['Valor']) || 0; // Usando parseBrazilianFloat
+        const quantity = parseBrazilianFloat(row['Quantidade']) || 0; // Usando parseBrazilianFloat
         
         // Calcula o preço unitário médio: Valor Total / Quantidade
         const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
@@ -249,7 +249,7 @@ const CargaDeDados: React.FC = () => {
         user_id: user.id,
         sold_product_name: String(row['Produto Vendido']),
         internal_product_name: String(row['Nome Interno']),
-        quantity_needed: parseFloat(row['Quantidade Necessária']),
+        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']), // Usando parseBrazilianFloat
       }));
 
       const { error } = await supabase
@@ -344,11 +344,10 @@ const CargaDeDados: React.FC = () => {
         user_id: user.id,
         supplier_product_code: String(row['Código Fornecedor']),
         supplier_name: String(row['Nome Fornecedor']),
-        // UPDATED: Include the new column
         supplier_product_description: String(row['Descrição Produto Fornecedor']),
         supplier_unit: String(row['Unidade Fornecedor']),
         internal_unit: String(row['Unidade Interna']),
-        conversion_factor: parseFloat(row['Fator de Conversão']),
+        conversion_factor: parseBrazilianFloat(row['Fator de Conversão']), // Usando parseBrazilianFloat
       }));
 
       const { error } = await supabase
@@ -410,7 +409,6 @@ const CargaDeDados: React.FC = () => {
   };
 
   const handleDownloadUnitConversionTemplate = () => {
-    // UPDATED: Use the updated headers for the template
     const blob = createEmptyExcelTemplate(unitConversionTemplateHeaders, 'Template_ConversaoUnidades');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -679,7 +677,7 @@ const CargaDeDados: React.FC = () => {
         'ID da Conversão',
         'Código Fornecedor',
         'Nome Fornecedor',
-        'Descrição Produto Fornecedor', // UPDATED: Added new header
+        'Descrição Produto Fornecedor',
         'Unidade Fornecedor',
         'Unidade Interna',
         'Fator de Conversão',
@@ -690,7 +688,7 @@ const CargaDeDados: React.FC = () => {
         'ID da Conversão': item.id,
         'Código Fornecedor': item.supplier_product_code,
         'Nome Fornecedor': item.supplier_name,
-        'Descrição Produto Fornecedor': item.supplier_product_description || 'N/A', // UPDATED: Include new field
+        'Descrição Produto Fornecedor': item.supplier_product_description || 'N/A',
         'Unidade Fornecedor': item.supplier_unit,
         'Unidade Interna': item.internal_unit,
         'Fator de Conversão': item.conversion_factor,
