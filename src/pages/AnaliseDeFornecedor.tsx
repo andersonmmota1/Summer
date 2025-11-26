@@ -92,7 +92,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Quantidade Comprada': item.q_com,
       'Valor Unitário de Compra': item.v_un_com,
       'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado',
-      'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A', // Usando a nova coluna
+      'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A', // Usando a nova coluna, formatada sem hora
       'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
     }));
 
@@ -181,7 +181,7 @@ const AnaliseDeFornecedor: React.FC = () => {
                       <TableCell>{item.u_com}</TableCell>
                       <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell> {/* Exibe a nova data */}
+                      <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell> {/* Exibe a nova data sem hora */}
                       <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell> {/* Mantém a data de criação do registro */}
                     </TableRow>
                   ))}

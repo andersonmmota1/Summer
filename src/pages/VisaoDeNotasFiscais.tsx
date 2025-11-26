@@ -114,7 +114,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
                     <TableRow key={invoice.invoice_id || index}>
                       <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell>
                       <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
-                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell> {/* Formatado sem hora */}
                       <TableCell className="text-right">{invoice.total_invoice_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                     </TableRow>
                   ))}

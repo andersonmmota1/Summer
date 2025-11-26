@@ -148,7 +148,8 @@ const CargaDeDados: React.FC = () => {
           invoice_number: row.invoice_number,
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
-          invoice_emission_date: row.invoice_emission_date, // Adicionado: Mapeia a data de emissão
+          // Formata a data de emissão para YYYY-MM-DD antes de enviar para o Supabase
+          invoice_emission_date: row.invoice_emission_date ? format(parseISO(row.invoice_emission_date), 'yyyy-MM-dd') : null,
         }));
 
         const { error } = await supabase
@@ -593,7 +594,7 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
         'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
-        'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A', // Usando a nova coluna
+        'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A', // Usando a nova coluna, formatada sem hora
         'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
       }));
 
@@ -1013,7 +1014,7 @@ const CargaDeDados: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados.
               O sistema tentará extrair o ID da nota fiscal (chave de acesso) e o número sequencial da nota,
-              além do número do item para evitar duplicações.
+              além do número do item para evitar duplicações. A data de emissão da NF será armazenada sem a hora.
             </p>
 
             <div className="flex flex-col space-y-2">
