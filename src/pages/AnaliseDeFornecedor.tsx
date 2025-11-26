@@ -36,6 +36,13 @@ interface TotalPurchasedBySupplier {
   total_value_spent: number;
 }
 
+// Nova interface para o resumo de itens comprados por nome interno
+interface TotalPurchasedByInternalProduct {
+  user_id: string;
+  product_display_name: string;
+  total_value_spent: number;
+}
+
 const AnaliseDeFornecedor: React.FC = () => {
   const { user } = useSession();
 
@@ -59,6 +66,26 @@ const AnaliseDeFornecedor: React.FC = () => {
     },
   });
 
+  // Query para buscar o resumo de itens comprados por nome interno
+  const { data: internalProductsSummary, isLoading: isLoadingInternalProducts, isError: isErrorInternalProducts, error: errorInternalProducts } = useQuery<TotalPurchasedByInternalProduct[], Error>({
+    queryKey: ['total_purchased_by_internal_product', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('total_purchased_by_internal_product')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('total_value_spent', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar resumo de produtos internos: ${err.message}`);
+    },
+  });
+
   // Query para buscar os itens comprados detalhados
   const { data: purchasedItems, isLoading: isLoadingItems, isError: isErrorItems, error: errorItems } = useQuery<PurchasedItem[], Error>({
     queryKey: ['all_purchased_items', user?.id],
@@ -79,9 +106,9 @@ const AnaliseDeFornecedor: React.FC = () => {
     },
   });
 
-  const isLoading = isLoadingSuppliers || isLoadingItems;
-  const isError = isErrorSuppliers || isErrorItems;
-  const error = errorSuppliers || errorItems;
+  const isLoading = isLoadingSuppliers || isLoadingInternalProducts || isLoadingItems;
+  const isError = isErrorSuppliers || isErrorInternalProducts || isErrorItems;
+  const error = errorSuppliers || errorInternalProducts || errorItems;
 
   const handleExportAllPurchasedItemsToExcel = () => {
     if (!purchasedItems || purchasedItems.length === 0) {
@@ -150,7 +177,7 @@ const AnaliseDeFornecedor: React.FC = () => {
     );
   }
 
-  const hasData = (suppliersSummary && suppliersSummary.length > 0) || (purchasedItems && purchasedItems.length > 0);
+  const hasData = (suppliersSummary && suppliersSummary.length > 0) || (internalProductsSummary && internalProductsSummary.length > 0) || (purchasedItems && purchasedItems.length > 0);
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -201,7 +228,39 @@ const AnaliseDeFornecedor: React.FC = () => {
             </Card>
           )}
 
-          {/* Card: Itens Comprados Detalhados */}
+          {/* NOVO Card: Itens Comprados por Nome Interno */}
+          {internalProductsSummary && internalProductsSummary.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Itens Comprados por Nome Interno</CardTitle>
+                <CardDescription>
+                  Valor total gasto por cada produto interno.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome Interno</TableHead>
+                        <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {internalProductsSummary.map((product, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{product.product_display_name || 'N/A'}</TableCell>
+                          <TableCell className="text-right">{product.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card: Itens Comprados Detalhados (agora ocupa duas colunas) */}
           {purchasedItems && purchasedItems.length > 0 && (
             <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
               <CardHeader>
