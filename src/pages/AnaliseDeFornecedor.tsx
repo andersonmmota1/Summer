@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,8 @@ import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
-import { Download } from 'lucide-react';
+import { Download, XCircle } from 'lucide-react';
+import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 // Interface para os itens comprados diretamente do Supabase
 interface PurchasedItem {
@@ -45,6 +46,7 @@ interface TotalPurchasedByInternalProduct {
 
 const AnaliseDeFornecedor: React.FC = () => {
   const { user } = useSession();
+  const [selectedInternalProductName, setSelectedInternalProductName] = useState<string | null>(null);
 
   // Query para buscar o resumo de fornecedores
   const { data: suppliersSummary, isLoading: isLoadingSuppliers, isError: isErrorSuppliers, error: errorSuppliers } = useQuery<TotalPurchasedBySupplier[], Error>({
@@ -110,8 +112,24 @@ const AnaliseDeFornecedor: React.FC = () => {
   const isError = isErrorSuppliers || isErrorInternalProducts || isErrorItems;
   const error = errorSuppliers || errorInternalProducts || errorItems;
 
+  // Função para lidar com o clique no nome interno do produto para filtrar
+  const handleProductFilterClick = (productName: string) => {
+    setSelectedInternalProductName(prevName => (prevName === productName ? null : productName));
+  };
+
+  // Dados filtrados para o card de Itens Comprados Detalhados
+  const filteredPurchasedItems = useMemo(() => {
+    if (!purchasedItems) return [];
+    if (!selectedInternalProductName) return purchasedItems;
+
+    return purchasedItems.filter(item =>
+      item.internal_product_name === selectedInternalProductName ||
+      (item.internal_product_name === null && item.descricao_do_produto === selectedInternalProductName)
+    );
+  }, [purchasedItems, selectedInternalProductName]);
+
   const handleExportAllPurchasedItemsToExcel = () => {
-    if (!purchasedItems || purchasedItems.length === 0) {
+    if (!filteredPurchasedItems || filteredPurchasedItems.length === 0) {
       showWarning('Não há itens comprados para exportar.');
       return;
     }
@@ -132,7 +150,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Data de Registro no Sistema',
     ];
 
-    const formattedData = purchasedItems.map(item => ({
+    const formattedData = filteredPurchasedItems.map(item => ({
       'ID do Item': item.id,
       'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
       'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
@@ -189,6 +207,17 @@ const AnaliseDeFornecedor: React.FC = () => {
         com o nome interno do produto quando disponível.
       </p>
 
+      {selectedInternalProductName && (
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            Filtrando por Produto Interno: <span className="font-bold text-primary">{selectedInternalProductName}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setSelectedInternalProductName(null)}>
+            <XCircle className="h-4 w-4 mr-1" /> Limpar Filtro
+          </Button>
+        </div>
+      )}
+
       {!hasData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de fornecedor ou item comprado encontrado.</p>
@@ -234,7 +263,7 @@ const AnaliseDeFornecedor: React.FC = () => {
               <CardHeader>
                 <CardTitle>Itens Comprados por Nome Interno</CardTitle>
                 <CardDescription>
-                  Valor total gasto por cada produto interno.
+                  Valor total gasto por cada produto interno. Clique para filtrar.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -248,7 +277,14 @@ const AnaliseDeFornecedor: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {internalProductsSummary.map((product, index) => (
-                        <TableRow key={index}>
+                        <TableRow
+                          key={index}
+                          onClick={() => handleProductFilterClick(product.product_display_name)}
+                          className={cn(
+                            "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700",
+                            selectedInternalProductName === product.product_display_name && "bg-blue-50 dark:bg-blue-900/20"
+                          )}
+                        >
                           <TableCell className="font-medium">{product.product_display_name || 'N/A'}</TableCell>
                           <TableCell className="text-right">{product.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         </TableRow>
@@ -261,7 +297,7 @@ const AnaliseDeFornecedor: React.FC = () => {
           )}
 
           {/* Card: Itens Comprados Detalhados (agora ocupa duas colunas) */}
-          {purchasedItems && purchasedItems.length > 0 && (
+          {filteredPurchasedItems && filteredPurchasedItems.length > 0 && (
             <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -293,7 +329,7 @@ const AnaliseDeFornecedor: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {purchasedItems.map((item) => (
+                      {filteredPurchasedItems.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
                           <TableCell>{item.x_fant || 'N/A'}</TableCell>
