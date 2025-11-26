@@ -50,6 +50,7 @@ interface PurchasedItem {
   item_sequence_number: number | null;
   x_fant: string | null;
   invoice_number: string | null;
+  invoice_emission_date: string | null; // Adicionado
 }
 
 const CargaDeDados: React.FC = () => {
@@ -147,6 +148,7 @@ const CargaDeDados: React.FC = () => {
           invoice_number: row.invoice_number,
           item_sequence_number: row.item_sequence_number,
           x_fant: row.x_fant,
+          invoice_emission_date: row.invoice_emission_date, // Adicionado: Mapeia a data de emissão
         }));
 
         const { error } = await supabase
@@ -180,6 +182,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] }); // Invalida a query da Análise de Fornecedor
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -574,7 +577,8 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)',
         'ID da Nota (Chave de Acesso)',
         'Número do Item na Nota',
-        'Data da Compra',
+        'Data de Emissão da NF', // Adicionado
+        'Data de Registro no Sistema', // Renomeado para clareza
       ];
 
       const formattedData = data.map(item => ({
@@ -589,7 +593,8 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
         'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
-        'Data da Compra': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A', // Usando a nova coluna
+        'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
@@ -860,6 +865,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] }); // Invalida a query da Análise de Fornecedor
     } catch (error: any) {
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {

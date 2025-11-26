@@ -25,6 +25,7 @@ interface PurchasedItem {
   item_sequence_number: number | null;
   x_fant: string | null; // Nome fantasia do fornecedor
   invoice_number: string | null; // Número sequencial da nota
+  invoice_emission_date: string | null; // Adicionado: Data de Emissão da NF
 }
 
 const AnaliseDeFornecedor: React.FC = () => {
@@ -36,7 +37,7 @@ const AnaliseDeFornecedor: React.FC = () => {
     }
     const { data, error } = await supabase
       .from('purchased_items')
-      .select('*')
+      .select('*, invoice_emission_date') // Selecionar a nova coluna
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -75,7 +76,8 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Quantidade Comprada',
       'Valor Unitário de Compra',
       'Nome Interno do Produto',
-      'Data de Registro',
+      'Data de Emissão da NF', // Adicionado
+      'Data de Registro no Sistema', // Renomeado para clareza
     ];
 
     const formattedData = purchasedItems.map(item => ({
@@ -90,7 +92,8 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Quantidade Comprada': item.q_com,
       'Valor Unitário de Compra': item.v_un_com,
       'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado',
-      'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+      'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A', // Usando a nova coluna
+      'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
     }));
 
     const blob = createExcelFile(formattedData, headers, 'ItensCompradosXML');
@@ -164,7 +167,8 @@ const AnaliseDeFornecedor: React.FC = () => {
                     <TableHead>Unidade</TableHead>
                     <TableHead className="text-right">Quantidade</TableHead>
                     <TableHead className="text-right">Valor Unitário</TableHead>
-                    <TableHead>Data da Compra</TableHead>
+                    <TableHead>Data de Emissão da NF</TableHead> {/* Alterado */}
+                    <TableHead>Data de Registro no Sistema</TableHead> {/* Adicionado */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -177,7 +181,8 @@ const AnaliseDeFornecedor: React.FC = () => {
                       <TableCell>{item.u_com}</TableCell>
                       <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell> {/* Exibe a nova data */}
+                      <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell> {/* Mantém a data de criação do registro */}
                     </TableRow>
                   ))}
                 </TableBody>

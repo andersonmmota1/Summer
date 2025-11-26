@@ -25,15 +25,19 @@ export const readXmlFile = (file: File): Promise<any[]> => {
         const infNFeElement = xmlDoc.querySelector('infNFe');
         const invoiceId = infNFeElement?.getAttribute('Id') || null;
 
-        // Tentar extrair o Número Sequencial da Nota Fiscal (nNF)
+        // Tentar extrair o Número Sequencial da Nota Fiscal (nNF) e a Data de Emissão (dhEmi)
         const ideElement = infNFeElement?.querySelector('ide');
         const invoiceNumber = ideElement?.querySelector('nNF')?.textContent || null;
+        const dhEmi = ideElement?.querySelector('dhEmi')?.textContent || null; // Extrair dhEmi
 
         if (!invoiceId) {
           showWarning('Não foi possível encontrar o ID da nota fiscal (tag <infNFe> com atributo Id). Itens podem ser tratados como duplicados se não houver outro identificador único.');
         }
         if (!invoiceNumber) {
           showWarning('Não foi possível encontrar o Número Sequencial da Nota Fiscal (tag <nNF> dentro de <ide>).');
+        }
+        if (!dhEmi) {
+          showWarning('Não foi possível encontrar a Data de Emissão da NF (tag <dhEmi> dentro de <ide>).');
         }
 
         // Tentar extrair o Nome Fantasia do Fornecedor (xFant)
@@ -71,6 +75,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'invoice_number': invoiceNumber, // Número sequencial da nota
                   'item_sequence_number': itemSequenceNumber,
                   'x_fant': xFant,
+                  'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
                 });
               }
             }
@@ -97,6 +102,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'invoice_number': invoiceNumber, // Número sequencial da nota
                 'item_sequence_number': null,
                 'x_fant': xFant,
+                'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
               });
             }
           });
