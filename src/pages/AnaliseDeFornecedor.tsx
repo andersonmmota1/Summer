@@ -122,10 +122,17 @@ const AnaliseDeFornecedor: React.FC = () => {
     if (!purchasedItems) return [];
     if (!selectedInternalProductName) return purchasedItems;
 
-    return purchasedItems.filter(item =>
-      item.internal_product_name === selectedInternalProductName ||
-      (item.internal_product_name === null && item.descricao_do_produto === selectedInternalProductName)
-    );
+    const normalizedSelectedName = selectedInternalProductName.trim().toLowerCase();
+
+    return purchasedItems.filter(item => {
+      const normalizedInternalName = item.internal_product_name?.trim().toLowerCase();
+      const normalizedDescricao = item.descricao_do_produto?.trim().toLowerCase();
+
+      // Verifica se o nome interno mapeado corresponde ao nome selecionado
+      // OU se não há nome interno mapeado E a descrição original do produto corresponde ao nome selecionado
+      return normalizedInternalName === normalizedSelectedName ||
+             (item.internal_product_name === null && normalizedDescricao === normalizedSelectedName);
+    });
   }, [purchasedItems, selectedInternalProductName]);
 
   const handleExportAllPurchasedItemsToExcel = () => {
@@ -335,7 +342,7 @@ const AnaliseDeFornecedor: React.FC = () => {
                           <TableCell>{item.x_fant || 'N/A'}</TableCell>
                           <TableCell>{item.c_prod}</TableCell>
                           <TableCell>{item.internal_product_name || item.descricao_do_produto}</TableCell> {/* Exibe o nome interno ou a descrição original */}
-                          <TableCell>{item.u_com}</TableCell>
+                          <TableCell className="text-right">{item.u_com}</TableCell>
                           <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                           <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
