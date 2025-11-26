@@ -8,7 +8,7 @@ import Inicio from "./pages/Inicio";
 import Estoque from "./pages/Estoque";
 import FluxoDeCaixa from "./pages/FluxoDeCaixa";
 import CargaDeDados from "./pages/CargaDeDados";
-// Removido: import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor";
+import AnaliseDeFornecedor from "./pages/AnaliseDeFornecedor"; // Adicionado novamente
 import AnaliseDeProdutosVendidos from "./pages/AnaliseDeProdutosVendidos";
 import ProdutosNaoMapeados from "./pages/ProdutosNaoMapeados";
 import VisaoDeConversoes from "./pages/VisaoDeConversoes";
@@ -57,7 +57,7 @@ const App = () => (
                 <Route path="estoque" element={<Estoque />} />
                 <Route path="fluxo-de-caixa" element={<FluxoDeCaixa />} />
                 <Route path="carga-de-dados" element={<CargaDeDados />} />
-                {/* Removido: <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} /> */}
+                <Route path="analise-de-fornecedor" element={<AnaliseDeFornecedor />} /> {/* Adicionado novamente */}
                 <Route path="analise-de-produtos-vendidos" element={<AnaliseDeProdutosVendidos />} />
                 <Route path="produtos-nao-mapeados" element={<ProdutosNaoMapeados />} />
                 <Route path="visao-de-conversoes" element={<VisaoDeConversoes />} />
