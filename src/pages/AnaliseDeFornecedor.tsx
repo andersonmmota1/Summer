@@ -22,12 +22,29 @@ interface PurchasedItem {
   q_com: number;
   v_un_com: number;
   created_at: string;
-  internal_product_name: string | null; // Nome interno mapeado
+  internal_product_name: string | null; // Este é o campo na tabela purchased_items, que pode ser nulo
   invoice_id: string | null;
   item_sequence_number: number | null;
   x_fant: string | null; // Nome fantasia do fornecedor
   invoice_number: string | null; // Número sequencial da nota
   invoice_emission_date: string | null; // Data de Emissão da NF
+}
+
+// Interface para as regras de conversão de nomes de produtos
+interface ProductNameConversion {
+  id: string;
+  user_id: string;
+  supplier_product_code: string;
+  supplier_product_name: string | null;
+  supplier_name: string;
+  internal_product_name: string; // Este é o nome interno mapeado que queremos exibir
+  created_at: string;
+  updated_at: string;
+}
+
+// Interface para itens comprados enriquecidos com o nome interno correto para exibição
+interface DisplayPurchasedItem extends PurchasedItem {
+  display_internal_product_name: string;
 }
 
 // Nova interface para o resumo de fornecedores
@@ -108,34 +125,76 @@ const AnaliseDeFornecedor: React.FC = () => {
     },
   });
 
-  const isLoading = isLoadingSuppliers || isLoadingInternalProducts || isLoadingItems;
-  const isError = isErrorSuppliers || isErrorInternalProducts || isErrorItems;
-  const error = errorSuppliers || errorInternalProducts || errorItems;
+  // NOVO: Query para buscar todas as conversões de nomes de produtos
+  const { data: productNameConversions, isLoading: isLoadingConversions, isError: isErrorConversions, error: errorConversions } = useQuery<ProductNameConversion[], Error>({
+    queryKey: ['product_name_conversions_for_analysis', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('product_name_conversions')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar conversões de nomes de produtos: ${err.message}`);
+    },
+  });
+
+  const isLoading = isLoadingSuppliers || isLoadingInternalProducts || isLoadingItems || isLoadingConversions;
+  const isError = isErrorSuppliers || isErrorInternalProducts || isErrorItems || isErrorConversions;
+  const error = errorSuppliers || errorInternalProducts || errorItems || errorConversions;
 
   // Função para lidar com o clique no nome interno do produto para filtrar
   const handleProductFilterClick = (productName: string) => {
     setSelectedInternalProductName(prevName => (prevName === productName ? null : productName));
   };
 
+  // Dados de itens comprados enriquecidos com o nome interno correto para exibição
+  const enrichedPurchasedItems = useMemo(() => {
+    if (!purchasedItems || !productNameConversions) return [];
+
+    return purchasedItems.map(item => {
+      // Primeiro, verifica se purchased_items.internal_product_name já está preenchido
+      if (item.internal_product_name) {
+        return { ...item, display_internal_product_name: item.internal_product_name };
+      }
+
+      // Se não, tenta encontrar um mapeamento na tabela product_name_conversions
+      const mappedConversion = productNameConversions.find(conversion =>
+        conversion.supplier_product_code === item.c_prod &&
+        conversion.supplier_name === item.x_fant
+      );
+
+      return {
+        ...item,
+        display_internal_product_name: mappedConversion?.internal_product_name || item.descricao_do_produto || 'Não Mapeado'
+      };
+    });
+  }, [purchasedItems, productNameConversions]);
+
   // Dados filtrados para o card de Itens Comprados Detalhados
-  const filteredPurchasedItems = useMemo(() => {
-    if (!purchasedItems) return [];
-    if (!selectedInternalProductName) return purchasedItems;
+  const filteredDisplayPurchasedItems = useMemo(() => {
+    let itemsToFilter: DisplayPurchasedItem[] = enrichedPurchasedItems;
+
+    if (!selectedInternalProductName) return itemsToFilter;
 
     const normalizedSelectedName = selectedInternalProductName.trim().toLowerCase();
 
-    return purchasedItems.filter(item => {
-      const normalizedInternalName = item.internal_product_name?.trim().toLowerCase();
+    return itemsToFilter.filter(item => {
+      const normalizedDisplayInternalName = item.display_internal_product_name.trim().toLowerCase();
       const normalizedDescricao = item.descricao_do_produto?.trim().toLowerCase();
 
-      // Verifica se o nome interno mapeado corresponde ao nome selecionado
-      // OU se a descrição original do produto corresponde ao nome selecionado
-      return normalizedInternalName === normalizedSelectedName || normalizedDescricao === normalizedSelectedName;
+      // Filtra com base no nome de exibição ou na descrição original
+      return normalizedDisplayInternalName === normalizedSelectedName || normalizedDescricao === normalizedSelectedName;
     });
-  }, [purchasedItems, selectedInternalProductName]);
+  }, [enrichedPurchasedItems, selectedInternalProductName]);
 
   const handleExportAllPurchasedItemsToExcel = () => {
-    if (!filteredPurchasedItems || filteredPurchasedItems.length === 0) {
+    if (!filteredDisplayPurchasedItems || filteredDisplayPurchasedItems.length === 0) {
       showWarning('Não há itens comprados para exportar.');
       return;
     }
@@ -156,7 +215,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Data de Registro no Sistema',
     ];
 
-    const formattedData = filteredPurchasedItems.map(item => ({
+    const formattedData = filteredDisplayPurchasedItems.map(item => ({
       'ID do Item': item.id,
       'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
       'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
@@ -164,7 +223,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
       'Código Fornecedor': item.c_prod,
       'Descrição do Produto (XML)': item.descricao_do_produto,
-      'Nome Interno do Produto': item.internal_product_name || item.descricao_do_produto || 'Não Mapeado', // Ajustado para exportação
+      'Nome Interno do Produto': item.display_internal_product_name, // Usa o nome enriquecido
       'Unidade de Compra': item.u_com,
       'Quantidade Comprada': item.q_com,
       'Valor Unitário de Compra': item.v_un_com,
@@ -303,7 +362,7 @@ const AnaliseDeFornecedor: React.FC = () => {
           )}
 
           {/* Card: Itens Comprados Detalhados (agora ocupa duas colunas) */}
-          {filteredPurchasedItems && filteredPurchasedItems.length > 0 && (
+          {filteredDisplayPurchasedItems && filteredDisplayPurchasedItems.length > 0 && (
             <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -336,13 +395,13 @@ const AnaliseDeFornecedor: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPurchasedItems.map((item) => (
+                      {filteredDisplayPurchasedItems.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
                           <TableCell>{item.x_fant || 'N/A'}</TableCell>
                           <TableCell>{item.c_prod}</TableCell>
                           <TableCell>{item.descricao_do_produto}</TableCell>
-                          <TableCell>{item.internal_product_name || item.descricao_do_produto || 'Não Mapeado'}</TableCell> {/* Ajustado aqui */}
+                          <TableCell>{item.display_internal_product_name}</TableCell> {/* Usa o nome enriquecido */}
                           <TableCell>{item.u_com}</TableCell>
                           <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                           <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
