@@ -129,9 +129,8 @@ const AnaliseDeFornecedor: React.FC = () => {
       const normalizedDescricao = item.descricao_do_produto?.trim().toLowerCase();
 
       // Verifica se o nome interno mapeado corresponde ao nome selecionado
-      // OU se não há nome interno mapeado E a descrição original do produto corresponde ao nome selecionado
-      return normalizedInternalName === normalizedSelectedName ||
-             (item.internal_product_name === null && normalizedDescricao === normalizedSelectedName);
+      // OU se a descrição original do produto corresponde ao nome selecionado
+      return normalizedInternalName === normalizedSelectedName || normalizedDescricao === normalizedSelectedName;
     });
   }, [purchasedItems, selectedInternalProductName]);
 
@@ -149,7 +148,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Nome Fantasia Fornecedor',
       'Código Fornecedor',
       'Descrição do Produto (XML)',
-      'Nome Interno do Produto', // Adicionado
+      'Nome Interno do Produto',
       'Unidade de Compra',
       'Quantidade Comprada',
       'Valor Unitário de Compra',
@@ -165,7 +164,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
       'Código Fornecedor': item.c_prod,
       'Descrição do Produto (XML)': item.descricao_do_produto,
-      'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado', // Exibe o nome interno
+      'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado',
       'Unidade de Compra': item.u_com,
       'Quantidade Comprada': item.q_com,
       'Valor Unitário de Compra': item.v_un_com,
@@ -327,7 +326,8 @@ const AnaliseDeFornecedor: React.FC = () => {
                         <TableHead>Nota Fiscal</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Cód. Produto</TableHead>
-                        <TableHead>Nome Interno do Produto</TableHead> {/* Alterado */}
+                        <TableHead>Descrição do Produto (XML)</TableHead> {/* Nova coluna */}
+                        <TableHead>Nome Interno do Produto</TableHead> {/* Coluna separada */}
                         <TableHead>Unidade</TableHead>
                         <TableHead className="text-right">Quantidade</TableHead>
                         <TableHead className="text-right">Valor Unitário</TableHead>
@@ -341,8 +341,9 @@ const AnaliseDeFornecedor: React.FC = () => {
                           <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
                           <TableCell>{item.x_fant || 'N/A'}</TableCell>
                           <TableCell>{item.c_prod}</TableCell>
-                          <TableCell>{item.internal_product_name || item.descricao_do_produto}</TableCell> {/* Exibe o nome interno ou a descrição original */}
-                          <TableCell className="text-right">{item.u_com}</TableCell>
+                          <TableCell>{item.descricao_do_produto}</TableCell> {/* Exibe a descrição original */}
+                          <TableCell>{item.internal_product_name || 'Não Mapeado'}</TableCell> {/* Exibe apenas o nome interno mapeado */}
+                          <TableCell>{item.u_com}</TableCell>
                           <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                           <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
