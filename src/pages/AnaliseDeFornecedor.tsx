@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
 import { Download } from 'lucide-react';
 
+// Interface para os itens comprados diretamente do Supabase
 interface PurchasedItem {
   id: string;
   user_id: string;
@@ -20,45 +21,69 @@ interface PurchasedItem {
   q_com: number;
   v_un_com: number;
   created_at: string;
-  internal_product_name: string | null;
+  internal_product_name: string | null; // Nome interno mapeado
   invoice_id: string | null;
   item_sequence_number: number | null;
   x_fant: string | null; // Nome fantasia do fornecedor
   invoice_number: string | null; // Número sequencial da nota
-  invoice_emission_date: string | null; // Adicionado: Data de Emissão da NF
+  invoice_emission_date: string | null; // Data de Emissão da NF
+}
+
+// Nova interface para o resumo de fornecedores
+interface TotalPurchasedBySupplier {
+  user_id: string;
+  supplier_name: string;
+  total_value_spent: number;
 }
 
 const AnaliseDeFornecedor: React.FC = () => {
   const { user } = useSession();
 
-  const fetchPurchasedItems = async (): Promise<PurchasedItem[]> => {
-    if (!user?.id) {
-      return [];
-    }
-    const { data, error } = await supabase
-      .from('purchased_items')
-      .select('*, invoice_emission_date') // Selecionar a nova coluna
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao carregar itens comprados:', error);
-      throw error;
-    }
-    return data || [];
-  };
-
-  const { data: purchasedItems, isLoading, isError, error } = useQuery<PurchasedItem[], Error>({
-    queryKey: ['all_purchased_items', user?.id],
-    queryFn: fetchPurchasedItems,
+  // Query para buscar o resumo de fornecedores
+  const { data: suppliersSummary, isLoading: isLoadingSuppliers, isError: isErrorSuppliers, error: errorSuppliers } = useQuery<TotalPurchasedBySupplier[], Error>({
+    queryKey: ['total_purchased_by_supplier', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('total_purchased_by_supplier')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('total_value_spent', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutos de cache
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar resumo de fornecedores: ${err.message}`);
+    },
+  });
+
+  // Query para buscar os itens comprados detalhados
+  const { data: purchasedItems, isLoading: isLoadingItems, isError: isErrorItems, error: errorItems } = useQuery<PurchasedItem[], Error>({
+    queryKey: ['all_purchased_items', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('*, invoice_emission_date')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
     onError: (err) => {
       showError(`Erro ao carregar itens comprados: ${err.message}`);
     },
   });
 
-  const handleExportToExcel = () => {
+  const isLoading = isLoadingSuppliers || isLoadingItems;
+  const isError = isErrorSuppliers || isErrorItems;
+  const error = errorSuppliers || errorItems;
+
+  const handleExportAllPurchasedItemsToExcel = () => {
     if (!purchasedItems || purchasedItems.length === 0) {
       showWarning('Não há itens comprados para exportar.');
       return;
@@ -71,13 +96,13 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Número do Item na Nota',
       'Nome Fantasia Fornecedor',
       'Código Fornecedor',
-      'Descrição do Produto',
+      'Descrição do Produto (XML)',
+      'Nome Interno do Produto', // Adicionado
       'Unidade de Compra',
       'Quantidade Comprada',
       'Valor Unitário de Compra',
-      'Nome Interno do Produto',
-      'Data de Emissão da NF', // Adicionado
-      'Data de Registro no Sistema', // Renomeado para clareza
+      'Data de Emissão da NF',
+      'Data de Registro no Sistema',
     ];
 
     const formattedData = purchasedItems.map(item => ({
@@ -87,20 +112,20 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Número do Item na Nota': item.item_sequence_number || 'N/A',
       'Nome Fantasia Fornecedor': item.x_fant || 'N/A',
       'Código Fornecedor': item.c_prod,
-      'Descrição do Produto': item.descricao_do_produto,
+      'Descrição do Produto (XML)': item.descricao_do_produto,
+      'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado', // Exibe o nome interno
       'Unidade de Compra': item.u_com,
       'Quantidade Comprada': item.q_com,
       'Valor Unitário de Compra': item.v_un_com,
-      'Nome Interno do Produto': item.internal_product_name || 'Não Mapeado',
-      'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A', // Usando a nova coluna, formatada sem hora
-      'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
+      'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+      'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
     }));
 
-    const blob = createExcelFile(formattedData, headers, 'ItensCompradosXML');
+    const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'itens_comprados_xml.xlsx';
+    a.download = 'itens_comprados_detalhado.xlsx';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -111,7 +136,7 @@ const AnaliseDeFornecedor: React.FC = () => {
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
-        Carregando itens comprados...
+        Carregando dados de fornecedores...
       </div>
     );
   }
@@ -119,77 +144,116 @@ const AnaliseDeFornecedor: React.FC = () => {
   if (isError) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
-        <p>Ocorreu um erro ao carregar os itens comprados: {error?.message}</p>
+        <p>Ocorreu um erro ao carregar os dados: {error?.message}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
       </div>
     );
   }
 
+  const hasData = (suppliersSummary && suppliersSummary.length > 0) || (purchasedItems && purchasedItems.length > 0);
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Análise de Fornecedor (Itens Comprados do XML)
+        Análise de Fornecedor
       </h2>
       <p className="text-gray-700 dark:text-gray-300 mb-6">
-        Esta página exibe todos os itens de produtos que foram carregados através de arquivos XML.
-        Você pode ver os detalhes de cada item, incluindo informações do fornecedor e da nota fiscal.
+        Visualize o resumo de gastos por fornecedor e os detalhes dos itens comprados,
+        com o nome interno do produto quando disponível.
       </p>
 
-      {purchasedItems && purchasedItems.length === 0 ? (
+      {!hasData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhum item comprado encontrado.</p>
+          <p className="text-lg">Nenhum dado de fornecedor ou item comprado encontrado.</p>
           <p className="text-sm mt-2">Certifique-se de ter carregado arquivos XML na página "Carga de Dados".</p>
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Itens Comprados Detalhados</CardTitle>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card: Fornecedores com Valor Total de Compra */}
+          {suppliersSummary && suppliersSummary.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Fornecedores com Valor Total de Compra</CardTitle>
                 <CardDescription>
-                  Lista completa de todos os itens de produtos carregados via XML.
+                  Valor total gasto com cada fornecedor.
                 </CardDescription>
-              </div>
-              <Button onClick={handleExportToExcel} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" /> Exportar para Excel
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nota Fiscal</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead>Cód. Produto</TableHead>
-                    <TableHead>Descrição do Produto</TableHead>
-                    <TableHead>Unidade</TableHead>
-                    <TableHead className="text-right">Quantidade</TableHead>
-                    <TableHead className="text-right">Valor Unitário</TableHead>
-                    <TableHead>Data de Emissão da NF</TableHead> {/* Alterado */}
-                    <TableHead>Data de Registro no Sistema</TableHead> {/* Adicionado */}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {purchasedItems?.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
-                      <TableCell>{item.x_fant || 'N/A'}</TableCell>
-                      <TableCell>{item.c_prod}</TableCell>
-                      <TableCell>{item.descricao_do_produto}</TableCell>
-                      <TableCell>{item.u_com}</TableCell>
-                      <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell> {/* Exibe a nova data sem hora */}
-                      <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell> {/* Mantém a data de criação do registro */}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead className="text-right">Valor Total Gasto</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {suppliersSummary.map((supplier, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{supplier.supplier_name || 'N/A'}</TableCell>
+                          <TableCell className="text-right">{supplier.total_value_spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card: Itens Comprados Detalhados */}
+          {purchasedItems && purchasedItems.length > 0 && (
+            <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Itens Comprados Detalhados</CardTitle>
+                    <CardDescription>
+                      Lista completa de todos os itens de produtos carregados via XML, com nome interno.
+                    </CardDescription>
+                  </div>
+                  <Button onClick={handleExportAllPurchasedItemsToExcel} variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" /> Exportar para Excel
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nota Fiscal</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Cód. Produto</TableHead>
+                        <TableHead>Nome Interno do Produto</TableHead> {/* Alterado */}
+                        <TableHead>Unidade</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">Valor Unitário</TableHead>
+                        <TableHead>Data de Emissão da NF</TableHead>
+                        <TableHead>Data de Registro no Sistema</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {purchasedItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
+                          <TableCell>{item.x_fant || 'N/A'}</TableCell>
+                          <TableCell>{item.c_prod}</TableCell>
+                          <TableCell>{item.internal_product_name || item.descricao_do_produto}</TableCell> {/* Exibe o nome interno ou a descrição original */}
+                          <TableCell>{item.u_com}</TableCell>
+                          <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
+                          <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   );
