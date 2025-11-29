@@ -4,7 +4,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
@@ -61,18 +61,21 @@ interface DisplayPurchasedItem extends PurchasedItem {
   display_internal_product_name: string;
 }
 
+// Nova interface para configuração de ordenação para Purchased Items
+interface SortConfigPurchasedItems {
+  key: keyof DisplayPurchasedItem | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const Estoque: React.FC = () => {
   const { user } = useSession();
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
-
-  // --- FILTRO TEMPORÁRIO PARA TESTE FIFO ---
-  // const TEMP_FIFO_PRODUCT_FILTER = "HAMBURGUER CONGELADO"; // Removido
-  // --- FIM DO FILTRO TEMPORÁRIO ---
+  const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'invoice_emission_date', direction: 'desc' }); // Estado de ordenação para entradas detalhadas
 
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
-    queryKey: ['current_stock_summary', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
+    queryKey: ['current_stock_summary', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -81,10 +84,6 @@ const Estoque: React.FC = () => {
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
       
-      // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
-      // Removido:   query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
-      // Removido: }
-
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -98,7 +97,7 @@ const Estoque: React.FC = () => {
 
   // Query para buscar o uso de produtos internos em receitas
   const { data: internalProductUsage, isLoading: isLoadingUsage, isError: isErrorUsage, error: errorUsage } = useQuery<InternalProductUsage[], Error>({
-    queryKey: ['internal_product_usage', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
+    queryKey: ['internal_product_usage', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -106,10 +105,6 @@ const Estoque: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
-
-      // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
-      // Removido:   query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
-      // Removido: }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -124,7 +119,7 @@ const Estoque: React.FC = () => {
 
   // Query para buscar todos os itens comprados detalhados
   const { data: purchasedItems, isLoading: isLoadingPurchasedItems, isError: isErrorPurchasedItems, error: errorPurchasedItems } = useQuery<PurchasedItem[], Error>({
-    queryKey: ['all_purchased_items_stock', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
+    queryKey: ['all_purchased_items_stock', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -134,9 +129,6 @@ const Estoque: React.FC = () => {
         .order('invoice_emission_date', { ascending: false }) // Ordenar por data de emissão
         .order('created_at', { ascending: false }); // E depois por data de criação
       
-      // O filtro para purchased_items será aplicado no useMemo `enrichedPurchasedItems`
-      // para que possamos usar o `display_internal_product_name` que já considera as conversões.
-
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -219,27 +211,67 @@ const Estoque: React.FC = () => {
       };
     });
 
-    // Removido: Aplicar filtro temporário aqui também para a tabela de entradas detalhadas
-    // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
-    // Removido:   items = items.filter(item => item.display_internal_product_name === TEMP_FIFO_PRODUCT_FILTER);
-    // Removido: }
-
     return items;
   }, [purchasedItems, productNameConversions]);
 
-  // Lógica de filtragem para as entradas detalhadas de estoque (agora aplicada *após* o filtro temporário)
-  const filteredEnrichedPurchasedItems = useMemo(() => {
-    if (!searchTerm) return enrichedPurchasedItems;
+  // Função para lidar com a ordenação da tabela de entradas detalhadas
+  const handleSortPurchasedItems = (key: keyof DisplayPurchasedItem) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfigPurchasedItems.key === key && sortConfigPurchasedItems.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfigPurchasedItems({ key, direction });
+  };
 
-    const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return enrichedPurchasedItems.filter(item =>
-      item.display_internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-      (item.x_fant?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-      (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-      (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-      (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm))
-    );
-  }, [enrichedPurchasedItems, searchTerm]);
+  // Lógica de filtragem e ordenação para as entradas detalhadas de estoque
+  const filteredEnrichedPurchasedItems = useMemo(() => {
+    let itemsToProcess = [...enrichedPurchasedItems];
+
+    // 1. Filtragem
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      itemsToProcess = itemsToProcess.filter(item =>
+        item.display_internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (item.x_fant?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm))
+      );
+    }
+
+    // 2. Ordenação
+    if (sortConfigPurchasedItems.key) {
+      itemsToProcess.sort((a, b) => {
+        const aValue = a[sortConfigPurchasedItems.key!];
+        const bValue = b[sortConfigPurchasedItems.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          // Para datas, parsear e comparar
+          if (sortConfigPurchasedItems.key === 'invoice_emission_date' || sortConfigPurchasedItems.key === 'created_at') {
+            const dateA = parseISO(aValue);
+            const dateB = parseISO(bValue);
+            if (dateA < dateB) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
+            if (dateA > dateB) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
+            return 0;
+          }
+          // Para outras strings, comparação normal
+          if (aValue < bValue) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+
+    return itemsToProcess;
+  }, [enrichedPurchasedItems, searchTerm, sortConfigPurchasedItems]);
 
   if (isLoading) {
     return (
@@ -259,14 +291,6 @@ const Estoque: React.FC = () => {
         calculado a partir das compras (com unidades convertidas) e do consumo via vendas (com base nas fichas técnicas).
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
-
-      {/* Removido: {TEMP_FIFO_PRODUCT_FILTER && (
-        <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-blue-800 dark:text-blue-200">
-          <p className="font-semibold">Filtro de Teste Ativo:</p>
-          <p>Atualmente, você está visualizando apenas dados relacionados a: <span className="font-bold">"{TEMP_FIFO_PRODUCT_FILTER}"</span>.</p>
-          <p className="text-sm mt-1">Este filtro é temporário para testes de lógica FIFO. Me avise quando quiser removê-lo.</p>
-        </div>
-      )} */}
 
       {stockData && stockData.length === 0 && enrichedPurchasedItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -383,12 +407,44 @@ const Estoque: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Data de Emissão da NF</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('invoice_emission_date')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Data de Emissão da NF
+                            {sortConfigPurchasedItems.key === 'invoice_emission_date' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead>Nome Interno do Produto</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Descrição do Produto (XML)</TableHead>
                         <TableHead>Unidade</TableHead>
-                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('q_com')}
+                            className="px-0 py-0 h-auto justify-end w-full"
+                          >
+                            Quantidade
+                            {sortConfigPurchasedItems.key === 'q_com' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead className="text-right">Valor Unitário</TableHead>
                       </TableRow>
                     </TableHeader>
