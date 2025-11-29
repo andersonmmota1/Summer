@@ -67,12 +67,12 @@ const Estoque: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
   // --- FILTRO TEMPORÁRIO PARA TESTE FIFO ---
-  const TEMP_FIFO_PRODUCT_FILTER = "HAMBURGUER CONGELADO";
+  // const TEMP_FIFO_PRODUCT_FILTER = "HAMBURGUER CONGELADO"; // Removido
   // --- FIM DO FILTRO TEMPORÁRIO ---
 
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
-    queryKey: ['current_stock_summary', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
+    queryKey: ['current_stock_summary', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -81,10 +81,9 @@ const Estoque: React.FC = () => {
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
       
-      // Aplicar filtro temporário
-      if (TEMP_FIFO_PRODUCT_FILTER) {
-        query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
-      }
+      // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
+      // Removido:   query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
+      // Removido: }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -99,7 +98,7 @@ const Estoque: React.FC = () => {
 
   // Query para buscar o uso de produtos internos em receitas
   const { data: internalProductUsage, isLoading: isLoadingUsage, isError: isErrorUsage, error: errorUsage } = useQuery<InternalProductUsage[], Error>({
-    queryKey: ['internal_product_usage', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
+    queryKey: ['internal_product_usage', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -108,10 +107,9 @@ const Estoque: React.FC = () => {
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
 
-      // Aplicar filtro temporário
-      if (TEMP_FIFO_PRODUCT_FILTER) {
-        query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
-      }
+      // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
+      // Removido:   query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
+      // Removido: }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -126,7 +124,7 @@ const Estoque: React.FC = () => {
 
   // Query para buscar todos os itens comprados detalhados
   const { data: purchasedItems, isLoading: isLoadingPurchasedItems, isError: isErrorPurchasedItems, error: errorPurchasedItems } = useQuery<PurchasedItem[], Error>({
-    queryKey: ['all_purchased_items_stock', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
+    queryKey: ['all_purchased_items_stock', user?.id], // Removido TEMP_FIFO_PRODUCT_FILTER da chave da query
     queryFn: async () => {
       if (!user?.id) return [];
       let query = supabase
@@ -221,10 +219,10 @@ const Estoque: React.FC = () => {
       };
     });
 
-    // Aplicar filtro temporário aqui também para a tabela de entradas detalhadas
-    if (TEMP_FIFO_PRODUCT_FILTER) {
-      items = items.filter(item => item.display_internal_product_name === TEMP_FIFO_PRODUCT_FILTER);
-    }
+    // Removido: Aplicar filtro temporário aqui também para a tabela de entradas detalhadas
+    // Removido: if (TEMP_FIFO_PRODUCT_FILTER) {
+    // Removido:   items = items.filter(item => item.display_internal_product_name === TEMP_FIFO_PRODUCT_FILTER);
+    // Removido: }
 
     return items;
   }, [purchasedItems, productNameConversions]);
@@ -262,13 +260,13 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
-      {TEMP_FIFO_PRODUCT_FILTER && (
+      {/* Removido: {TEMP_FIFO_PRODUCT_FILTER && (
         <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-blue-800 dark:text-blue-200">
           <p className="font-semibold">Filtro de Teste Ativo:</p>
           <p>Atualmente, você está visualizando apenas dados relacionados a: <span className="font-bold">"{TEMP_FIFO_PRODUCT_FILTER}"</span>.</p>
           <p className="text-sm mt-1">Este filtro é temporário para testes de lógica FIFO. Me avise quando quiser removê-lo.</p>
         </div>
-      )}
+      )} */}
 
       {stockData && stockData.length === 0 && enrichedPurchasedItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
