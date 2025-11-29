@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
+import { ChevronDown, ArrowUpDown, Download } from 'lucide-react'; // Importar Download
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input'; // Importar o componente Input
+import { createExcelFile } from '@/utils/excel'; // Importar createExcelFile
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -316,6 +317,42 @@ const Estoque: React.FC = () => {
     return sortableStockItems;
   }, [stockData, sortConfigStock]);
 
+  const handleExportStockSummaryToExcel = () => {
+    if (!sortedStockData || sortedStockData.length === 0) {
+      showWarning('Não há dados de estoque para exportar.');
+      return;
+    }
+
+    const headers = [
+      'Nome Interno do Produto',
+      'Unidade Interna',
+      'Estoque Atual',
+      'Qtd. Comprada (Convertida)',
+      'Qtd. Consumida (Vendas)',
+      'Valor Total Comprado',
+    ];
+
+    const formattedData = sortedStockData.map(item => ({
+      'Nome Interno do Produto': item.internal_product_name,
+      'Unidade Interna': item.internal_unit,
+      'Estoque Atual': item.current_stock_quantity,
+      'Qtd. Comprada (Convertida)': item.total_purchased_quantity_converted,
+      'Qtd. Consumida (Vendas)': item.total_consumed_quantity_from_sales,
+      'Valor Total Comprado': item.total_purchased_value,
+    }));
+
+    const blob = createExcelFile(formattedData, headers, 'ResumoEstoqueAtual');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'resumo_estoque_atual.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showSuccess('Resumo do estoque atual exportado para Excel com sucesso!');
+  };
+
 
   if (isLoading) {
     return (
@@ -362,10 +399,17 @@ const Estoque: React.FC = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Estoque Atual de Produtos Internos</CardTitle>
-              <CardDescription>
-                Visão geral do estoque de cada produto interno, considerando compras e consumo.
-              </CardDescription>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Estoque Atual de Produtos Internos</CardTitle>
+                  <CardDescription>
+                    Visão geral do estoque de cada produto interno, considerando compras e consumo.
+                  </CardDescription>
+                </div>
+                <Button onClick={handleExportStockSummaryToExcel} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" /> Exportar para Excel
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
