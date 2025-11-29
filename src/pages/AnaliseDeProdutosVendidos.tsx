@@ -5,13 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-// Removido: import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Importado o Input
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createExcelFile } from '@/utils/excel';
 import { useSession } from '@/components/SessionContextProvider';
-// Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldItemDetailed {
   id: string;
@@ -35,21 +34,10 @@ interface SortConfig {
 
 const AnaliseDeProdutosVendidos: React.FC = () => {
   const { user } = useSession();
-  // Removido: const { filters } = useFilter();
-  // Removido: const { selectedProduct } = filters;
   const [allSoldItems, setAllSoldItems] = useState<SoldItemDetailed[]>([]);
   const [loading, setLoading] = useState(true);
-  // Removido: const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Estado para o termo de busca
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sale_date', direction: 'desc' });
-
-  // Removido: Sincronizar searchTerm com selectedProduct do contexto
-  // Removido: useEffect(() => {
-  // Removido:   if (selectedProduct) {
-  // Removido:     setSearchTerm(selectedProduct);
-  // Removido:   } else {
-  // Removido:     setSearchTerm(''); // Limpa o termo de busca se o filtro de produto for removido
-  // Removido:   }
-  // Removido: }, [selectedProduct]);
 
   useEffect(() => {
     if (user?.id) {
@@ -93,19 +81,13 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     let sortableItems = [...allSoldItems];
 
-    // 1. Filtragem (removida a lógica de searchTerm)
-    // Removido: if (searchTerm) {
-    // Removido:   const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    // Removido:   sortableItems = sortableItems.filter(item =>
-    // Removido:     item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-    // Removido:     (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-    // Removido:     (item.subgroup_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-    // Removido:     (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-    // Removido:     item.quantity_sold.toString().includes(lowerCaseSearchTerm) ||
-    // Removido:     (item.total_value_sold?.toFixed(2).includes(lowerCaseSearchTerm)) ||
-    // Removido:     format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }).toLowerCase().includes(lowerCaseSearchTerm)
-    // Removido:   );
-    // Removido: }
+    // 1. Filtragem pelo termo de busca no campo 'product_name'
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      sortableItems = sortableItems.filter(item =>
+        item.product_name.toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
 
     // 2. Ordenação
     if (sortConfig.key) {
@@ -135,9 +117,10 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     }
 
     return sortableItems;
-  }, [allSoldItems, sortConfig]); // Removido searchTerm das dependências
+  }, [allSoldItems, searchTerm, sortConfig]);
 
-  const totalRevenueSum = useMemo(() => {
+  // Totalizador para os itens filtrados e ordenados
+  const totalFilteredRevenue = useMemo(() => {
     return filteredAndSortedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
   }, [filteredAndSortedData]);
 
@@ -196,14 +179,6 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         Visualize informações detalhadas sobre os produtos que foram vendidos.
       </p>
 
-      {/* Removido: {selectedProduct && (
-        <div className="mb-4">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
-          </span>
-        </div>
-      )} */}
-
       {allSoldItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de venda encontrado para análise.</p>
@@ -223,17 +198,17 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                 <Download className="h-4 w-4" /> Exportar para Excel
               </Button>
             </div>
-            {/* Removido: <Input
-              placeholder="Filtrar por nome do produto, grupo, subgrupo, código, quantidade ou valor..."
+            <Input
+              placeholder="Filtrar por nome do produto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm mt-4"
-            /> */}
+            />
           </CardHeader>
           <CardContent>
             <div className="mb-4 text-right">
               <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                Receita Total Geral: {totalRevenueSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                Receita Total Filtrada: {totalFilteredRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
             </div>
             <div className="overflow-x-auto">
