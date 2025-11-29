@@ -6,8 +6,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// Removido: import { useFilter } from '@/contexts/FilterContext';
 import { useSession } from '@/components/SessionContextProvider';
+import { useQuery } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -24,75 +26,143 @@ interface InternalProductUsage {
   quantity_needed: number;
 }
 
+// Interfaces para os novos dados de entrada de estoque
+interface PurchasedItem {
+  id: string;
+  user_id: string;
+  c_prod: string;
+  descricao_do_produto: string;
+  u_com: string;
+  q_com: number;
+  v_un_com: number;
+  created_at: string;
+  internal_product_name: string | null; // Este é o campo na tabela purchased_items, que pode ser nulo
+  invoice_id: string | null;
+  item_sequence_number: number | null;
+  x_fant: string | null; // Nome fantasia do fornecedor
+  invoice_number: string | null; // Número sequencial da nota
+  invoice_emission_date: string | null; // Data de Emissão da NF
+}
+
+interface ProductNameConversion {
+  id: string;
+  user_id: string;
+  supplier_product_code: string;
+  supplier_product_name: string | null;
+  supplier_name: string;
+  internal_product_name: string; // Este é o nome interno mapeado que queremos exibir
+  created_at: string;
+  updated_at: string;
+}
+
+// Interface para itens comprados enriquecidos com o nome interno correto para exibição
+interface DisplayPurchasedItem extends PurchasedItem {
+  display_internal_product_name: string;
+}
+
 const Estoque: React.FC = () => {
   const { user } = useSession();
-  // Removido: const { filters } = useFilter();
-  // Removido: const { selectedProduct } = filters;
-  const [stockData, setStockData] = useState<CurrentStockSummary[]>([]);
-  const [internalProductUsage, setInternalProductUsage] = useState<InternalProductUsage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchStockData();
-    } else {
-      setLoading(false);
-    }
-  }, [user?.id]); // Removido selectedProduct das dependências
-
-  const fetchStockData = async () => {
-    setLoading(true);
-    const loadingToastId = showLoading('Carregando dados de estoque...');
-    try {
-      let stockQuery = supabase
+  // Query para buscar o resumo do estoque atual
+  const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
+    queryKey: ['current_stock_summary', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
         .from('current_stock_summary')
         .select('*')
-        .eq('user_id', user?.id) // Filtrar por user_id
+        .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar resumo de estoque: ${err.message}`);
+    },
+  });
 
-      // Removido: if (selectedProduct) {
-      // Removido:   stockQuery = stockQuery.eq('internal_product_name', selectedProduct);
-      // Removido: }
-
-      const { data: stockResult, error: stockError } = await stockQuery;
-
-      if (stockError) throw stockError;
-      setStockData(stockResult || []);
-
-      let usageQuery = supabase
+  // Query para buscar o uso de produtos internos em receitas
+  const { data: internalProductUsage, isLoading: isLoadingUsage, isError: isErrorUsage, error: errorUsage } = useQuery<InternalProductUsage[], Error>({
+    queryKey: ['internal_product_usage', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
         .from('internal_product_usage')
         .select('*')
-        .eq('user_id', user?.id) // Filtrar por user_id
+        .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar uso de produtos internos: ${err.message}`);
+    },
+  });
 
-      // Removido: if (selectedProduct) {
-      // Removido:   usageQuery = usageQuery.eq('internal_product_name', selectedProduct);
-      // Removido: }
+  // Query para buscar todos os itens comprados detalhados
+  const { data: purchasedItems, isLoading: isLoadingPurchasedItems, isError: isErrorPurchasedItems, error: errorPurchasedItems } = useQuery<PurchasedItem[], Error>({
+    queryKey: ['all_purchased_items_stock', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('*, invoice_emission_date')
+        .eq('user_id', user.id)
+        .order('invoice_emission_date', { ascending: false }) // Ordenar por data de emissão
+        .order('created_at', { ascending: false }); // E depois por data de criação
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar itens comprados: ${err.message}`);
+    },
+  });
 
-      const { data: usageResult, error: usageError } = await usageQuery;
+  // Query para buscar todas as conversões de nomes de produtos
+  const { data: productNameConversions, isLoading: isLoadingConversions, isError: isErrorConversions, error: errorConversions } = useQuery<ProductNameConversion[], Error>({
+    queryKey: ['product_name_conversions_stock', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('product_name_conversions')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar conversões de nomes de produtos: ${err.message}`);
+    },
+  });
 
-      if (usageError) throw usageError;
-      setInternalProductUsage(usageResult || []);
+  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions;
+  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions;
 
-      showSuccess('Dados de estoque carregados com sucesso!');
-    } catch (error: any) {
+  useEffect(() => {
+    if (isError) {
       console.error('Erro ao carregar dados de estoque:', error);
-      showError(`Erro ao carregar dados: ${error.message}`);
-    } finally {
-      setLoading(false);
-      dismissToast(loadingToastId);
+      showError(`Erro ao carregar dados: ${error?.message}`);
     }
-  };
+  }, [isError, error]);
 
   const groupedUsage = useMemo(() => {
-    return internalProductUsage.reduce((acc, usage) => {
+    return internalProductUsage?.reduce((acc, usage) => {
       if (!acc[usage.internal_product_name]) {
         acc[usage.internal_product_name] = [];
       }
       acc[usage.internal_product_name].push(usage);
       return acc;
-    }, {} as Record<string, InternalProductUsage[]>);
+    }, {} as Record<string, InternalProductUsage[]>) || {};
   }, [internalProductUsage]);
 
   const handleToggleRow = (productName: string) => {
@@ -103,10 +173,53 @@ const Estoque: React.FC = () => {
   };
 
   const totalStockValue = useMemo(() => {
-    return stockData.reduce((sum, item) => sum + item.total_purchased_value, 0);
+    return stockData?.reduce((sum, item) => sum + item.total_purchased_value, 0) || 0;
   }, [stockData]);
 
-  if (loading) {
+  // Lógica para enriquecer itens comprados com o nome interno correto para exibição
+  const enrichedPurchasedItems = useMemo(() => {
+    if (!purchasedItems || !productNameConversions) return [];
+
+    return purchasedItems.map(item => {
+      if (item.internal_product_name) {
+        return { ...item, display_internal_product_name: item.internal_product_name };
+      }
+
+      const mappedConversion = productNameConversions.find(conversion =>
+        conversion.supplier_product_code === item.c_prod &&
+        conversion.supplier_name === item.x_fant
+      );
+
+      return {
+        ...item,
+        display_internal_product_name: mappedConversion?.internal_product_name || item.descricao_do_produto || 'Não Mapeado'
+      };
+    });
+  }, [purchasedItems, productNameConversions]);
+
+  // Agrupar itens comprados enriquecidos por data de emissão da NF
+  const groupedPurchasedEntriesByDate = useMemo(() => {
+    if (!enrichedPurchasedItems) return {};
+
+    return enrichedPurchasedItems.reduce((acc, item) => {
+      const dateKey = item.invoice_emission_date || 'Data Desconhecida';
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(item);
+      return acc;
+    }, {} as Record<string, DisplayPurchasedItem[]>);
+  }, [enrichedPurchasedItems]);
+
+  const sortedDates = useMemo(() => {
+    return Object.keys(groupedPurchasedEntriesByDate).sort((a, b) => {
+      if (a === 'Data Desconhecida') return 1;
+      if (b === 'Data Desconhecida') return -1;
+      return parseISO(b).getTime() - parseISO(a).getTime();
+    });
+  }, [groupedPurchasedEntriesByDate]);
+
+  if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
         Carregando gestão de estoque...
@@ -125,17 +238,9 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
-      {/* Removido: {selectedProduct && (
-        <div className="mb-4">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Produto: <span className="font-bold text-primary">{selectedProduct}</span>
-          </span>
-        </div>
-      )} */}
-
-      {stockData.length === 0 ? (
+      {stockData && stockData.length === 0 && Object.keys(groupedPurchasedEntriesByDate).length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhum dado de estoque encontrado.</p>
+          <p className="text-lg">Nenhum dado de estoque ou entrada de produto encontrado.</p>
           <p className="text-sm mt-2">
             Certifique-se de ter carregado dados de compras, vendas, fichas técnicas e conversões de unidades
             nas páginas "Carga de Dados" e "Mapeamento de Produtos".
@@ -179,7 +284,7 @@ const Estoque: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockData.map((item, index) => (
+                    {stockData?.map((item, index) => (
                       <React.Fragment key={index}>
                         <TableRow>
                           <TableCell className="font-medium">{item.internal_product_name}</TableCell>
@@ -227,6 +332,53 @@ const Estoque: React.FC = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* NOVO CARD: Visão Detalhada de Entradas de Estoque por Data */}
+          {Object.keys(groupedPurchasedEntriesByDate).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Visão Detalhada de Entradas de Estoque por Data</CardTitle>
+                <CardDescription>
+                  Itens comprados, agrupados pela data de emissão da nota fiscal, com seus nomes internos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {sortedDates.map(dateKey => (
+                    <div key={dateKey} className="border rounded-md p-4 bg-gray-50 dark:bg-gray-700">
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                        Data: {dateKey === 'Data Desconhecida' ? dateKey : format(parseISO(dateKey), 'dd/MM/yyyy', { locale: ptBR })}
+                      </h4>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Nome Interno do Produto</TableHead>
+                              <TableHead>Fornecedor</TableHead>
+                              <TableHead>Unidade</TableHead>
+                              <TableHead className="text-right">Quantidade</TableHead>
+                              <TableHead className="text-right">Valor Unitário</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {groupedPurchasedEntriesByDate[dateKey]?.map((item, itemIndex) => (
+                              <TableRow key={item.id || itemIndex}>
+                                <TableCell className="font-medium">{item.display_internal_product_name}</TableCell>
+                                <TableCell>{item.x_fant || 'N/A'}</TableCell>
+                                <TableCell>{item.u_com}</TableCell>
+                                <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                                <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
