@@ -17,7 +17,7 @@ interface ProductWithoutRecipeSummary {
   total_sales_count: number;
   total_quantity_sold: number;
   total_revenue: number;
-  last_sale_date: string;
+  // last_sale_date: string; // Removido
 }
 
 const ProdutosSemFichaTecnica: React.FC = () => {
@@ -57,7 +57,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       'Total de Vendas',
       'Quantidade Total Vendida',
       'Receita Total',
-      'Última Data de Venda',
+      // 'Última Data de Venda', // Removido
     ];
 
     const formattedData = productsWithoutRecipes.map(item => ({
@@ -65,7 +65,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       'Total de Vendas': item.total_sales_count,
       'Quantidade Total Vendida': item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Receita Total': item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      'Última Data de Venda': format(parseISO(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+      // 'Última Data de Venda': format(parseISO(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR }), // Removido
     }));
 
     const blob = createExcelFile(formattedData, headers, 'ProdutosSemFichaTecnica');
@@ -136,7 +136,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
                     <TableHead className="text-right">Total de Vendas</TableHead>
                     <TableHead className="text-right">Qtd. Total Vendida</TableHead>
                     <TableHead className="text-right">Receita Total</TableHead>
-                    <TableHead>Última Venda</TableHead>
+                    {/* <TableHead>Última Venda</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -146,7 +146,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
                       <TableCell className="text-right">{item.total_sales_count}</TableCell>
                       <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                      <TableCell>{format(parseISO(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                      {/* <TableCell>{format(parseISO(item.last_sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>
