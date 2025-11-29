@@ -67,11 +67,18 @@ interface SortConfigPurchasedItems {
   direction: 'asc' | 'desc' | null;
 }
 
+// Nova interface para configuração de ordenação para Current Stock Summary
+interface SortConfigStock {
+  key: keyof CurrentStockSummary | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const Estoque: React.FC = () => {
   const { user } = useSession();
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
   const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'invoice_emission_date', direction: 'desc' }); // Estado de ordenação para entradas detalhadas
+  const [sortConfigStock, setSortConfigStock] = useState<SortConfigStock>({ key: 'internal_product_name', direction: 'asc' }); // Estado de ordenação para resumo de estoque
 
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
@@ -81,8 +88,7 @@ const Estoque: React.FC = () => {
       let query = supabase
         .from('current_stock_summary')
         .select('*')
-        .eq('user_id', user.id)
-        .order('internal_product_name', { ascending: true });
+        .eq('user_id', user.id);
       
       const { data, error } = await query;
       if (error) throw error;
@@ -273,6 +279,44 @@ const Estoque: React.FC = () => {
     return itemsToProcess;
   }, [enrichedPurchasedItems, searchTerm, sortConfigPurchasedItems]);
 
+  // Função para lidar com a ordenação da tabela de resumo de estoque
+  const handleSortStock = (key: keyof CurrentStockSummary) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfigStock.key === key && sortConfigStock.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfigStock({ key, direction });
+  };
+
+  // Dados de resumo de estoque ordenados
+  const sortedStockData = useMemo(() => {
+    if (!stockData) return [];
+    let sortableStockItems = [...stockData];
+
+    if (sortConfigStock.key) {
+      sortableStockItems.sort((a, b) => {
+        const aValue = a[sortConfigStock.key!];
+        const bValue = b[sortConfigStock.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfigStock.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfigStock.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) return sortConfigStock.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfigStock.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfigStock.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfigStock.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+    return sortableStockItems;
+  }, [stockData, sortConfigStock]);
+
+
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -328,9 +372,41 @@ const Estoque: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nome Interno do Produto</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSortStock('internal_product_name')}
+                          className="px-0 py-0 h-auto"
+                        >
+                          Nome Interno do Produto
+                          {sortConfigStock.key === 'internal_product_name' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfigStock.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
                       <TableHead>Unidade Interna</TableHead>
-                      <TableHead className="text-right">Estoque Atual</TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSortStock('current_stock_quantity')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Estoque Atual
+                          {sortConfigStock.key === 'current_stock_quantity' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfigStock.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
                       <TableHead className="text-right">Qtd. Comprada (Convertida)</TableHead>
                       <TableHead className="text-right">Qtd. Consumida (Vendas)</TableHead>
                       <TableHead className="text-right">Valor Total Comprado</TableHead>
@@ -338,7 +414,7 @@ const Estoque: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockData?.map((item, index) => (
+                    {sortedStockData?.map((item, index) => (
                       <React.Fragment key={index}>
                         <TableRow>
                           <TableCell className="font-medium">{item.internal_product_name}</TableCell>
