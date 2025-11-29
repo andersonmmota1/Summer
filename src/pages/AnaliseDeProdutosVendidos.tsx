@@ -120,8 +120,10 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
   }, [allSoldItems, searchTerm, sortConfig]);
 
   // Totalizador para os itens filtrados e ordenados
-  const totalFilteredRevenue = useMemo(() => {
-    return filteredAndSortedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+  const { totalFilteredRevenue, totalFilteredQuantity } = useMemo(() => {
+    const revenue = filteredAndSortedData.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+    const quantity = filteredAndSortedData.reduce((sum, item) => sum + item.quantity_sold, 0);
+    return { totalFilteredRevenue: revenue, totalFilteredQuantity: quantity };
   }, [filteredAndSortedData]);
 
   const handleExportSoldItemsToExcel = () => {
@@ -206,9 +208,12 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
             />
           </CardHeader>
           <CardContent>
-            <div className="mb-4 text-right">
+            <div className="mb-4 text-right space-y-1">
               <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 Receita Total Filtrada: {totalFilteredRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              </p>
+              <p className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Quantidade Total Vendida: {totalFilteredQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div className="overflow-x-auto">
