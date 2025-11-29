@@ -197,28 +197,6 @@ const Estoque: React.FC = () => {
     });
   }, [purchasedItems, productNameConversions]);
 
-  // Agrupar itens comprados enriquecidos por data de emissão da NF
-  const groupedPurchasedEntriesByDate = useMemo(() => {
-    if (!enrichedPurchasedItems) return {};
-
-    return enrichedPurchasedItems.reduce((acc, item) => {
-      const dateKey = item.invoice_emission_date || 'Data Desconhecida';
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
-      acc[dateKey].push(item);
-      return acc;
-    }, {} as Record<string, DisplayPurchasedItem[]>);
-  }, [enrichedPurchasedItems]);
-
-  const sortedDates = useMemo(() => {
-    return Object.keys(groupedPurchasedEntriesByDate).sort((a, b) => {
-      if (a === 'Data Desconhecida') return 1;
-      if (b === 'Data Desconhecida') return -1;
-      return parseISO(b).getTime() - parseISO(a).getTime();
-    });
-  }, [groupedPurchasedEntriesByDate]);
-
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -238,7 +216,7 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
-      {stockData && stockData.length === 0 && Object.keys(groupedPurchasedEntriesByDate).length === 0 ? (
+      {stockData && stockData.length === 0 && enrichedPurchasedItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de estoque ou entrada de produto encontrado.</p>
           <p className="text-sm mt-2">
@@ -333,48 +311,45 @@ const Estoque: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* NOVO CARD: Visão Detalhada de Entradas de Estoque por Data */}
-          {Object.keys(groupedPurchasedEntriesByDate).length > 0 && (
+          {/* NOVO CARD: Entradas Detalhadas de Estoque */}
+          {enrichedPurchasedItems.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Visão Detalhada de Entradas de Estoque por Data</CardTitle>
+                <CardTitle>Entradas Detalhadas de Estoque</CardTitle>
                 <CardDescription>
-                  Itens comprados, agrupados pela data de emissão da nota fiscal, com seus nomes internos.
+                  Lista completa de todos os itens de produtos comprados, com seus nomes internos e data de emissão da nota fiscal.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {sortedDates.map(dateKey => (
-                    <div key={dateKey} className="border rounded-md p-4 bg-gray-50 dark:bg-gray-700">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                        Data: {dateKey === 'Data Desconhecida' ? dateKey : format(parseISO(dateKey), 'dd/MM/yyyy', { locale: ptBR })}
-                      </h4>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Nome Interno do Produto</TableHead>
-                              <TableHead>Fornecedor</TableHead>
-                              <TableHead>Unidade</TableHead>
-                              <TableHead className="text-right">Quantidade</TableHead>
-                              <TableHead className="text-right">Valor Unitário</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {groupedPurchasedEntriesByDate[dateKey]?.map((item, itemIndex) => (
-                              <TableRow key={item.id || itemIndex}>
-                                <TableCell className="font-medium">{item.display_internal_product_name}</TableCell>
-                                <TableCell>{item.x_fant || 'N/A'}</TableCell>
-                                <TableCell>{item.u_com}</TableCell>
-                                <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data de Emissão da NF</TableHead>
+                        <TableHead>Nome Interno do Produto</TableHead>
+                        <TableHead>Fornecedor</TableHead>
+                        <TableHead>Descrição do Produto (XML)</TableHead>
+                        <TableHead>Unidade</TableHead>
+                        <TableHead className="text-right">Quantidade</TableHead>
+                        <TableHead className="text-right">Valor Unitário</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {enrichedPurchasedItems.map((item, index) => (
+                        <TableRow key={item.id || index}>
+                          <TableCell className="font-medium">
+                            {item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
+                          </TableCell>
+                          <TableCell>{item.display_internal_product_name}</TableCell>
+                          <TableCell>{item.x_fant || 'N/A'}</TableCell>
+                          <TableCell>{item.descricao_do_produto}</TableCell>
+                          <TableCell>{item.u_com}</TableCell>
+                          <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                          <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
               </CardContent>
             </Card>
