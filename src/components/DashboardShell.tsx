@@ -3,15 +3,10 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { showError } from '@/utils/toast';
 import Sidebar from './Sidebar';
-// Removido: import { Button } from '@/components/ui/button';
-// Removido: import { useFilter } from '@/contexts/FilterContext';
-// Removido: import { XCircle } from 'lucide-react';
 
 const DashboardShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // Removido: const { filters, clearFilters, setFilter } = useFilter();
-  // Removido: const { selectedProduct } = filters;
 
   const navItems = [
     { name: 'Início', path: '/inicio' },
@@ -19,12 +14,13 @@ const DashboardShell: React.FC = () => {
     { name: 'Fluxo de Caixa', path: '/fluxo-de-caixa' },
     { name: 'Carga de Dados', path: '/carga-de-dados' },
     { name: 'Visão de Notas Fiscais', path: '/visao-de-notas-fiscais' },
-    { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' }, // Adicionado novamente
+    { name: 'Análise de Fornecedor', path: '/analise-de-fornecedor' },
     { name: 'Análise de Produtos Vendidos', path: '/analise-de-produtos-vendidos' },
     { name: 'Vendas por Data', path: '/vendas-por-data' }, 
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
     { name: 'Visão de Conversões', path: '/visao-de-conversoes' },
     { name: 'Custo de Produtos', path: '/custo-produtos' },
+    { name: 'Produtos Sem Ficha Técnica', path: '/produtos-sem-ficha-tecnica' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {
@@ -36,10 +32,6 @@ const DashboardShell: React.FC = () => {
       // O redirecionamento é tratado pelo SessionContextProvider
     }
   };
-
-  // Removido: const handleClearProductFilter = () => {
-  // Removido:   setFilter({ selectedProduct: null });
-  // Removido: };
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -55,17 +47,6 @@ const DashboardShell: React.FC = () => {
               Gestão de Restaurante
             </h1>
             <div className="flex items-center gap-4">
-              {/* Removido: {selectedProduct && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Produto: <span className="font-semibold">{selectedProduct}</span>
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={handleClearProductFilter} className="h-auto p-1">
-                    <XCircle className="h-4 w-4 text-red-500" />
-                    <span className="sr-only">Limpar filtro de produto</span>
-                  </Button>
-                </div>
-              )} */}
             </div>
           </div>
         </header>
