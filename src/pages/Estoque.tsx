@@ -10,6 +10,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Input } from '@/components/ui/input'; // Importar o componente Input
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -63,6 +64,7 @@ interface DisplayPurchasedItem extends PurchasedItem {
 const Estoque: React.FC = () => {
   const { user } = useSession();
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
@@ -197,6 +199,20 @@ const Estoque: React.FC = () => {
     });
   }, [purchasedItems, productNameConversions]);
 
+  // Lógica de filtragem para as entradas detalhadas de estoque
+  const filteredEnrichedPurchasedItems = useMemo(() => {
+    if (!searchTerm) return enrichedPurchasedItems;
+
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    return enrichedPurchasedItems.filter(item =>
+      item.display_internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (item.x_fant?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm))
+    );
+  }, [enrichedPurchasedItems, searchTerm]);
+
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -319,6 +335,12 @@ const Estoque: React.FC = () => {
                 <CardDescription>
                   Lista completa de todos os itens de produtos comprados, com seus nomes internos e data de emissão da nota fiscal.
                 </CardDescription>
+                <Input
+                  placeholder="Filtrar por nome interno, fornecedor, descrição, código ou número da nota..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm mt-4"
+                />
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
@@ -335,19 +357,27 @@ const Estoque: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {enrichedPurchasedItems.map((item, index) => (
-                        <TableRow key={item.id || index}>
-                          <TableCell className="font-medium">
-                            {item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
+                      {filteredEnrichedPurchasedItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="h-24 text-center">
+                            Nenhum resultado encontrado para o filtro.
                           </TableCell>
-                          <TableCell>{item.display_internal_product_name}</TableCell>
-                          <TableCell>{item.x_fant || 'N/A'}</TableCell>
-                          <TableCell>{item.descricao_do_produto}</TableCell>
-                          <TableCell>{item.u_com}</TableCell>
-                          <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        filteredEnrichedPurchasedItems.map((item, index) => (
+                          <TableRow key={item.id || index}>
+                            <TableCell className="font-medium">
+                              {item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
+                            </TableCell>
+                            <TableCell>{item.display_internal_product_name}</TableCell>
+                            <TableCell>{item.x_fant || 'N/A'}</TableCell>
+                            <TableCell>{item.descricao_do_produto}</TableCell>
+                            <TableCell>{item.u_com}</TableCell>
+                            <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
