@@ -66,16 +66,27 @@ const Estoque: React.FC = () => {
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
+  // --- FILTRO TEMPORÁRIO PARA TESTE FIFO ---
+  const TEMP_FIFO_PRODUCT_FILTER = "HAMBURGUER CONGELADO";
+  // --- FIM DO FILTRO TEMPORÁRIO ---
+
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
-    queryKey: ['current_stock_summary', user?.id],
+    queryKey: ['current_stock_summary', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('current_stock_summary')
         .select('*')
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
+      
+      // Aplicar filtro temporário
+      if (TEMP_FIFO_PRODUCT_FILTER) {
+        query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -88,14 +99,21 @@ const Estoque: React.FC = () => {
 
   // Query para buscar o uso de produtos internos em receitas
   const { data: internalProductUsage, isLoading: isLoadingUsage, isError: isErrorUsage, error: errorUsage } = useQuery<InternalProductUsage[], Error>({
-    queryKey: ['internal_product_usage', user?.id],
+    queryKey: ['internal_product_usage', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('internal_product_usage')
         .select('*')
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
+
+      // Aplicar filtro temporário
+      if (TEMP_FIFO_PRODUCT_FILTER) {
+        query = query.eq('internal_product_name', TEMP_FIFO_PRODUCT_FILTER);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -108,15 +126,20 @@ const Estoque: React.FC = () => {
 
   // Query para buscar todos os itens comprados detalhados
   const { data: purchasedItems, isLoading: isLoadingPurchasedItems, isError: isErrorPurchasedItems, error: errorPurchasedItems } = useQuery<PurchasedItem[], Error>({
-    queryKey: ['all_purchased_items_stock', user?.id],
+    queryKey: ['all_purchased_items_stock', user?.id, TEMP_FIFO_PRODUCT_FILTER], // Adicionado filtro à chave da query
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from('purchased_items')
         .select('*, invoice_emission_date')
         .eq('user_id', user.id)
         .order('invoice_emission_date', { ascending: false }) // Ordenar por data de emissão
         .order('created_at', { ascending: false }); // E depois por data de criação
+      
+      // O filtro para purchased_items será aplicado no useMemo `enrichedPurchasedItems`
+      // para que possamos usar o `display_internal_product_name` que já considera as conversões.
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -182,7 +205,7 @@ const Estoque: React.FC = () => {
   const enrichedPurchasedItems = useMemo(() => {
     if (!purchasedItems || !productNameConversions) return [];
 
-    return purchasedItems.map(item => {
+    let items = purchasedItems.map(item => {
       if (item.internal_product_name) {
         return { ...item, display_internal_product_name: item.internal_product_name };
       }
@@ -197,9 +220,16 @@ const Estoque: React.FC = () => {
         display_internal_product_name: mappedConversion?.internal_product_name || item.descricao_do_produto || 'Não Mapeado'
       };
     });
+
+    // Aplicar filtro temporário aqui também para a tabela de entradas detalhadas
+    if (TEMP_FIFO_PRODUCT_FILTER) {
+      items = items.filter(item => item.display_internal_product_name === TEMP_FIFO_PRODUCT_FILTER);
+    }
+
+    return items;
   }, [purchasedItems, productNameConversions]);
 
-  // Lógica de filtragem para as entradas detalhadas de estoque
+  // Lógica de filtragem para as entradas detalhadas de estoque (agora aplicada *após* o filtro temporário)
   const filteredEnrichedPurchasedItems = useMemo(() => {
     if (!searchTerm) return enrichedPurchasedItems;
 
@@ -231,6 +261,14 @@ const Estoque: React.FC = () => {
         calculado a partir das compras (com unidades convertidas) e do consumo via vendas (com base nas fichas técnicas).
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
+
+      {TEMP_FIFO_PRODUCT_FILTER && (
+        <div className="mb-4 p-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-blue-800 dark:text-blue-200">
+          <p className="font-semibold">Filtro de Teste Ativo:</p>
+          <p>Atualmente, você está visualizando apenas dados relacionados a: <span className="font-bold">"{TEMP_FIFO_PRODUCT_FILTER}"</span>.</p>
+          <p className="text-sm mt-1">Este filtro é temporário para testes de lógica FIFO. Me avise quando quiser removê-lo.</p>
+        </div>
+      )}
 
       {stockData && stockData.length === 0 && enrichedPurchasedItems.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
