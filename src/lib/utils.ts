@@ -13,24 +13,31 @@ export function cn(...inputs: ClassValue[]) {
  * Se a string contiver uma vírgula, ela será tratada como separador decimal (padrão brasileiro).
  * Se não contiver vírgula, mas contiver um ponto, o ponto será tratado como separador decimal (padrão internacional).
  * Caso contrário, parseFloat padrão será aplicado.
+ *
+ * Retorna 0 para valores nulos, indefinidos ou strings vazias.
  */
-export function parseBrazilianFloat(value: string | number): number {
+export function parseBrazilianFloat(value: string | number | null | undefined): number {
   if (typeof value === 'number') {
     return value;
   }
   if (typeof value === 'string') {
+    const trimmedValue = value.trim();
+    if (trimmedValue === '') {
+      return 0; // Trata string vazia como zero
+    }
     // Se a string contém vírgula, assume-se formato brasileiro
-    if (value.includes(',')) {
+    if (trimmedValue.includes(',')) {
       // Remove pontos de milhar e substitui a vírgula por ponto para o parseFloat
-      const cleanedValue = value.replace(/\./g, '').replace(',', '.');
+      const cleanedValue = trimmedValue.replace(/\./g, '').replace(',', '.');
       return parseFloat(cleanedValue);
     } else {
       // Se não contém vírgula, assume-se formato internacional ou inteiro.
       // parseFloat lida com "1000.50" como 1000.50 e "1000" como 1000.
-      return parseFloat(value);
+      return parseFloat(trimmedValue);
     }
   }
-  return NaN; // Retorna NaN para valores inválidos
+  // Se o valor for null, undefined ou outro tipo não string/não número, retorna 0
+  return 0;
 }
 
 /**

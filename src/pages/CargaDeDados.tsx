@@ -226,8 +226,8 @@ const CargaDeDados: React.FC = () => {
           }
           datesToProcess.add(saleDateString); // Adiciona a data ao conjunto de datas a serem processadas
 
-          const quantity = parseBrazilianFloat(row['QTDE AJUSTADO']) || 0;
-          const totalValue = parseBrazilianFloat(row['VALOR AJUSTADO']) || 0;
+          const quantity = parseBrazilianFloat(row['QTDE AJUSTADO']);
+          const totalValue = parseBrazilianFloat(row['VALOR AJUSTADO']);
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
           const formattedItem = {
