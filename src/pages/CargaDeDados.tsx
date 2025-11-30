@@ -32,7 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/components/SessionContextProvider';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { parseBrazilianFloat } from '@/lib/utils';
+import { parseBrazilianFloat, parseBrazilianDate } from '@/lib/utils'; // Importar a nova função de data
 import { useQueryClient } from '@tanstack/react-query';
 
 // Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
@@ -66,7 +66,8 @@ const CargaDeDados: React.FC = () => {
   const [loadedSoldItemsPreview, setLoadedSoldItemsPreview] = useState<Record<string, any[] | null>>({});
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
-  const soldItemsTemplateHeaders = ['Grupo', 'Subgrupo', 'Codigo', 'Produto', 'Quantidade', 'Valor'];
+  // ATUALIZADO: Novos cabeçalhos para produtos vendidos
+  const soldItemsTemplateHeaders = ['Data', 'Codigo Produto', 'Produtos Ajustados', 'VALOR AJUSTADO', 'QTDE AJUSTADO', 'Adicional'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
@@ -209,42 +210,29 @@ const CargaDeDados: React.FC = () => {
 
     for (const file of selectedSoldItemsExcelFiles) {
       try {
-        // Extrair a data do nome do arquivo (ex: "DD.MM.YYYY.xlsx")
-        const fileName = file.name;
-        const dateMatch = fileName.match(/(\d{2})\.(\d{2})\.(\d{4})\.xlsx$/);
-        if (!dateMatch) {
-          throw new Error(`Nome de arquivo inválido para produtos vendidos: "${fileName}". Esperado formato "DD.MM.YYYY.xlsx".`);
-        }
-        const day = dateMatch[1];
-        const month = dateMatch[2];
-        const year = dateMatch[3];
-        const saleDateString = `${year}-${month}-${day}`; // Formato YYYY-MM-DD para ISO
-
-        const fileSaleDate = parseISO(saleDateString);
-        if (isNaN(fileSaleDate.getTime())) {
-          throw new Error(`Não foi possível parsear a data do nome do arquivo "${fileName}".`);
-        }
-
-        // Adiciona a data (apenas a parte da data, sem hora) ao conjunto de datas a serem processadas
-        datesToProcess.add(saleDateString); // Usar a string YYYY-MM-DD diretamente
-
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
         currentFilesData[file.name] = data; // Armazena para pré-visualização
 
         const fileFormattedData = data.map((row: any) => {
-          const quantity = parseBrazilianFloat(row['Quantidade']) || 0;
-          const totalValue = parseBrazilianFloat(row['Valor']) || 0;
+          const saleDateString = parseBrazilianDate(row['Data']);
+          if (!saleDateString) {
+            throw new Error(`Data inválida "${row['Data']}" encontrada no arquivo "${file.name}". Certifique-se de que está no formato DD/MM/YYYY.`);
+          }
+          datesToProcess.add(saleDateString); // Adiciona a data ao conjunto de datas a serem processadas
+
+          const quantity = parseBrazilianFloat(row['QTDE AJUSTADO']) || 0;
+          const totalValue = parseBrazilianFloat(row['VALOR AJUSTADO']) || 0;
           const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
 
           const formattedItem = {
             user_id: user.id,
             sale_date: saleDateString, // Inserir como string YYYY-MM-DD
-            group_name: String(row['Grupo'] || ''),
-            subgroup_name: String(row['Subgrupo'] || ''),
-            additional_code: String(row['Codigo'] || ''),
-            base_product_name: String(row['Produto'] || ''), // 'Produto' do Excel
-            product_name: String(row['Produto']), // 'Produto' do Excel, usado como nome principal
+            group_name: String(row['Adicional'] || ''), // Mapeando 'Adicional' para 'group_name'
+            subgroup_name: null, // Subgrupo não está presente nos novos cabeçalhos
+            additional_code: String(row['Codigo Produto'] || ''), // Mapeando 'Codigo Produto' para 'additional_code'
+            base_product_name: String(row['Produtos Ajustados'] || ''), // 'Produtos Ajustados' do Excel
+            product_name: String(row['Produtos Ajustados']), // 'Produtos Ajustados' do Excel, usado como nome principal
             quantity_sold: quantity,
             unit_price: calculatedUnitPrice,
             total_value_sold: totalValue,
@@ -271,6 +259,7 @@ const CargaDeDados: React.FC = () => {
     }
 
     // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
+    // Deleta todos os itens vendidos para as datas encontradas nos arquivos carregados
     for (const dateString of datesToProcess) {
       // Primeiro, verifica se existem registros para esta data e usuário
       const { count, error: countError } = await supabase
@@ -337,6 +326,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
       queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
       queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] }); // NOVO: Invalida a query específica da página Inicio
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
     } else {
       showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -386,6 +376,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
     } catch (error: any) {
       showError(`Erro ao carregar dados da ficha técnica de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -438,6 +429,8 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] }); // Invalida a query da Análise de Fornecedor
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] }); // Invalida a query da Estoque
     } catch (error: any) {
       showError(`Erro ao carregar conversões de nomes de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -635,27 +628,26 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
+      // ATUALIZADO: Novos cabeçalhos para exportação de produtos vendidos
       const headers = [
-        'ID da Venda',
-        'Data Caixa',
-        'Grupo',
-        'Subgrupo',
-        'Codigo',
-        'Produto',
-        'Quantidade Vendida',
-        'Valor Total Vendido',
+        'Data',
+        'Codigo Produto',
+        'Produtos Ajustados',
+        'VALOR AJUSTADO',
+        'QTDE AJUSTADO',
+        'Adicional',
+        'Valor Unitário Calculado', // Adicionado para clareza
         'Data de Registro',
       ];
 
       const formattedData = data.map(item => ({
-        'ID da Venda': item.id,
-        'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
-        'Grupo': item.group_name || 'N/A',
-        'Subgrupo': item.subgroup_name || 'N/A',
-        'Codigo': item.additional_code || 'N/A',
-        'Produto': item.product_name,
-        'Quantidade Vendida': item.quantity_sold,
-        'Valor Total Vendido': item.total_value_sold,
+        'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+        'Codigo Produto': item.additional_code || 'N/A',
+        'Produtos Ajustados': item.product_name,
+        'VALOR AJUSTADO': item.total_value_sold,
+        'QTDE AJUSTADO': item.quantity_sold,
+        'Adicional': item.group_name || 'N/A',
+        'Valor Unitário Calculado': item.unit_price,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
 
@@ -896,6 +888,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
       queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
       queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] }); // NOVO: Invalida a query específica da página Inicio
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
     } catch (error: any) {
       showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -923,6 +916,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
     } catch (error: any) {
       showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -951,6 +945,8 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] }); // Invalida a query da Análise de Fornecedor
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] }); // Invalida a query da Estoque
     } catch (error: any) {
       showError(`Erro ao limpar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -1044,8 +1040,8 @@ const CargaDeDados: React.FC = () => {
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
-              A **data da venda será inferida do nome do arquivo** (ex: "DD.MM.YYYY.xlsx").
-              Para cada data inferida do nome do arquivo, todos os produtos vendidos existentes para essa data no banco de dados serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação** que correspondem a essa data. Se você carregar um arquivo para uma data já existente, os dados anteriores para essa data serão perdidos e substituídos.
+              O arquivo deve conter as colunas: <code>Data</code> (DD/MM/YYYY), <code>Codigo Produto</code>, <code>Produtos Ajustados</code>, <code>VALOR AJUSTADO</code>, <code>QTDE AJUSTADO</code> e <code>Adicional</code>.
+              Para cada data encontrada nos arquivos carregados, todos os produtos vendidos existentes para essa data no banco de dados serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação** que correspondem a essa data. Se você carregar um arquivo para uma data já existente, os dados anteriores para essa data serão perdidos e substituídos.
             </p>
 
             <div className="flex flex-col space-y-2">

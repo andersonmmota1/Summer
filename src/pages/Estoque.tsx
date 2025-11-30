@@ -524,7 +524,7 @@ const Estoque: React.FC = () => {
           </Card>
 
           {/* NOVO CARD: Entradas Detalhadas de Estoque */}
-          {enrichedPurchasedItems.length > 0 && (
+          {filteredEnrichedPurchasedItems.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Entradas Detalhadas de Estoque</CardTitle>

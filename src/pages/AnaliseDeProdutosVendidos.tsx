@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Input } from '@/components/ui/input'; // Importado o Input
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowUpDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,9 +16,9 @@ interface SoldItemDetailed {
   id: string;
   user_id: string;
   sale_date: string;
-  group_name: string | null;
+  group_name: string | null; // Adicionado
   subgroup_name: string | null;
-  additional_code: string | null;
+  additional_code: string | null; // Adicionado
   base_product_name: string | null;
   product_name: string;
   quantity_sold: number;
@@ -36,7 +36,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
   const { user } = useSession();
   const [allSoldItems, setAllSoldItems] = useState<SoldItemDetailed[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState<string>(''); // Estado para o termo de busca
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sale_date', direction: 'desc' });
 
   useEffect(() => {
@@ -53,7 +53,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('sold_items')
-        .select('*')
+        .select('id, user_id, sale_date, group_name, subgroup_name, additional_code, base_product_name, product_name, quantity_sold, unit_price, total_value_sold, created_at') // Selecionar novos campos
         .eq('user_id', user?.id)
         .order('sale_date', { ascending: false });
 
@@ -65,8 +65,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       console.error('Erro ao carregar dados detalhados de produtos vendidos:', error);
       showError(`Erro ao carregar dados: ${error.message}`);
     } finally {
-      setLoading(false);
       dismissToast(loadingToastId);
+      setLoading(false);
     }
   };
 
@@ -81,11 +81,13 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
   const filteredAndSortedData = useMemo(() => {
     let sortableItems = [...allSoldItems];
 
-    // 1. Filtragem pelo termo de busca no campo 'product_name'
+    // 1. Filtragem pelo termo de busca
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       sortableItems = sortableItems.filter(item =>
-        item.product_name.toLowerCase().includes(lowerCaseSearchTerm)
+        item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) || // Incluir busca em group_name
+        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) // Incluir busca em additional_code
       );
     }
 
@@ -132,22 +134,21 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       return;
     }
 
+    // ATUALIZADO: Novos cabeçalhos para exportação
     const headers = [
-      'Data Caixa',
-      'Grupo',
-      'Subgrupo',
-      'Codigo',
-      'Produto',
+      'Data',
+      'Adicional (Grupo)',
+      'Codigo Produto',
+      'Produtos Ajustados',
       'Quantidade',
       'Valor',
     ];
 
     const formattedData = filteredAndSortedData.map(item => ({
-      'Data Caixa': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
-      'Grupo': item.group_name || '',
-      'Subgrupo': item.subgroup_name || '',
-      'Codigo': item.additional_code || '',
-      'Produto': item.product_name,
+      'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+      'Adicional (Grupo)': item.group_name || '',
+      'Codigo Produto': item.additional_code || '',
+      'Produtos Ajustados': item.product_name,
       'Quantidade': item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Valor': (item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
     }));
@@ -201,7 +202,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
               </Button>
             </div>
             <Input
-              placeholder="Filtrar por nome do produto..."
+              placeholder="Filtrar por nome do produto, código ou adicional..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm mt-4"
@@ -226,7 +227,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('sale_date')}
                         className="px-0 py-0 h-auto"
                       >
-                        Data Caixa
+                        Data
                         {sortConfig.key === 'sale_date' && (
                           <ArrowUpDown
                             className={cn(
@@ -243,25 +244,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('group_name')}
                         className="px-0 py-0 h-auto"
                       >
-                        Grupo
+                        Adicional (Grupo)
                         {sortConfig.key === 'group_name' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('subgroup_name')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Subgrupo
-                        {sortConfig.key === 'subgroup_name' && (
                           <ArrowUpDown
                             className={cn(
                               "ml-2 h-4 w-4 transition-transform",
@@ -277,7 +261,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('additional_code')}
                         className="px-0 py-0 h-auto"
                       >
-                        Codigo
+                        Codigo Produto
                         {sortConfig.key === 'additional_code' && (
                           <ArrowUpDown
                             className={cn(
@@ -294,7 +278,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         onClick={() => handleSort('product_name')}
                         className="px-0 py-0 h-auto"
                       >
-                        Produto
+                        Produtos Ajustados
                         {sortConfig.key === 'product_name' && (
                           <ArrowUpDown
                             className={cn(
@@ -344,7 +328,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={6} className="h-24 text-center">
                         Nenhum resultado encontrado.
                       </TableCell>
                     </TableRow>
@@ -353,7 +337,6 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                       <TableRow key={item.id || index}>
                         <TableCell className="font-medium">{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                         <TableCell>{item.group_name || 'N/A'}</TableCell>
-                        <TableCell>{item.subgroup_name || 'N/A'}</TableCell>
                         <TableCell>{item.additional_code || 'N/A'}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>

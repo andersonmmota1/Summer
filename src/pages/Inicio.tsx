@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 interface SoldItemRaw {
   sale_date: string;
-  product_name: string; // Adicionado para filtrar
+  product_name: string;
   quantity_sold: number;
   total_value_sold: number | null;
+  group_name: string | null; // Adicionado
+  additional_code: string | null; // Adicionado
 }
 
 interface SalesByDate {
@@ -38,7 +40,7 @@ const Inicio: React.FC = () => {
     while (hasMore) {
       let query = supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold') // Selecionar product_name
+        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, additional_code') // Selecionar novos campos
         .eq('user_id', user.id);
 
       // Removido: if (selectedProduct) {

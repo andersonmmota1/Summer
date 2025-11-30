@@ -5,12 +5,8 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-// Removido: import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-// Removido: import { XCircle } from 'lucide-react';
-// Removido: import { cn } from '@/lib/utils';
-// Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldItemRaw {
   id: string;
@@ -19,9 +15,9 @@ interface SoldItemRaw {
   quantity_sold: number;
   unit_price: number;
   total_value_sold: number | null;
-  group_name: string | null;
+  group_name: string | null; // Adicionado
   subgroup_name: string | null;
-  additional_code: string | null;
+  additional_code: string | null; // Adicionado
 }
 
 interface SalesByDateAggregated {
@@ -33,16 +29,6 @@ interface SalesByDateAggregated {
 
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
-  // Removido: const { filters } = useFilter();
-  // Removido: const { selectedProduct: globalSelectedProduct } = filters;
-
-  // Removido: const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
-  // Removido: const [selectedProductFilter, setSelectedProductFilter] = useState<string | null>(globalSelectedProduct);
-
-  // Removido: Sincronizar selectedProductFilter com globalSelectedProduct
-  // Removido: useEffect(() => {
-  // Removido:   setSelectedProductFilter(globalSelectedProduct);
-  // Removido: }, [globalSelectedProduct]);
 
   const fetchAllSoldItems = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
@@ -57,7 +43,7 @@ const VendasPorData: React.FC = () => {
     while (hasMore) {
       const { data, error } = await supabase
         .from('sold_items')
-        .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code')
+        .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code') // Selecionar novos campos
         .eq('user_id', user.id)
         .order('sale_date', { ascending: false })
         .range(offset, offset + limit - 1);
@@ -93,13 +79,9 @@ const VendasPorData: React.FC = () => {
   const aggregatedSalesByDate = useMemo(() => {
     if (!rawSoldItems) return [];
 
-    // Removido: const filteredByProduct = selectedProductFilter
-    // Removido:   ? rawSoldItems.filter(item => item.product_name === selectedProductFilter)
-    // Removido:   : rawSoldItems;
-
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
 
-    rawSoldItems.forEach(item => { // Usando rawSoldItems diretamente
+    rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
       const itemTotalValue = item.total_value_sold ?? 0;
 
@@ -117,35 +99,15 @@ const VendasPorData: React.FC = () => {
       total_value_sold: aggregatedData[dateKey].total_value_sold,
       itemCount: aggregatedData[dateKey].itemCount,
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
-  }, [rawSoldItems]); // Removido selectedProductFilter
+  }, [rawSoldItems]);
 
   const individualSoldItems = useMemo(() => {
     if (!rawSoldItems) return [];
 
     let filteredItems = rawSoldItems;
 
-    // Removido: if (selectedDateFilter) {
-    // Removido:   filteredItems = filteredItems.filter(item => item.sale_date === selectedDateFilter);
-    // Removido: }
-    // Removido: if (selectedProductFilter) {
-    // Removido:     filteredItems = filteredItems.filter(item => item.product_name === selectedProductFilter);
-    // Removido: }
-
     return filteredItems.sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
-  }, [rawSoldItems]); // Removido selectedDateFilter, selectedProductFilter
-
-  // Removido: const handleDateClick = (date: string) => {
-  // Removido:   setSelectedDateFilter(prev => (prev === date ? null : date));
-  // Removido: };
-
-  // Removido: const handleProductClick = (productName: string) => {
-  // Removido:   setSelectedProductFilter(prev => (prev === productName ? null : productName));
-  // Removido: };
-
-  // Removido: const clearAllFilters = () => {
-  // Removido:   setSelectedDateFilter(null);
-  // Removido:   setSelectedProductFilter(null);
-  // Removido: };
+  }, [rawSoldItems]);
 
   if (isLoading) {
     return (
@@ -173,19 +135,6 @@ const VendasPorData: React.FC = () => {
         Visualize o resumo das vendas por data e os produtos vendidos individualmente.
       </p>
 
-      {/* Removido: {(selectedDateFilter || selectedProductFilter) && (
-        <div className="mb-4 flex items-center gap-2">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtros Ativos:
-            {selectedDateFilter && <span className="ml-2 font-bold text-primary">Data: {format(parseISO(selectedDateFilter), 'dd/MM/yyyy', { locale: ptBR })}</span>}
-            {selectedProductFilter && <span className="ml-2 font-bold text-primary">Produto: {selectedProductFilter}</span>}
-          </span>
-          <Button variant="outline" size="sm" onClick={clearAllFilters}>
-            <XCircle className="h-4 w-4 mr-1" /> Limpar Filtros
-          </Button>
-        </div>
-      )} */}
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card: Vendas Agregadas por Data */}
         <Card>
@@ -212,11 +161,6 @@ const VendasPorData: React.FC = () => {
                     {aggregatedSalesByDate.map((sale) => (
                       <TableRow
                         key={sale.sale_date}
-                        // Removido: onClick={() => handleDateClick(sale.sale_date)}
-                        // Removido: className={cn(
-                        // Removido:   "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700",
-                        // Removido:   selectedDateFilter === sale.sale_date && "bg-blue-50 dark:bg-blue-900/20"
-                        // Removido: )}
                       >
                         <TableCell className="font-medium">
                           {format(parseISO(sale.sale_date), 'dd/MM/yyyy', { locale: ptBR })}
@@ -253,6 +197,8 @@ const VendasPorData: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
+                      <TableHead>Adicional (Grupo)</TableHead> {/* Novo cabeçalho */}
+                      <TableHead>Cód. Produto</TableHead> {/* Novo cabeçalho */}
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
@@ -262,13 +208,10 @@ const VendasPorData: React.FC = () => {
                     {individualSoldItems.map((item) => (
                       <TableRow
                         key={item.id}
-                        // Removido: onClick={() => handleProductClick(item.product_name)}
-                        // Removido: className={cn(
-                        // Removido:   "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700",
-                        // Removido:   selectedProductFilter === item.product_name && "bg-blue-50 dark:bg-blue-900/20"
-                        // Removido: )}
                       >
                         <TableCell>{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
+                        <TableCell>{item.group_name || 'N/A'}</TableCell> {/* Novo campo */}
+                        <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Novo campo */}
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{(item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
