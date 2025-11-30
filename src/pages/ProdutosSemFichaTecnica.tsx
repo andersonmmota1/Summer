@@ -45,13 +45,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       console.error('Erro ao carregar produtos sem ficha técnica:', error);
       showError(`Erro ao carregar dados: ${error?.message}`);
     }
-    // Adicionado para depuração:
-    if (productsWithoutRecipes) {
-      console.log('Produtos sem ficha técnica carregados:', productsWithoutRecipes);
-      productsWithoutRecipes.forEach(item => {
-        console.log(`Item: ${item.sold_product_name}, Additional Code: "${item.additional_code}"`);
-      });
-    }
+    // Removido console.log de depuração
   }, [isError, error, productsWithoutRecipes]);
 
   const handleExportToExcel = () => {
