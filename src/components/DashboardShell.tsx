@@ -20,7 +20,8 @@ const DashboardShell: React.FC = () => {
     { name: 'Produtos Não Mapeados', path: '/produtos-nao-mapeados' },
     { name: 'Visão de Conversões', path: '/visao-de-conversoes' },
     { name: 'Custo de Produtos', path: '/custo-produtos' },
-    { name: 'Produtos Sem Ficha Técnica', path: '/produtos-sem-ficha-tecnica' }, // Novo item de navegação
+    { name: 'Produtos Sem Ficha Técnica', path: '/produtos-sem-ficha-tecnica' },
+    { name: 'Produtos Internos Não Utilizados', path: '/produtos-internos-nao-utilizados' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {
