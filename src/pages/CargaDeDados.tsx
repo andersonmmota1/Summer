@@ -202,22 +202,27 @@ const CargaDeDados: React.FC = () => {
     }
 
     const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`);
-    let totalItemsLoaded = 0;
-    let hasError = false;
+    let totalItemsLoadedSuccessfully = 0; // Renomeado para clareza
+    let hasOverallError = false;
     const datesToProcess = new Set<string>(); // Para rastrear as datas únicas na carga
     const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
     const currentFilesData: Record<string, any[]> = {}; // Para a pré-visualização
 
     for (const file of selectedSoldItemsExcelFiles) {
+      let fileHasError = false;
       try {
         // Lendo o arquivo Excel
         const data = await readExcelFile(file);
         currentFilesData[file.name] = data; // Armazena para pré-visualização
 
-        const fileFormattedData = data.map((row: any) => {
-          const saleDateString = parseBrazilianDate(row['Data']);
+        const fileFormattedData = data.map((row: any, rowIndex: number) => {
+          const rawDate = row['Data'];
+          const saleDateString = parseBrazilianDate(rawDate);
+          
           if (!saleDateString) {
-            throw new Error(`Data inválida "${row['Data']}" encontrada no arquivo "${file.name}". Certifique-se de que está no formato DD/MM/YYYY.`);
+            showWarning(`Linha ${rowIndex + 2} do arquivo "${file.name}": Data inválida ou vazia "${rawDate}". Esta linha será ignorada.`);
+            fileHasError = true; // Marca que o arquivo tem pelo menos uma linha com erro
+            return null; // Retorna null para esta linha
           }
           datesToProcess.add(saleDateString); // Adiciona a data ao conjunto de datas a serem processadas
 
@@ -238,22 +243,23 @@ const CargaDeDados: React.FC = () => {
             total_value_sold: totalValue,
           };
           return formattedItem;
-        });
-        
+        }).filter(item => item !== null); // Filtra todas as linhas que retornaram null
+
         allFormattedData.push(...fileFormattedData); // Acumula dados de todos os arquivos
 
       } catch (error: any) {
         showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
-        hasError = true;
+        fileHasError = true;
       }
+      if (fileHasError) hasOverallError = true;
     }
 
     setLoadedSoldItemsPreview(currentFilesData); // Atualiza o estado de pré-visualização
 
-    // Se houve erros durante a leitura dos arquivos, para a execução aqui.
-    if (hasError) {
+    // Se não houver dados válidos para processar, encerra
+    if (allFormattedData.length === 0) {
       dismissToast(loadingToastId);
-      showError('Carga de produtos vendidos concluída com alguns erros durante a leitura dos arquivos. Verifique as mensagens acima.');
+      showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados após a validação.');
       setSelectedSoldItemsExcelFiles([]);
       return;
     }
@@ -270,7 +276,7 @@ const CargaDeDados: React.FC = () => {
 
       if (countError) {
         showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
-        hasError = true;
+        hasOverallError = true;
         continue; // Pula a exclusão para esta data se não puder verificar
       }
 
@@ -283,21 +289,13 @@ const CargaDeDados: React.FC = () => {
 
         if (deleteError) {
           showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
-          hasError = true;
+          hasOverallError = true;
         } else {
           showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
         }
       }
     }
     // --- Fim da lógica de exclusão por data ---
-
-    // Se houve erros durante a exclusão, para a execução aqui.
-    if (hasError) {
-      dismissToast(loadingToastId);
-      showError('Carga de produtos vendidos concluída com alguns erros durante a limpeza de dados. Verifique as mensagens acima.');
-      setSelectedSoldItemsExcelFiles([]);
-      return;
-    }
 
     // Inserir todos os dados formatados de uma vez
     if (allFormattedData.length > 0) {
@@ -307,18 +305,18 @@ const CargaDeDados: React.FC = () => {
 
       if (insertError) {
         showError(`Erro ao carregar dados de produtos vendidos para o Supabase: ${insertError.message}`);
-        hasError = true;
+        hasOverallError = true;
       } else {
-        totalItemsLoaded = allFormattedData.length;
-        showSuccess(`Total de ${totalItemsLoaded} produtos vendidos carregados com sucesso!`);
+        totalItemsLoadedSuccessfully = allFormattedData.length;
+        showSuccess(`Total de ${totalItemsLoadedSuccessfully} produtos vendidos carregados com sucesso!`);
       }
     } else {
       showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados.');
     }
 
     dismissToast(loadingToastId);
-    if (!hasError) {
-      showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoaded} itens carregados.`);
+    if (!hasOverallError) {
+      showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoadedSuccessfully} itens carregados.`);
       queryClient.invalidateQueries({ queryKey: ['sold_items'] });
       queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
