@@ -45,7 +45,6 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       console.error('Erro ao carregar produtos sem ficha técnica:', error);
       showError(`Erro ao carregar dados: ${error?.message}`);
     }
-    // Removido console.log de depuração
   }, [isError, error, productsWithoutRecipes]);
 
   const handleExportToExcel = () => {
@@ -55,8 +54,8 @@ const ProdutosSemFichaTecnica: React.FC = () => {
     }
 
     const headers = [
+      'Codigo Produto', // Movido para o início
       'Nome do Produto Vendido',
-      'Codigo Produto', // Adicionado
       'Total de Vendas',
       'Quantidade Total Vendida',
       'Receita Total',
@@ -64,8 +63,8 @@ const ProdutosSemFichaTecnica: React.FC = () => {
     ];
 
     const formattedData = productsWithoutRecipes.map(item => ({
+      'Codigo Produto': item.additional_code || 'N/A', // Movido para o início
       'Nome do Produto Vendido': item.sold_product_name,
-      'Codigo Produto': item.additional_code || 'N/A', // Adicionado
       'Total de Vendas': item.total_sales_count,
       'Quantidade Total Vendida': item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Receita Total': item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
@@ -136,8 +135,8 @@ const ProdutosSemFichaTecnica: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Codigo Produto</TableHead> {/* Movido para o início */}
                     <TableHead>Nome do Produto Vendido</TableHead>
-                    <TableHead>Codigo Produto</TableHead> {/* Novo cabeçalho */}
                     <TableHead className="text-right">Total de Vendas</TableHead>
                     <TableHead className="text-right">Qtd. Total Vendida</TableHead>
                     <TableHead className="text-right">Receita Total</TableHead>
@@ -147,8 +146,8 @@ const ProdutosSemFichaTecnica: React.FC = () => {
                 <TableBody>
                   {productsWithoutRecipes?.map((item, index) => (
                     <TableRow key={index}>
+                      <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Movido para o início */}
                       <TableCell className="font-medium">{item.sold_product_name}</TableCell>
-                      <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Exibir o código do produto */}
                       <TableCell className="text-right">{item.total_sales_count}</TableCell>
                       <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                       <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
