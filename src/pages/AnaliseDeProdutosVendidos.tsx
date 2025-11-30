@@ -16,9 +16,9 @@ interface SoldItemDetailed {
   id: string;
   user_id: string;
   sale_date: string;
-  group_name: string | null; // Adicionado
+  // group_name: string | null; // Removido
   subgroup_name: string | null;
-  additional_code: string | null; // Adicionado
+  additional_code: string | null;
   base_product_name: string | null;
   product_name: string;
   quantity_sold: number;
@@ -53,7 +53,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('sold_items')
-        .select('id, user_id, sale_date, group_name, subgroup_name, additional_code, base_product_name, product_name, quantity_sold, unit_price, total_value_sold, created_at') // Selecionar novos campos
+        .select('id, user_id, sale_date, subgroup_name, additional_code, base_product_name, product_name, quantity_sold, unit_price, total_value_sold, created_at') // Removido group_name
         .eq('user_id', user?.id)
         .order('sale_date', { ascending: false });
 
@@ -86,8 +86,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       sortableItems = sortableItems.filter(item =>
         item.product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) || // Incluir busca em group_name
-        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) // Incluir busca em additional_code
+        // (item.group_name?.toLowerCase().includes(lowerCaseSearchTerm)) || // Removido busca em group_name
+        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
 
@@ -137,7 +137,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     // ATUALIZADO: Novos cabeçalhos para exportação
     const headers = [
       'Data',
-      'Adicional (Grupo)',
+      // 'Adicional (Grupo)', // Removido
       'Codigo Produto',
       'Produtos Ajustados',
       'Quantidade',
@@ -146,7 +146,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
 
     const formattedData = filteredAndSortedData.map(item => ({
       'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
-      'Adicional (Grupo)': item.group_name || '',
+      // 'Adicional (Grupo)': item.group_name || '', // Removido
       'Codigo Produto': item.additional_code || '',
       'Produtos Ajustados': item.product_name,
       'Quantidade': item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -238,7 +238,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                         )}
                       </Button>
                     </TableHead>
-                    <TableHead>
+                    {/* <TableHead> // Removido
                       <Button
                         variant="ghost"
                         onClick={() => handleSort('group_name')}
@@ -254,7 +254,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                           />
                         )}
                       </Button>
-                    </TableHead>
+                    </TableHead> */}
                     <TableHead>
                       <Button
                         variant="ghost"
@@ -328,7 +328,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                 <TableBody>
                   {filteredAndSortedData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center"> {/* Colspan ajustado */}
                         Nenhum resultado encontrado.
                       </TableCell>
                     </TableRow>
@@ -336,7 +336,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
                     filteredAndSortedData.map((item, index) => (
                       <TableRow key={item.id || index}>
                         <TableCell className="font-medium">{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell>{item.group_name || 'N/A'}</TableCell>
+                        {/* <TableCell>{item.group_name || 'N/A'}</TableCell> // Removido */}
                         <TableCell>{item.additional_code || 'N/A'}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
