@@ -468,7 +468,23 @@ const Estoque: React.FC = () => {
                           )}
                         </Button>
                       </TableHead>
-                      <TableHead className="text-right">Qtd. Consumida (Vendas)</TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSortStock('total_consumed_quantity_from_sales')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Qtd. Consumida (Vendas)
+                          {sortConfigStock.key === 'total_consumed_quantity_from_sales' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfigStock.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
                       <TableHead className="text-right">Valor Total Comprado</TableHead>
                       <TableHead className="text-right">Detalhes de Uso</TableHead>
                     </TableRow>
