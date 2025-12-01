@@ -62,6 +62,99 @@ interface PurchasedItem {
   invoice_emission_date: string | null; // Adicionado
 }
 
+// NOVO: Interface para os dados de vendas horárias lidos do Excel
+interface HourlySoldItemData {
+  Data: string | number; // Pode ser string (DD/MM/YYYY) ou número serial do Excel
+  Grupo: string;
+  SubGrupo: string;
+  Codigo: string;
+  Produto: string;
+  '0': number;
+  '1': number;
+  '2': number;
+  '3': number;
+  '4': number;
+  '5': number;
+  '6': number;
+  '7': number;
+  '8': number;
+  '9': number;
+  '10': number;
+  '11': number;
+  '12': number;
+  '13': number;
+  '14': number;
+  '15': number;
+  '16': number;
+  '17': number;
+  '18': number;
+  '19': number;
+  '20': number;
+  '21': number;
+  '22': number;
+  '23': number;
+  Total: number;
+}
+
+// NOVO: Estrutura de dados combinada para inserção na tabela sold_daily_hourly_data
+interface CombinedHourlySoldItem {
+  user_id: string;
+  sale_date: string; // YYYY-MM-DD
+  group_name: string | null;
+  subgroup_name: string | null;
+  additional_code: string | null;
+  product_name: string;
+  quantity_0: number;
+  quantity_1: number;
+  quantity_2: number;
+  quantity_3: number;
+  quantity_4: number;
+  quantity_5: number;
+  quantity_6: number;
+  quantity_7: number;
+  quantity_8: number;
+  quantity_9: number;
+  quantity_10: number;
+  quantity_11: number;
+  quantity_12: number;
+  quantity_13: number;
+  quantity_14: number;
+  quantity_15: number;
+  quantity_16: number;
+  quantity_17: number;
+  quantity_18: number;
+  quantity_19: number;
+  quantity_20: number;
+  quantity_21: number;
+  quantity_22: number;
+  quantity_23: number;
+  value_0: number;
+  value_1: number;
+  value_2: number;
+  value_3: number;
+  value_4: number;
+  value_5: number;
+  value_6: number;
+  value_7: number;
+  value_8: number;
+  value_9: number;
+  value_10: number;
+  value_11: number;
+  value_12: number;
+  value_13: number;
+  value_14: number;
+  value_15: number;
+  value_16: number;
+  value_17: number;
+  value_18: number;
+  value_19: number;
+  value_20: number;
+  value_21: number;
+  value_22: number;
+  value_23: number;
+}
+
+
 // Define o schema para o formulário de entrada manual
 const manualEntrySchema = z.object({
   c_prod: z.string().min(1, { message: 'Código do Produto é obrigatório.' }),
@@ -92,17 +185,21 @@ const CargaDeDados: React.FC = () => {
   const { user } = useSession();
   const queryClient = useQueryClient();
   const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  const [selectedSoldItemsExcelFiles, setSelectedSoldItemsExcelFiles] = useState<File[]>([]);
+  // ATUALIZADO: Agora dois arquivos para produtos vendidos
+  const [selectedSoldItemsQuantityExcelFile, setSelectedSoldItemsQuantityExcelFile] = useState<File | null>(null);
+  const [selectedSoldItemsValueExcelFile, setSelectedSoldItemsValueExcelFile] = useState<File | null>(null);
+
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
 
-  // Novo estado para a pré-visualização dos dados de produtos vendidos
-  const [loadedSoldItemsPreview, setLoadedSoldItemsPreview] = useState<Record<string, any[] | null>>({});
+  // NOVO: Estados para a pré-visualização dos dados de produtos vendidos (separados por tipo)
+  const [loadedSoldItemsQuantityPreview, setLoadedSoldItemsQuantityPreview] = useState<Record<string, any[] | null>>({});
+  const [loadedSoldItemsValuePreview, setLoadedSoldItemsValuePreview] = useState<Record<string, any[] | null>>({});
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
-  // ATUALIZADO: Novos cabeçalhos para produtos vendidos
-  const soldItemsTemplateHeaders = ['Data', 'Codigo Produto', 'Produtos Ajustados', 'VALOR AJUSTADO', 'QTDE AJUSTADO', 'Adicional'];
+  // ATUALIZADO: Novos cabeçalhos para produtos vendidos (agora para ambos os arquivos)
+  const soldItemsTemplateHeaders = ['Data', 'Grupo', 'SubGrupo', 'Codigo', 'Produto', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', 'Total'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
@@ -221,13 +318,24 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
-  const handleSoldItemsExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // NOVO: Handlers para os dois arquivos de produtos vendidos
+  const handleSoldItemsQuantityExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setSelectedSoldItemsExcelFiles(Array.from(event.target.files));
-      setLoadedSoldItemsPreview({}); // Limpa a prévia ao selecionar novos arquivos
+      setSelectedSoldItemsQuantityExcelFile(event.target.files[0]);
+      setLoadedSoldItemsQuantityPreview({}); // Limpa a prévia ao selecionar novos arquivos
     } else {
-      setSelectedSoldItemsExcelFiles([]);
-      setLoadedSoldItemsPreview({}); // Limpa a prévia se nenhum arquivo for selecionado
+      setSelectedSoldItemsQuantityExcelFile(null);
+      setLoadedSoldItemsQuantityPreview({});
+    }
+  };
+
+  const handleSoldItemsValueExcelFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedSoldItemsValueExcelFile(event.target.files[0]);
+      setLoadedSoldItemsValuePreview({}); // Limpa a prévia ao selecionar novos arquivos
+    } else {
+      setSelectedSoldItemsValueExcelFile(null);
+      setLoadedSoldItemsValuePreview({});
     }
   };
 
@@ -354,9 +462,10 @@ const CargaDeDados: React.FC = () => {
     setSelectedXmlFiles([]);
   };
 
+  // ATUALIZADO: Lógica de upload para os dois arquivos de produtos vendidos
   const handleUploadSoldItemsExcel = async () => {
-    if (selectedSoldItemsExcelFiles.length === 0) {
-      showError('Por favor, selecione um ou mais arquivos Excel para carregar produtos vendidos.');
+    if (!selectedSoldItemsQuantityExcelFile || !selectedSoldItemsValueExcelFile) {
+      showError('Por favor, selecione ambos os arquivos Excel (quantidade e valor) para carregar produtos vendidos.');
       return;
     }
     if (!user?.id) {
@@ -364,291 +473,165 @@ const CargaDeDados: React.FC = () => {
       return;
     }
 
-    const loadingToastId = showLoading(`Carregando ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos...`);
-    let totalItemsLoadedSuccessfully = 0; // Renomeado para clareza
+    const loadingToastId = showLoading('Carregando dados de produtos vendidos (quantidade e valor)...');
     let hasOverallError = false;
-    const datesToProcess = new Set<string>(); // Para rastrear as datas únicas na carga
-    const allFormattedData: any[] = []; // Para acumular todos os dados formatados de todos os arquivos
-    const currentFilesData: Record<string, any[]> = {}; // Para a pré-visualização
+    const datesToProcess = new Set<string>();
+    const combinedDataMap = new Map<string, CombinedHourlySoldItem>();
 
-    for (const file of selectedSoldItemsExcelFiles) {
-      let fileHasError = false;
-      try {
-        // Lendo o arquivo Excel
-        const data = await readExcelFile(file);
-        currentFilesData[file.name] = data; // Armazena para pré-visualização
+    try {
+      // --- Process Quantity File ---
+      const quantityData: HourlySoldItemData[] = await readExcelFile(selectedSoldItemsQuantityExcelFile);
+      setLoadedSoldItemsQuantityPreview({ [selectedSoldItemsQuantityExcelFile.name]: quantityData });
 
-        const fileFormattedData = data.map((row: any, rowIndex: number) => {
-          const rawDate = row['Data'];
-          const saleDateString = parseBrazilianDate(rawDate);
-          
-          if (!saleDateString) {
-            showWarning(`Linha ${rowIndex + 2} do arquivo "${file.name}": Data inválida ou vazia "${rawDate}". Esta linha será ignorada.`);
-            fileHasError = true; // Marca que o arquivo tem pelo menos uma linha com erro
-            return null; // Retorna null para esta linha
-          }
-          datesToProcess.add(saleDateString); // Adiciona a data ao conjunto de datas a serem processadas
-
-          const quantity = parseBrazilianFloat(row['QTDE AJUSTADO']);
-          const totalValue = parseBrazilianFloat(row['VALOR AJUSTADO']);
-          const calculatedUnitPrice = quantity > 0 ? totalValue / quantity : 0;
-
-          const formattedItem = {
-            user_id: user.id,
-            sale_date: saleDateString, // Inserir como string YYYY-MM-DD
-            group_name: String(row['Adicional'] || ''), // Mapeando 'Adicional' para 'group_name'
-            subgroup_name: null, // Subgrupo não está presente nos novos cabeçalhos
-            additional_code: String(row['Codigo Produto'] || ''), // Mapeando 'Codigo Produto' para 'additional_code'
-            base_product_name: String(row['Produtos Ajustados'] || ''), // 'Produtos Ajustados' do Excel
-            product_name: String(row['Produtos Ajustados']), // 'Produtos Ajustados' do Excel, usado como nome principal
-            quantity_sold: quantity,
-            unit_price: calculatedUnitPrice,
-            total_value_sold: totalValue,
-          };
-          return formattedItem;
-        }).filter(item => item !== null); // Filtra todas as linhas que retornaram null
-
-        allFormattedData.push(...fileFormattedData); // Acumula dados de todos os arquivos
-
-      } catch (error: any) {
-        showError(`Erro ao carregar dados de produtos vendidos do Excel "${file.name}": ${error.message || 'Verifique o console para mais detalhes.'}`);
-        fileHasError = true;
-      }
-      if (fileHasError) hasOverallError = true;
-    }
-
-    setLoadedSoldItemsPreview(currentFilesData); // Atualiza o estado de pré-visualização
-
-    // Se não houver dados válidos para processar, encerra
-    if (allFormattedData.length === 0) {
-      dismissToast(loadingToastId);
-      showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados após a validação.');
-      setSelectedSoldItemsExcelFiles([]);
-      return;
-    }
-
-    // --- Lógica de exclusão por data (agora fora do loop de arquivos) ---
-    // Deleta todos os itens vendidos para as datas encontradas nos arquivos carregados
-    for (const dateString of datesToProcess) {
-      // Primeiro, verifica se existem registros para esta data e usuário
-      const { count, error: countError } = await supabase
-        .from('sold_items')
-        .select('id', { count: 'exact' })
-        .eq('user_id', user.id)
-        .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
-
-      if (countError) {
-        showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
-        hasOverallError = true;
-        continue; // Pula a exclusão para esta data se não puder verificar
-      }
-
-      if (count && count > 0) { // Se existirem itens, procede com a exclusão e o aviso
-        const { error: deleteError } = await supabase
-          .from('sold_items')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('sale_date', dateString); // Usar eq diretamente com a string YYYY-MM-DD
-
-        if (deleteError) {
-          showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+      quantityData.forEach((row, rowIndex) => {
+        const saleDateString = parseBrazilianDate(row['Data']);
+        if (!saleDateString) {
+          showWarning(`Arquivo de Quantidade, Linha ${rowIndex + 2}: Data inválida ou vazia "${row['Data']}". Esta linha será ignorada.`);
           hasOverallError = true;
-        } else {
-          showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+          return;
+        }
+        datesToProcess.add(saleDateString);
+
+        const key = `${saleDateString}|${row['Grupo'] || ''}|${row['SubGrupo'] || ''}|${row['Codigo'] || ''}|${row['Produto'] || ''}`;
+        if (!combinedDataMap.has(key)) {
+          combinedDataMap.set(key, {
+            user_id: user.id,
+            sale_date: saleDateString,
+            group_name: row['Grupo'] || null,
+            subgroup_name: row['SubGrupo'] || null,
+            additional_code: row['Codigo'] || null,
+            product_name: row['Produto'] || '',
+            quantity_0: 0, quantity_1: 0, quantity_2: 0, quantity_3: 0, quantity_4: 0, quantity_5: 0,
+            quantity_6: 0, quantity_7: 0, quantity_8: 0, quantity_9: 0, quantity_10: 0, quantity_11: 0,
+            quantity_12: 0, quantity_13: 0, quantity_14: 0, quantity_15: 0, quantity_16: 0, quantity_17: 0,
+            quantity_18: 0, quantity_19: 0, quantity_20: 0, quantity_21: 0, quantity_22: 0, quantity_23: 0,
+            value_0: 0, value_1: 0, value_2: 0, value_3: 0, value_4: 0, value_5: 0,
+            value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
+            value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
+            value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+          });
+        }
+        const combinedItem = combinedDataMap.get(key)!;
+        for (let i = 0; i <= 23; i++) {
+          combinedItem[`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
+        }
+      });
+
+      // --- Process Value File ---
+      const valueData: HourlySoldItemData[] = await readExcelFile(selectedSoldItemsValueExcelFile);
+      setLoadedSoldItemsValuePreview({ [selectedSoldItemsValueExcelFile.name]: valueData });
+
+      valueData.forEach((row, rowIndex) => {
+        const saleDateString = parseBrazilianDate(row['Data']);
+        if (!saleDateString) {
+          showWarning(`Arquivo de Valor, Linha ${rowIndex + 2}: Data inválida ou vazia "${row['Data']}". Esta linha será ignorada.`);
+          hasOverallError = true;
+          return;
+        }
+        datesToProcess.add(saleDateString);
+
+        const key = `${saleDateString}|${row['Grupo'] || ''}|${row['SubGrupo'] || ''}|${row['Codigo'] || ''}|${row['Produto'] || ''}`;
+        if (!combinedDataMap.has(key)) {
+          // If a product exists in value file but not quantity, initialize it
+          combinedDataMap.set(key, {
+            user_id: user.id,
+            sale_date: saleDateString,
+            group_name: row['Grupo'] || null,
+            subgroup_name: row['SubGrupo'] || null,
+            additional_code: row['Codigo'] || null,
+            product_name: row['Produto'] || '',
+            quantity_0: 0, quantity_1: 0, quantity_2: 0, quantity_3: 0, quantity_4: 0, quantity_5: 0,
+            quantity_6: 0, quantity_7: 0, quantity_8: 0, quantity_9: 0, quantity_10: 0, quantity_11: 0,
+            quantity_12: 0, quantity_13: 0, quantity_14: 0, quantity_15: 0, quantity_16: 0, quantity_17: 0,
+            quantity_18: 0, quantity_19: 0, quantity_20: 0, quantity_21: 0, quantity_22: 0, quantity_23: 0,
+            value_0: 0, value_1: 0, value_2: 0, value_3: 0, value_4: 0, value_5: 0,
+            value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
+            value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
+            value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+          });
+        }
+        const combinedItem = combinedDataMap.get(key)!;
+        for (let i = 0; i <= 23; i++) {
+          combinedItem[`value_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
+        }
+      });
+
+      const finalDataToInsert = Array.from(combinedDataMap.values());
+
+      if (finalDataToInsert.length === 0) {
+        dismissToast(loadingToastId);
+        showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados após a validação.');
+        setSelectedSoldItemsQuantityExcelFile(null);
+        setSelectedSoldItemsValueExcelFile(null);
+        return;
+      }
+
+      // --- Deletion Logic for sold_daily_hourly_data ---
+      for (const dateString of datesToProcess) {
+        const { count, error: countError } = await supabase
+          .from('sold_daily_hourly_data')
+          .select('id', { count: 'exact' })
+          .eq('user_id', user.id)
+          .eq('sale_date', dateString);
+
+        if (countError) {
+          showError(`Erro ao verificar produtos vendidos existentes para a data ${dateString}: ${countError.message}`);
+          hasOverallError = true;
+          continue;
+        }
+
+        if (count && count > 0) {
+          const { error: deleteError } = await supabase
+            .from('sold_daily_hourly_data')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('sale_date', dateString);
+
+          if (deleteError) {
+            showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
+            hasOverallError = true;
+          } else {
+            showWarning(`Produtos vendidos existentes para a data ${format(parseISO(dateString), 'dd/MM/yyyy')} foram removidos.`);
+          }
         }
       }
-    }
-    // --- Fim da lógica de exclusão por data ---
 
-    // Inserir todos os dados formatados de uma vez
-    if (allFormattedData.length > 0) {
+      // --- Insertion Logic for sold_daily_hourly_data ---
       const { error: insertError } = await supabase
-        .from('sold_items')
-        .insert(allFormattedData);
+        .from('sold_daily_hourly_data')
+        .insert(finalDataToInsert);
 
       if (insertError) {
         showError(`Erro ao carregar dados de produtos vendidos para o Supabase: ${insertError.message}`);
         hasOverallError = true;
       } else {
-        totalItemsLoadedSuccessfully = allFormattedData.length;
-        showSuccess(`Total de ${totalItemsLoadedSuccessfully} produtos vendidos carregados com sucesso!`);
-      }
-    } else {
-      showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados.');
-    }
-
-    dismissToast(loadingToastId);
-    if (!hasOverallError) {
-      showSuccess(`Carga de ${selectedSoldItemsExcelFiles.length} arquivo(s) Excel de produtos vendidos concluída. Total de ${totalItemsLoadedSuccessfully} itens carregados.`);
-      queryClient.invalidateQueries({ queryKey: ['sold_items'] });
-      queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
-      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
-      queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
-      queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
-      queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] }); // NOVO: Invalida a query específica da página Inicio
-      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
-    } else {
-      showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
-    }
-    setSelectedSoldItemsExcelFiles([]);
-  };
-
-  const handleUploadProductRecipeExcel = async () => {
-    if (!selectedProductRecipeExcelFile) {
-      showError('Por favor, selecione um arquivo Excel para carregar a ficha técnica de produtos.');
-      return;
-    }
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível carregar a ficha técnica.');
-      return;
-    }
-
-    const loadingToastId = showLoading('Carregando dados da ficha técnica de produtos do Excel...');
-
-    try {
-      const data = await readExcelFile(selectedProductRecipeExcelFile);
-
-      if (!data || data.length === 0) {
-        showError('O arquivo Excel da ficha técnica está vazio ou ou não contém dados válidos.');
-        dismissToast(loadingToastId);
-        return;
+        showSuccess(`Total de ${finalDataToInsert.length} registros de produtos vendidos carregados com sucesso!`);
       }
 
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        sold_product_name: String(row['Produto Vendido']),
-        internal_product_name: String(row['Nome Interno']),
-        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']),
-      }));
-
-      const { error } = await supabase
-        .from('product_recipes')
-        .insert(formattedData);
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Dados de ${formattedData.length} fichas técnicas de produtos do Excel carregados com sucesso!`);
-      setSelectedProductRecipeExcelFile(null);
-      queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
-      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
-      queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
-      queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
-      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
     } catch (error: any) {
-      showError(`Erro ao carregar dados da ficha técnica de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      showError(`Erro geral ao carregar dados de produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      hasOverallError = true;
     } finally {
       dismissToast(loadingToastId);
-    }
-  };
-
-  const handleUploadProductNameConversionExcel = async () => {
-    if (!selectedProductNameConversionExcelFile) {
-      showError('Por favor, selecione um arquivo Excel para carregar as conversões de nomes de produtos.');
-      return;
-    }
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível carregar conversões de nomes de produtos.');
-      return;
-    }
-
-    const loadingToastId = showLoading('Carregando conversões de nomes de produtos do Excel...');
-
-    try {
-      const data = await readExcelFile(selectedProductNameConversionExcelFile);
-
-      if (!data || data.length === 0) {
-        showError('O arquivo Excel de conversões de nomes de produtos está vazio ou não contém dados válidos.');
-        dismissToast(loadingToastId);
-        return;
+      if (!hasOverallError) {
+        showSuccess('Carga de produtos vendidos concluída com sucesso!');
+        // Invalidate all relevant queries that might use the new sold_items view
+        queryClient.invalidateQueries({ queryKey: ['sold_items'] });
+        queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
+        queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+        queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
+        queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['all_sold_items_vendas_por_data', user?.id] }); // For VendasPorData
+      } else {
+        showError('Carga de produtos vendidos concluída com alguns erros. Verifique as mensagens acima.');
       }
-
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        supplier_product_code: String(row['Código Fornecedor']),
-        supplier_name: String(row['Nome Fornecedor']),
-        supplier_product_name: String(row['Descrição Produto Fornecedor']),
-        internal_product_name: String(row['Nome Interno do Produto']),
-      }));
-
-      const { error } = await supabase
-        .from('product_name_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name' });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos do Excel carregados com sucesso!`);
-      setSelectedProductNameConversionExcelFile(null);
-      queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
-      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
-      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
-      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
-      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] }); // Invalida a query da Análise de Fornecedor
-      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] }); // Invalida a query da Estoque
-    } catch (error: any) {
-      showError(`Erro ao carregar conversões de nomes de produtos do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
-    } finally {
-      dismissToast(loadingToastId);
-    }
-  };
-
-  const handleUploadUnitConversionExcel = async () => {
-    if (!selectedUnitConversionExcelFile) {
-      showError('Por favor, selecione um arquivo Excel para carregar as conversões de unidades.');
-      return;
-    }
-    if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível carregar conversões de unidades.');
-      return;
-    }
-
-    const loadingToastId = showLoading('Carregando conversões de unidades do Excel...');
-
-    try {
-      const data = await readExcelFile(selectedUnitConversionExcelFile);
-
-      if (!data || data.length === 0) {
-        showError('O arquivo Excel de conversões de unidades está vazio ou não contém dados válidos.');
-        dismissToast(loadingToastId);
-        return;
-      }
-
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        supplier_product_code: String(row['Código Fornecedor']),
-        supplier_name: String(row['Nome Fornecedor']),
-        supplier_product_description: String(row['Descrição Produto Fornecedor']),
-        supplier_unit: String(row['Unidade Fornecedor']),
-        internal_unit: String(row['Unidade Interna']),
-        conversion_factor: parseBrazilianFloat(row['Fator de Conversão']),
-      }));
-
-      const { error } = await supabase
-        .from('unit_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit' });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      showSuccess(`Dados de ${formattedData.length} conversões de unidades do Excel carregados com sucesso!`);
-      setSelectedUnitConversionExcelFile(null);
-      queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
-      queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
-      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
-    } catch (error: any) {
-      showError(`Erro ao carregar conversões de unidades do Excel: ${error.message || 'Verifique o console para mais detalhes.'}`);
-    } finally {
-      dismissToast(loadingToastId);
+      setSelectedSoldItemsQuantityExcelFile(null);
+      setSelectedSoldItemsValueExcelFile(null);
+      setLoadedSoldItemsQuantityPreview({});
+      setLoadedSoldItemsValuePreview({});
     }
   };
 
@@ -758,8 +741,8 @@ const CargaDeDados: React.FC = () => {
       a.href = url;
       a.download = 'itens_comprados_detalhado.xlsx';
       document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    a.click();
+    document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} itens comprados detalhados baixados com sucesso!`);
     } catch (error: any) {
@@ -769,6 +752,7 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  // ATUALIZADO: Lógica de download para todos os produtos vendidos da nova tabela
   const handleDownloadAllSoldItems = async () => {
     if (!user?.id) {
       showError('Usuário não autenticado. Não é possível baixar produtos vendidos.');
@@ -777,7 +761,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading('Baixando todos os produtos vendidos...');
     try {
       const { data, error } = await supabase
-        .from('sold_items')
+        .from('sold_daily_hourly_data') // Query a nova tabela
         .select('*')
         .eq('user_id', user.id)
         .order('sale_date', { ascending: false });
@@ -789,28 +773,28 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      // ATUALIZADO: Novos cabeçalhos para exportação de produtos vendidos
-      const headers = [
-        'Data',
-        'Codigo Produto',
-        'Produtos Ajustados',
-        'VALOR AJUSTADO',
-        'QTDE AJUSTADO',
-        'Adicional',
-        'Valor Unitário Calculado', // Adicionado para clareza
-        'Data de Registro',
-      ];
+      const headers = soldItemsTemplateHeaders; // Usar os novos cabeçalhos do template
 
-      const formattedData = data.map(item => ({
-        'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
-        'Codigo Produto': item.additional_code || 'N/A',
-        'Produtos Ajustados': item.product_name,
-        'VALOR AJUSTADO': item.total_value_sold,
-        'QTDE AJUSTADO': item.quantity_sold,
-        'Adicional': item.group_name || 'N/A',
-        'Valor Unitário Calculado': item.unit_price,
-        'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
-      }));
+      const formattedData = data.map(item => {
+        const row: Record<string, any> = {
+          'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
+          'Grupo': item.group_name || '',
+          'SubGrupo': item.subgroup_name || '',
+          'Codigo': item.additional_code || '',
+          'Produto': item.product_name,
+        };
+        let totalQuantity = 0;
+        let totalValue = 0; // Calcular o total de valor também
+        for (let i = 0; i <= 23; i++) {
+          const quantityKey = `quantity_${i}` as keyof CombinedHourlySoldItem;
+          const valueKey = `value_${i}` as keyof CombinedHourlySoldItem;
+          row[String(i)] = (item[quantityKey] as number).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // Exportar quantidade formatada
+          totalQuantity += (item[quantityKey] as number);
+          totalValue += (item[valueKey] as number);
+        }
+        row['Total'] = totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // Exportar total de quantidade formatado
+        return row;
+      });
 
       const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
       const url = URL.createObjectURL(blob);
@@ -1031,6 +1015,7 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  // ATUALIZADO: Lógica de limpeza para a nova tabela de produtos vendidos
   const handleClearSoldItems = async () => {
     if (!user?.id) {
       showError('Usuário não autenticado. Não é possível limpar produtos vendidos.');
@@ -1039,21 +1024,23 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading('Limpando todos os produtos vendidos...');
     try {
       const { error } = await supabase
-        .from('sold_items')
+        .from('sold_daily_hourly_data') // Deleta da nova tabela
         .delete()
         .eq('user_id', user.id);
 
       if (error) throw error;
 
       showSuccess('Todos os produtos vendidos foram removidos com sucesso!');
+      // Invalidate all relevant queries that might use the new sold_items view
       queryClient.invalidateQueries({ queryKey: ['sold_items'] });
       queryClient.invalidateQueries({ queryKey: ['aggregated_sold_products'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['consumed_items_from_sales'] });
-      queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] }); // Adicionado para invalidar o cache da página Início
-      queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] }); // NOVO: Invalida a query específica da página Inicio
-      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
+      queryClient.invalidateQueries({ queryKey: ['sales_by_date', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['all_sold_items_raw', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['all_sold_items_vendas_por_data', user?.id] }); // For VendasPorData
     } catch (error: any) {
       showError(`Erro ao limpar produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -1521,35 +1508,58 @@ const CargaDeDados: React.FC = () => {
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de um ou mais arquivos Excel (.xlsx) contendo os produtos vendidos.
-              O arquivo deve conter as colunas: <code>Data</code> (DD/MM/YYYY), <code>Codigo Produto</code>, <code>Produtos Ajustados</code>, <code>VALOR AJUSTADO</code>, <code>QTDE AJUSTADO</code> e <code>Adicional</code>.
-              Para cada data encontrada nos arquivos carregados, todos os produtos vendidos existentes para essa data no banco de dados serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação** que correspondem a essa data. Se você carregar um arquivo para uma data já existente, os dados anteriores para essa data serão perdidos e substituídos.
+              Faça o upload de **dois arquivos Excel** (.xlsx): um para as **quantidades vendidas por hora** e outro para os **valores vendidos por hora**.
+              Ambos os arquivos devem conter as colunas: <code>Data</code> (DD/MM/YYYY), <code>Grupo</code>, <code>SubGrupo</code>, <code>Codigo</code>, <code>Produto</code>, e as colunas horárias de <code>0</code> a <code>23</code>, além de <code>Total</code>.
+              Para cada data, grupo, subgrupo, código e produto encontrados nos arquivos carregados, os dados existentes no banco de dados para essa combinação serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação**.
             </p>
 
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="sold-items-excel-file-upload">Selecionar arquivos Excel</Label>
-              <Input
-                id="sold-items-excel-file-upload"
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                multiple
-                onChange={handleSoldItemsExcelFileChange}
-                className="flex-grow"
-              />
-              {selectedSoldItemsExcelFiles.length > 0 && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedSoldItemsExcelFiles.length} arquivo(s) selecionado(s): {selectedSoldItemsExcelFiles.map(f => f.name).join(', ')}
-                </p>
-              )}
+            <div className="flex flex-col space-y-4">
+              <div>
+                <Label htmlFor="sold-items-quantity-excel-file-upload">Arquivo Excel de Quantidades</Label>
+                <Input
+                  id="sold-items-quantity-excel-file-upload"
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleSoldItemsQuantityExcelFileChange}
+                  className="flex-grow mt-1"
+                />
+                {selectedSoldItemsQuantityExcelFile && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Selecionado: {selectedSoldItemsQuantityExcelFile.name}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="sold-items-value-excel-file-upload">Arquivo Excel de Valores</Label>
+                <Input
+                  id="sold-items-value-excel-file-upload"
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleSoldItemsValueExcelFileChange}
+                  className="flex-grow mt-1"
+                />
+                {selectedSoldItemsValueExcelFile && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Selecionado: {selectedSoldItemsValueExcelFile.name}
+                  </p>
+                )}
+              </div>
+
               <div className="flex gap-2">
-                <Button onClick={handleUploadSoldItemsExcel} disabled={selectedSoldItemsExcelFiles.length === 0}>
+                <Button
+                  onClick={handleUploadSoldItemsExcel}
+                  disabled={!selectedSoldItemsQuantityExcelFile || !selectedSoldItemsValueExcelFile}
+                >
                   Carregar Produtos Vendidos
                 </Button>
                 <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      disabled={Object.keys(loadedSoldItemsPreview).length === 0 && selectedSoldItemsExcelFiles.length === 0}
+                    <Button
+                      variant="outline"
+                      disabled={
+                        (Object.keys(loadedSoldItemsQuantityPreview).length === 0 && !selectedSoldItemsQuantityExcelFile) &&
+                        (Object.keys(loadedSoldItemsValuePreview).length === 0 && !selectedSoldItemsValueExcelFile)
+                      }
                       onClick={() => setIsPreviewDialogOpen(true)}
                     >
                       Visualizar Prévia dos Dados
@@ -1559,52 +1569,92 @@ const CargaDeDados: React.FC = () => {
                     <DialogHeader>
                       <DialogTitle>Prévia dos Dados de Produtos Vendidos</DialogTitle>
                       <DialogDescription>
-                        Conteúdo lido dos arquivos Excel selecionados.
+                        Conteúdo lido dos arquivos Excel de quantidade e valor selecionados.
                       </DialogDescription>
                     </DialogHeader>
                     <ScrollArea className="flex-grow pr-4">
-                      {Object.keys(loadedSoldItemsPreview).length === 0 ? (
+                      {Object.keys(loadedSoldItemsQuantityPreview).length === 0 && Object.keys(loadedSoldItemsValuePreview).length === 0 ? (
                         <p className="text-center text-gray-600 dark:text-gray-400 py-8">
                           Nenhum dado de prévia disponível. Selecione e carregue arquivos para ver a prévia.
                         </p>
                       ) : (
-                        Object.entries(loadedSoldItemsPreview).map(([fileName, data], index) => (
-                          <Card key={index} className="mb-6">
-                            <CardHeader>
-                              <CardTitle className="text-lg">{fileName}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              {data && data.length > 0 ? (
-                                <div className="overflow-x-auto">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        {getTableHeaders(data).map((header, i) => (
-                                          <TableHead key={i}>{header}</TableHead>
-                                        ))}
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {data.map((row, rowIndex) => (
-                                        <TableRow key={rowIndex}>
-                                          {getTableHeaders(data).map((header, colIndex) => (
-                                            <TableCell key={colIndex}>
-                                              {typeof row[header] === 'number' 
-                                                ? row[header].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                : String(row[header])}
-                                            </TableCell>
+                        <>
+                          {Object.entries(loadedSoldItemsQuantityPreview).map(([fileName, data], index) => (
+                            <Card key={`qty-preview-${index}`} className="mb-6">
+                              <CardHeader>
+                                <CardTitle className="text-lg">Prévia Quantidade: {fileName}</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                {data && data.length > 0 ? (
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          {getTableHeaders(data).map((header, i) => (
+                                            <TableHead key={i}>{header}</TableHead>
                                           ))}
                                         </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-                              ) : (
-                                <p className="text-gray-500 dark:text-gray-400">Nenhum dado encontrado neste arquivo.</p>
-                              )}
-                            </CardContent>
-                          </Card>
-                        ))
+                                      </TableHeader>
+                                      <TableBody>
+                                        {data.map((row, rowIndex) => (
+                                          <TableRow key={rowIndex}>
+                                            {getTableHeaders(data).map((header, colIndex) => (
+                                              <TableCell key={colIndex}>
+                                                {typeof row[header] === 'number'
+                                                  ? row[header].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                  : String(row[header])}
+                                              </TableCell>
+                                            ))}
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                ) : (
+                                  <p className="text-gray-500 dark:text-gray-400">Nenhum dado encontrado neste arquivo.</p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+
+                          {Object.entries(loadedSoldItemsValuePreview).map(([fileName, data], index) => (
+                            <Card key={`val-preview-${index}`} className="mb-6">
+                              <CardHeader>
+                                <CardTitle className="text-lg">Prévia Valor: {fileName}</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                {data && data.length > 0 ? (
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          {getTableHeaders(data).map((header, i) => (
+                                            <TableHead key={i}>{header}</TableHead>
+                                          ))}
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {data.map((row, rowIndex) => (
+                                          <TableRow key={rowIndex}>
+                                            {getTableHeaders(data).map((header, colIndex) => (
+                                              <TableCell key={colIndex}>
+                                                {typeof row[header] === 'number'
+                                                  ? row[header].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                                                  : String(row[header])}
+                                              </TableCell>
+                                            ))}
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                ) : (
+                                  <p className="text-gray-500 dark:text-gray-400">Nenhum dado encontrado neste arquivo.</p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </>
                       )}
                     </ScrollArea>
                   </DialogContent>
