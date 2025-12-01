@@ -24,6 +24,7 @@ interface UnmappedUnitConversionSummary {
   supplier_name: string;
   descricao_do_produto: string;
   supplier_unit: string;
+  invoice_number: string | null; // NOVO: Adicionado número da nota fiscal
 }
 
 const ProdutosNaoMapeados: React.FC = () => {
@@ -55,7 +56,7 @@ const ProdutosNaoMapeados: React.FC = () => {
       if (!user?.id) return [];
       let query = supabase
         .from('unmapped_unit_conversions_summary')
-        .select('*')
+        .select('*, invoice_number') // NOVO: Seleciona invoice_number
         .eq('user_id', user.id); // Filtra por user_id
 
       // Removido o filtro por selectedSupplier
@@ -110,8 +111,9 @@ const ProdutosNaoMapeados: React.FC = () => {
       return;
     }
 
-    const headers = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição do Produto', 'Unidade Fornecedor'];
+    const headers = ['Número da NF', 'Código Fornecedor', 'Nome Fornecedor', 'Descrição do Produto', 'Unidade Fornecedor'];
     const formattedData = unmappedUnitProducts.map(item => ({
+      'Número da NF': item.invoice_number || 'N/A', // NOVO: Inclui o número da NF
       'Código Fornecedor': item.c_prod,
       'Nome Fornecedor': item.supplier_name,
       'Descrição do Produto': item.descricao_do_produto,
@@ -158,8 +160,6 @@ const ProdutosNaoMapeados: React.FC = () => {
         Esta página exibe produtos comprados de fornecedores que ainda não possuem um mapeamento para um nome interno ou uma conversão de unidade.
         Considere mapeá-los na página "Carga de Dados" (aba Conversões) para uma análise mais consistente.
       </p>
-
-      {/* Removido o display do filtro de fornecedor */}
 
       {!hasUnmappedData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -222,6 +222,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Número da NF</TableHead> {/* NOVO: Cabeçalho para NF */}
                         <TableHead>Cód. Fornecedor</TableHead>
                         <TableHead>Nome Fornecedor</TableHead>
                         <TableHead>Descrição do Produto</TableHead>
@@ -231,6 +232,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                     <TableBody>
                       {unmappedUnitProducts.map((item, index) => (
                         <TableRow key={index}>
+                          <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell> {/* NOVO: Célula para NF */}
                           <TableCell className="font-medium">{item.c_prod}</TableCell>
                           <TableCell>{item.supplier_name}</TableCell>
                           <TableCell>{item.descricao_do_produto}</TableCell>
