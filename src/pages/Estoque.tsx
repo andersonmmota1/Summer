@@ -147,6 +147,25 @@ const Estoque: React.FC = () => {
     },
   });
 
+  // NOVO: Query para buscar a contagem de itens comprados individualmente
+  const { data: purchasedItemsCount, isLoading: isLoadingPurchasedItemsCount, isError: isErrorPurchasedItemsCount, error: errorPurchasedItemsCount } = useQuery<number, Error>({
+    queryKey: ['purchased_items_count', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return 0;
+      const { count, error } = await supabase
+        .from('purchased_items')
+        .select('*', { count: 'exact', head: true }) // Usar head: true para apenas contar, sem retornar dados
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar contagem de itens comprados: ${err.message}`);
+    },
+  });
+
   // Query para buscar todas as conversões de nomes de produtos
   const { data: productNameConversions, isLoading: isLoadingConversions, isError: isErrorConversions, error: errorConversions } = useQuery<ProductNameConversion[], Error>({
     queryKey: ['product_name_conversions_stock', user?.id],
@@ -166,9 +185,9 @@ const Estoque: React.FC = () => {
     },
   });
 
-  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions;
-  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions;
+  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || isErrorPurchasedItemsCount;
+  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount;
 
   useEffect(() => {
     if (isError) {
@@ -383,19 +402,45 @@ const Estoque: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Valor Total do Estoque</CardTitle>
-              <CardDescription>
-                Somatório do valor de compra de todos os produtos atualmente em estoque.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Grid para os cards de resumo */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Valor Total do Estoque</CardTitle>
+                <CardDescription>
+                  Somatório do valor de compra de todos os produtos atualmente em estoque.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  {totalStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Itens Comprados Individualmente</CardTitle>
+                <CardDescription>
+                  Número total de registros de produtos comprados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingPurchasedItemsCount ? (
+                  <div className="text-center text-gray-600 dark:text-gray-400 py-4">
+                    Carregando contagem de itens...
+                  </div>
+                ) : isErrorPurchasedItemsCount ? (
+                  <div className="text-center text-red-600 dark:text-red-400 py-4">
+                    Erro ao carregar contagem: {errorPurchasedItemsCount?.message}
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                    {purchasedItemsCount?.toLocaleString('pt-BR') || 0} itens
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
