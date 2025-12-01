@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/components/SessionContextProvider';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns'; // Importar isValid
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat, parseBrazilianDate, cn } from '@/lib/utils';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -279,20 +279,33 @@ const CargaDeDados: React.FC = () => {
           continue;
         }
 
-        const formattedData = data.map((row: any) => ({
-          user_id: user.id,
-          c_prod: String(row['ns1:cProd']),
-          descricao_do_produto: String(row['descricao_do_produto']),
-          u_com: String(row['ns1:uCom']),
-          q_com: parseBrazilianFloat(row['ns1:qCom']),
-          v_un_com: parseBrazilianFloat(row['ns1:vUnCom']),
-          invoice_id: row.invoice_id,
-          invoice_number: row.invoice_number,
-          item_sequence_number: row.item_sequence_number,
-          x_fant: row.x_fant,
-          // Formata a data de emissão para YYYY-MM-DD antes de enviar para o Supabase
-          invoice_emission_date: row.invoice_emission_date ? format(parseISO(row.invoice_emission_date), 'yyyy-MM-dd') : null,
-        }));
+        const formattedData = data.map((row: any) => {
+          const rawInvoiceEmissionDate = row.invoice_emission_date; // This is dhEmi from XML
+          let parsedEmissionDate: string | null = null;
+
+          if (rawInvoiceEmissionDate) {
+            const dateObj = parseISO(rawInvoiceEmissionDate);
+            if (isValid(dateObj)) {
+              parsedEmissionDate = format(dateObj, 'yyyy-MM-dd');
+            } else {
+              console.warn(`Data de emissão inválida encontrada no XML: "${rawInvoiceEmissionDate}". Definindo como NULL.`);
+            }
+          }
+
+          return {
+            user_id: user.id,
+            c_prod: String(row['ns1:cProd']),
+            descricao_do_produto: String(row['descricao_do_produto']),
+            u_com: String(row['ns1:uCom']),
+            q_com: parseBrazilianFloat(row['ns1:qCom']),
+            v_un_com: parseBrazilianFloat(row['ns1:vUnCom']),
+            invoice_id: row.invoice_id,
+            invoice_number: row.invoice_number,
+            item_sequence_number: row.item_sequence_number,
+            x_fant: row.x_fant,
+            invoice_emission_date: parsedEmissionDate, // Use the validated and formatted date
+          };
+        });
 
         const { error } = await supabase
           .from('purchased_items')
