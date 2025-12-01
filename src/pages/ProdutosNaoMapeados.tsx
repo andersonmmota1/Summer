@@ -14,6 +14,7 @@ interface UnmappedProductNameSummary {
   c_prod: string;
   descricao_do_produto: string;
   supplier_name: string;
+  invoice_number: string | null; // NOVO: Adicionado número da nota fiscal
 }
 
 // Updated interface for unmapped unit conversion summary
@@ -35,7 +36,7 @@ const ProdutosNaoMapeados: React.FC = () => {
       if (!user?.id) return [];
       let query = supabase
         .from('unmapped_purchased_products_summary')
-        .select('*')
+        .select('*, invoice_number') // NOVO: Seleciona invoice_number
         .eq('user_id', user.id); // Filtra por user_id
 
       // Removido o filtro por selectedSupplier
@@ -83,8 +84,9 @@ const ProdutosNaoMapeados: React.FC = () => {
       return;
     }
 
-    const headers = ['Código do Produto Fornecedor', 'Nome do Fornecedor', 'Descrição do Produto'];
+    const headers = ['Número da NF', 'Código do Produto Fornecedor', 'Nome do Fornecedor', 'Descrição do Produto'];
     const formattedData = unmappedNameProducts.map(item => ({
+      'Número da NF': item.invoice_number || 'N/A', // NOVO: Inclui o número da NF
       'Código do Produto Fornecedor': item.c_prod,
       'Nome do Fornecedor': item.supplier_name,
       'Descrição do Produto': item.descricao_do_produto,
@@ -182,6 +184,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Número da NF</TableHead> {/* NOVO: Cabeçalho para NF */}
                         <TableHead>Cód. Produto Fornecedor</TableHead>
                         <TableHead>Nome Fornecedor</TableHead>
                         <TableHead>Descrição do Produto</TableHead>
@@ -190,6 +193,7 @@ const ProdutosNaoMapeados: React.FC = () => {
                     <TableBody>
                       {unmappedNameProducts.map((item, index) => (
                         <TableRow key={index}>
+                          <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell> {/* NOVO: Célula para NF */}
                           <TableCell className="font-medium">{item.c_prod}</TableCell>
                           <TableCell>{item.supplier_name}</TableCell>
                           <TableCell>{item.descricao_do_produto}</TableCell>
