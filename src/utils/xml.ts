@@ -40,11 +40,15 @@ export const readXmlFile = (file: File): Promise<any[]> => {
           showWarning('Não foi possível encontrar a Data de Emissão da NF (tag <dhEmi> dentro de <ide>).');
         }
 
-        // Tentar extrair o Nome Fantasia do Fornecedor (xFant)
+        // Tentar extrair o Nome Fantasia do Fornecedor (xFant) ou o Nome (xNome) como fallback
         const emitElement = xmlDoc.querySelector('emit');
-        const xFant = emitElement?.querySelector('xFant')?.textContent || null;
-        if (!xFant) {
-          showWarning('Não foi possível encontrar o Nome Fantasia do Fornecedor (tag <xFant> dentro de <emit>).');
+        let supplierName: string | null = null;
+        if (emitElement) {
+          supplierName = emitElement.querySelector('xFant')?.textContent || emitElement.querySelector('xNome')?.textContent || null;
+        }
+        
+        if (!supplierName) {
+          showWarning('Não foi possível encontrar o Nome Fantasia (xFant) nem o Nome (xNome) do Fornecedor (dentro de <emit>).');
         }
 
         let itemElements: NodeListOf<Element>;
@@ -74,7 +78,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'invoice_id': invoiceId, // Chave de acesso
                   'invoice_number': invoiceNumber, // Número sequencial da nota
                   'item_sequence_number': itemSequenceNumber,
-                  'x_fant': xFant,
+                  'x_fant': supplierName, // Usando o nome do fornecedor determinado
                   'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
                 });
               }
@@ -101,7 +105,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'invoice_id': invoiceId, // Chave de acesso
                 'invoice_number': invoiceNumber, // Número sequencial da nota
                 'item_sequence_number': null,
-                'x_fant': xFant,
+                'x_fant': supplierName, // Usando o nome do fornecedor determinado
                 'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
               });
             }
