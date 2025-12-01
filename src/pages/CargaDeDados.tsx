@@ -286,7 +286,12 @@ const CargaDeDados: React.FC = () => {
           if (rawInvoiceEmissionDate) {
             const dateObj = parseISO(rawInvoiceEmissionDate);
             if (isValid(dateObj)) {
-              parsedEmissionDate = format(dateObj, 'yyyy-MM-dd');
+              // Extrai os componentes UTC para garantir que o dia do calendário seja preservado
+              const year = dateObj.getUTCFullYear();
+              const month = dateObj.getUTCMonth(); // 0-indexed
+              const day = dateObj.getUTCDate();
+              // Cria um novo objeto Date no fuso horário local usando esses componentes UTC
+              parsedEmissionDate = format(new Date(year, month, day), 'yyyy-MM-dd');
             } else {
               console.warn(`Data de emissão inválida encontrada no XML: "${rawInvoiceEmissionDate}". Definindo como NULL.`);
             }

@@ -54,7 +54,13 @@ export function parseBrazilianDate(dateString: string | number): string | null {
     if (isNaN(date.getTime())) {
       return null;
     }
-    return format(date, 'yyyy-MM-dd');
+    // Extrai os componentes UTC para garantir que o dia do calendário seja preservado
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth(); // 0-indexed
+    const day = date.getUTCDate();
+    // Cria um novo objeto Date no fuso horário local usando esses componentes UTC
+    // Isso efetivamente "ajusta" a hora para meia-noite local para aquele dia UTC
+    return format(new Date(year, month, day), 'yyyy-MM-dd');
   }
 
   if (typeof dateString === 'string') {
