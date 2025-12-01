@@ -134,7 +134,14 @@ const CargaDeDados: React.FC = () => {
         .select('c_prod', { distinct: true })
         .eq('user_id', user.id);
       if (error) throw error;
-      return data?.map(item => item.c_prod) || [];
+      // Filtrar null/undefined, remover espaços e garantir unicidade com Set
+      const uniqueValues = Array.from(new Set(
+        data
+          ?.map(item => item.c_prod)
+          .filter((val): val is string => val !== null && val !== undefined && val.trim() !== '')
+          .map(val => val.trim())
+      ));
+      return uniqueValues.sort(); // Opcional: ordenar para melhor visualização
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 60, // Cache por 1 hora
@@ -149,7 +156,14 @@ const CargaDeDados: React.FC = () => {
         .select('descricao_do_produto', { distinct: true })
         .eq('user_id', user.id);
       if (error) throw error;
-      return data?.map(item => item.descricao_do_produto) || [];
+      // Filtrar null/undefined, remover espaços e garantir unicidade com Set
+      const uniqueValues = Array.from(new Set(
+        data
+          ?.map(item => item.descricao_do_produto)
+          .filter((val): val is string => val !== null && val !== undefined && val.trim() !== '')
+          .map(val => val.trim())
+      ));
+      return uniqueValues.sort(); // Opcional: ordenar para melhor visualização
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 60,
@@ -164,7 +178,14 @@ const CargaDeDados: React.FC = () => {
         .select('u_com', { distinct: true })
         .eq('user_id', user.id);
       if (error) throw error;
-      return data?.map(item => item.u_com) || [];
+      // Filtrar null/undefined, remover espaços e garantir unicidade com Set
+      const uniqueValues = Array.from(new Set(
+        data
+          ?.map(item => item.u_com)
+          .filter((val): val is string => val !== null && val !== undefined && val.trim() !== '')
+          .map(val => val.trim())
+      ));
+      return uniqueValues.sort(); // Opcional: ordenar para melhor visualização
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 60,
@@ -179,7 +200,14 @@ const CargaDeDados: React.FC = () => {
         .select('x_fant', { distinct: true })
         .eq('user_id', user.id);
       if (error) throw error;
-      return data?.map(item => item.x_fant) || [];
+      // Filtrar null/undefined, remover espaços e garantir unicidade com Set
+      const uniqueValues = Array.from(new Set(
+        data
+          ?.map(item => item.x_fant)
+          .filter((val): val is string => val !== null && val !== undefined && val.trim() !== '')
+          .map(val => val.trim())
+      ));
+      return uniqueValues.sort(); // Opcional: ordenar para melhor visualização
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 60,
@@ -464,7 +492,7 @@ const CargaDeDados: React.FC = () => {
       const data = await readExcelFile(selectedProductRecipeExcelFile);
 
       if (!data || data.length === 0) {
-        showError('O arquivo Excel da ficha técnica está vazio ou não contém dados válidos.');
+        showError('O arquivo Excel da ficha técnica está vazio ou ou não contém dados válidos.');
         dismissToast(loadingToastId);
         return;
       }
