@@ -32,8 +32,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/components/SessionContextProvider';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { parseBrazilianFloat, parseBrazilianDate } from '@/lib/utils'; // Importar a nova função de data
-import { useQueryClient } from '@tanstack/react-query';
+import { parseBrazilianFloat, parseBrazilianDate, cn } from '@/lib/utils';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
+
+// Form imports
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
 interface PurchasedItem {
@@ -53,6 +62,32 @@ interface PurchasedItem {
   invoice_emission_date: string | null; // Adicionado
 }
 
+// Define o schema para o formulário de entrada manual
+const manualEntrySchema = z.object({
+  c_prod: z.string().min(1, { message: 'Código do Produto é obrigatório.' }),
+  descricao_do_produto: z.string().min(1, { message: 'Descrição do Produto é obrigatória.' }),
+  u_com: z.string().min(1, { message: 'Unidade de Compra é obrigatória.' }),
+  q_com: z.preprocess(
+    (val) => parseBrazilianFloat(val as string | number),
+    z.number().min(0.01, { message: 'Quantidade deve ser maior que zero.' })
+  ),
+  v_un_com: z.preprocess(
+    (val) => parseBrazilianFloat(val as string | number),
+    z.number().min(0, { message: 'Valor unitário não pode ser negativo.' })
+  ),
+  invoice_id: z.string().optional(), // Opcional
+  invoice_number: z.string().optional(),
+  item_sequence_number: z.preprocess(
+    (val) => (val === '' ? undefined : Number(val)),
+    z.number().int().min(1, { message: 'Número do item deve ser um inteiro positivo.' }).optional()
+  ),
+  x_fant: z.string().min(1, { message: 'Nome do Fornecedor é obrigatório.' }),
+  invoice_emission_date: z.date().optional(), // Objeto Date para o seletor de data
+});
+
+type ManualEntryFormValues = z.infer<typeof manualEntrySchema>;
+
+
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -71,6 +106,84 @@ const CargaDeDados: React.FC = () => {
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
   const productNameConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Nome Interno do Produto'];
   const unitConversionTemplateHeaders = ['Código Fornecedor', 'Nome Fornecedor', 'Descrição Produto Fornecedor', 'Unidade Fornecedor', 'Unidade Interna', 'Fator de Conversão'];
+
+  // Hook de formulário para entrada manual
+  const form = useForm<ManualEntryFormValues>({
+    resolver: zodResolver(manualEntrySchema),
+    defaultValues: {
+      c_prod: '',
+      descricao_do_produto: '',
+      u_com: '',
+      q_com: 0,
+      v_un_com: 0,
+      invoice_id: '',
+      invoice_number: '',
+      item_sequence_number: undefined,
+      x_fant: '',
+      invoice_emission_date: undefined,
+    },
+  });
+
+  // Queries para buscar valores únicos para datalists
+  const { data: uniqueCProds } = useQuery<string[], Error>({
+    queryKey: ['unique_c_prods', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('c_prod', { distinct: true })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(item => item.c_prod) || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 60, // Cache por 1 hora
+  });
+
+  const { data: uniqueDescricoes } = useQuery<string[], Error>({
+    queryKey: ['unique_descricoes', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('descricao_do_produto', { distinct: true })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(item => item.descricao_do_produto) || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const { data: uniqueUComs } = useQuery<string[], Error>({
+    queryKey: ['unique_u_coms', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('u_com', { distinct: true })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(item => item.u_com) || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const { data: uniqueXFants } = useQuery<string[], Error>({
+    queryKey: ['unique_x_fants', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('x_fant', { distinct: true })
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data?.map(item => item.x_fant) || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 60,
+  });
 
   const handleXmlFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -185,6 +298,10 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
       queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] }); // Invalida a query da Análise de Fornecedor
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] }); // Invalida o cache de valores únicos
+      queryClient.invalidateQueries({ queryKey: ['unique_descricoes'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_u_coms'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_x_fants'] });
     } else {
       showError('Carga de XML concluída com alguns erros. Verifique as mensagens acima.');
     }
@@ -857,6 +974,10 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
       queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] }); // Invalida a query da Análise de Fornecedor
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] }); // Invalida o cache de valores únicos
+      queryClient.invalidateQueries({ queryKey: ['unique_descricoes'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_u_coms'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_x_fants'] });
     } catch (error: any) {
       showError(`Erro ao limpar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
@@ -985,6 +1106,63 @@ const CargaDeDados: React.FC = () => {
     return Object.keys(data[0]);
   };
 
+  // Função de submissão do formulário manual
+  const onSubmitManualEntry = async (values: ManualEntryFormValues) => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar itens comprados manualmente.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando item comprado manualmente...');
+
+    try {
+      const formattedData = {
+        user_id: user.id,
+        c_prod: values.c_prod,
+        descricao_do_produto: values.descricao_do_produto,
+        u_com: values.u_com,
+        q_com: values.q_com,
+        v_un_com: values.v_un_com,
+        invoice_id: values.invoice_id || null,
+        invoice_number: values.invoice_number || null,
+        item_sequence_number: values.item_sequence_number || null,
+        x_fant: values.x_fant,
+        // Formata a data de emissão para YYYY-MM-DD antes de enviar para o Supabase
+        invoice_emission_date: values.invoice_emission_date ? format(values.invoice_emission_date, 'yyyy-MM-dd') : null,
+      };
+
+      const { error } = await supabase
+        .from('purchased_items')
+        .insert([formattedData]); // Usar insert para entrada manual, sem onConflict para permitir duplicação se não houver invoice_id/item_sequence_number
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showSuccess('Item comprado adicionado manualmente com sucesso!');
+      form.reset(); // Limpa o formulário
+      queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_supplier_products'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] }); // Invalida o cache de valores únicos
+      queryClient.invalidateQueries({ queryKey: ['unique_descricoes'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_u_coms'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_x_fants'] });
+    } catch (error: any) {
+      showError(`Erro ao adicionar item comprado manualmente: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -995,8 +1173,9 @@ const CargaDeDados: React.FC = () => {
       </p>
 
       <Tabs defaultValue="xml-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5"> {/* Aumentado para 5 colunas */}
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
+          <TabsTrigger value="manual-purchased">Entrada Manual (Itens Comprados)</TabsTrigger> {/* Nova aba */}
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
           <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
@@ -1030,6 +1209,265 @@ const CargaDeDados: React.FC = () => {
                 Carregar XML(s)
               </Button>
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="manual-purchased" className="mt-4"> {/* Conteúdo da nova aba */}
+          <div className="space-y-4">
+            <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Entrada Manual de Itens Comprados</h3>
+            <p className="text-gray-600 dark:text-gray-400">
+              Insira manualmente os detalhes de um item comprado. Use as sugestões para preencher campos com valores existentes.
+            </p>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmitManualEntry)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="x_fant"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome do Fornecedor</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            list="x_fant-suggestions"
+                            placeholder="Nome do Fornecedor"
+                          />
+                        </FormControl>
+                        <datalist id="x_fant-suggestions">
+                          {uniqueXFants?.map((name) => (
+                            <option key={name} value={name} />
+                          ))}
+                        </datalist>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="c_prod"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Código do Produto</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            list="c_prod-suggestions"
+                            placeholder="Código do Produto"
+                          />
+                        </FormControl>
+                        <datalist id="c_prod-suggestions">
+                          {uniqueCProds?.map((code) => (
+                            <option key={code} value={code} />
+                          ))}
+                        </datalist>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="descricao_do_produto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Descrição do Produto</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            list="descricao_do_produto-suggestions"
+                            placeholder="Descrição do Produto"
+                          />
+                        </FormControl>
+                        <datalist id="descricao_do_produto-suggestions">
+                          {uniqueDescricoes?.map((desc) => (
+                            <option key={desc} value={desc} />
+                          ))}
+                        </datalist>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="u_com"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Unidade de Compra</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            list="u_com-suggestions"
+                            placeholder="Unidade de Compra"
+                          />
+                        </FormControl>
+                        <datalist id="u_com-suggestions">
+                          {uniqueUComs?.map((unit) => (
+                            <option key={unit} value={unit} />
+                          ))}
+                        </datalist>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="q_com"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantidade Comprada</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="text" // Usar text para permitir input de vírgula
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Permite apenas números, vírgula e ponto
+                              if (/^[0-9.,]*$/.test(value)) {
+                                field.onChange(value);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              // Formata para float brasileiro no blur
+                              const parsed = parseBrazilianFloat(e.target.value);
+                              field.onChange(parsed);
+                            }}
+                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')} // Exibe com vírgula
+                            placeholder="0,00"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="v_un_com"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Valor Unitário de Compra</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="text" // Usar text para permitir input de vírgula
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (/^[0-9.,]*$/.test(value)) {
+                                field.onChange(value);
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const parsed = parseBrazilianFloat(e.target.value);
+                              field.onChange(parsed);
+                            }}
+                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')} // Exibe com vírgula
+                            placeholder="0,00"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="invoice_emission_date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data de Emissão da NF</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "dd/MM/yyyy", { locale: ptBR })
+                                ) : (
+                                  <span>Selecione uma data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                              locale={ptBR}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="invoice_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>ID da Nota Fiscal (Chave de Acesso)</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="ID da Nota Fiscal" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="invoice_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número da Nota Fiscal</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Número da Nota Fiscal" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="item_sequence_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número Sequencial do Item na Nota</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              field.onChange(value === '' ? undefined : Number(value));
+                            }}
+                            value={field.value === undefined ? '' : field.value}
+                            placeholder="Ex: 1"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Button type="submit" className="w-full">Adicionar Item Comprado</Button>
+              </form>
+            </Form>
           </div>
         </TabsContent>
 
