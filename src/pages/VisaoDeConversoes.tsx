@@ -8,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 // Removido: import { useFilter } from '@/contexts/FilterContext';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
-// Removido: import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Importado Input
 
 interface ConvertedUnitSummary {
   user_id: string;
@@ -30,7 +30,7 @@ const VisaoDeConversoes: React.FC = () => {
   // Removido: const { filters } = useFilter();
   // Removido: const { selectedProduct } = filters;
   const { user } = useSession();
-  // Removido: const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(''); // NOVO: Estado para o termo de busca
 
   const { data: convertedData, isLoading, isError, error } = useQuery<ConvertedUnitSummary[], Error>({
     queryKey: ['converted_units_summary', user?.id], // Removido selectedProduct da chave
@@ -65,18 +65,17 @@ const VisaoDeConversoes: React.FC = () => {
 
   const filteredConvertedData = useMemo(() => {
     if (!convertedData) return [];
-    // Removido: if (!searchTerm) return convertedData;
+    if (!searchTerm) return convertedData; // NOVO: Retorna todos os dados se não houver termo de busca
 
-    // Removido: const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    // Removido: return convertedData.filter(item =>
-    // Removido:   item.supplier_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-    // Removido:   item.supplier_product_description.toLowerCase().includes(lowerCaseSearchTerm) ||
-    // Removido:   item.product_display_name.toLowerCase().includes(lowerCaseSearchTerm) ||
-    // Removido:   item.supplier_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
-    // Removido:   item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm)
-    // Removido: );
-    return convertedData; // Retorna todos os dados sem filtro
-  }, [convertedData]); // Removido searchTerm
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    return convertedData.filter(item =>
+      item.supplier_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.supplier_product_description.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.product_display_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.supplier_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [convertedData, searchTerm]); // NOVO: Adicionado searchTerm como dependência
 
   if (isLoading) {
     return (
@@ -141,12 +140,13 @@ const VisaoDeConversoes: React.FC = () => {
               <CardDescription>
                 Lista detalhada de cada produto com sua conversão de unidade aplicada.
               </CardDescription>
-              {/* Removido: <Input
+              {/* NOVO: Campo de busca */}
+              <Input
                 placeholder="Filtrar por nome do fornecedor, descrição do produto, nome interno ou unidade..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="max-w-sm mt-4"
-              /> */}
+              />
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
