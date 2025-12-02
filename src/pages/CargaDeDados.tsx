@@ -946,7 +946,13 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      const headers = soldItemsTemplateHeaders; // Usar os novos cabeçalhos do template
+      // Definir cabeçalhos detalhados para quantidades e valores horários
+      const detailedSoldItemsHeaders = [
+        'Data', 'Grupo', 'SubGrupo', 'Codigo', 'Produto',
+        ...Array.from({ length: 24 }, (_, i) => `Qtd_${i}`), // Qtd_0, Qtd_1, ... Qtd_23
+        ...Array.from({ length: 24 }, (_, i) => `Valor_${i}`), // Valor_0, Valor_1, ... Valor_23
+        'Total Qtd', 'Total Valor'
+      ];
 
       const formattedData = data.map(item => {
         const row: Record<string, any> = {
@@ -957,19 +963,21 @@ const CargaDeDados: React.FC = () => {
           'Produto': item.product_name,
         };
         let totalQuantity = 0;
-        let totalValue = 0; // Calcular o total de valor também
+        let totalValue = 0;
         for (let i = 0; i <= 23; i++) {
           const quantityKey = `quantity_${i}` as keyof CombinedHourlySoldItem;
           const valueKey = `value_${i}` as keyof CombinedHourlySoldItem;
-          row[String(i)] = (item[quantityKey] as number).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // Exportar quantidade formatada
+          row[`Qtd_${i}`] = item[quantityKey] as number; // Passa o número puro
+          row[`Valor_${i}`] = item[valueKey] as number; // Passa o número puro
           totalQuantity += (item[quantityKey] as number);
           totalValue += (item[valueKey] as number);
         }
-        row['Total'] = totalQuantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); // Exportar total de quantidade formatado
+        row['Total Qtd'] = totalQuantity; // Passa o número puro
+        row['Total Valor'] = totalValue; // Passa o número puro
         return row;
       });
 
-      const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
+      const blob = createExcelFile(formattedData, detailedSoldItemsHeaders, 'ProdutosVendidosDetalhado');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

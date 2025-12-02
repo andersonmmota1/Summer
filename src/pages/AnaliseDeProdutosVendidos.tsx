@@ -147,8 +147,8 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       'Grupo': item.group_name || '', // Novo campo
       'Subgrupo': item.subgroup_name || '', // Novo campo
       'Produtos Ajustados': item.product_name,
-      'Quantidade': item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      'Valor': (item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+      'Quantidade': item.quantity_sold, // Passa o número puro
+      'Valor': (item.total_value_sold ?? 0), // Passa o número puro
     }));
 
     const blob = createExcelFile(formattedData, headers, 'ProdutosVendidosDetalhado');
