@@ -1,4 +1,5 @@
 import { PurchasedItem } from '@/pages/CargaDeDados'; // Importar a interface PurchasedItem
+import { format, parseISO } from 'date-fns'; // Para formatar datas
 
 /**
  * Converte uma string para um formato seguro para XML, substituindo caracteres especiais.
@@ -19,35 +20,66 @@ const escapeXml = (text: string | number | boolean | null | undefined): string =
 };
 
 /**
- * Gera uma string XML representando uma lista de itens comprados.
- * As tags XML corresponderão aos nomes das propriedades do objeto PurchasedItem.
- * @param items Array de objetos PurchasedItem.
- * @returns Uma string XML.
+ * Gera uma string XML representando uma coleção de notas fiscais,
+ * onde cada nota fiscal segue uma estrutura simplificada de NFe/NFC-e.
+ * Assume que os itens fornecidos podem pertencer a diferentes notas fiscais.
+ *
+ * @param allItems Array de objetos PurchasedItem, possivelmente de várias notas.
+ * @returns Uma string XML contendo múltiplas estruturas de NFe/NFC-e.
  */
-export const exportPurchasedItemsToXml = (items: PurchasedItem[]): string => {
+export const exportPurchasedItemsToXml = (allItems: PurchasedItem[]): string => {
   let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xmlString += '<purchasedItems>\n';
+  xmlString += '<nfeCollection>\n'; // Tag raiz para a coleção de NFes
 
-  items.forEach(item => {
-    xmlString += '  <item>\n';
-    xmlString += `    <id>${escapeXml(item.id)}</id>\n`;
-    xmlString += `    <user_id>${escapeXml(item.user_id)}</user_id>\n`;
-    xmlString += `    <c_prod>${escapeXml(item.c_prod)}</c_prod>\n`;
-    xmlString += `    <descricao_do_produto>${escapeXml(item.descricao_do_produto)}</descricao_do_produto>\n`;
-    xmlString += `    <u_com>${escapeXml(item.u_com)}</u_com>\n`;
-    xmlString += `    <q_com>${escapeXml(item.q_com)}</q_com>\n`;
-    xmlString += `    <v_un_com>${escapeXml(item.v_un_com)}</v_un_com>\n`;
-    xmlString += `    <invoice_id>${escapeXml(item.invoice_id)}</invoice_id>\n`;
-    xmlString += `    <invoice_number>${escapeXml(item.invoice_number)}</invoice_number>\n`;
-    xmlString += `    <item_sequence_number>${escapeXml(item.item_sequence_number)}</item_sequence_number>\n`;
-    xmlString += `    <x_fant>${escapeXml(item.x_fant)}</x_fant>\n`;
-    xmlString += `    <invoice_emission_date>${escapeXml(item.invoice_emission_date)}</invoice_emission_date>\n`;
-    xmlString += `    <is_manual_entry>${escapeXml(item.is_manual_entry)}</is_manual_entry>\n`;
-    xmlString += `    <created_at>${escapeXml(item.created_at)}</created_at>\n`;
-    xmlString += `    <internal_product_name>${escapeXml(item.internal_product_name)}</internal_product_name>\n`; // Adicionado
-    xmlString += '  </item>\n';
+  // Agrupar itens por nota fiscal (invoice_id é a chave de acesso, a mais confiável)
+  const invoicesMap = new Map<string, PurchasedItem[]>();
+  allItems.forEach(item => {
+    const invoiceKey = item.invoice_id || `${item.invoice_number}-${item.x_fant}`; // Fallback se invoice_id for nulo
+    if (!invoiceKey) {
+      console.warn('Item sem identificador de nota fiscal válido, ignorado na exportação XML:', item);
+      return;
+    }
+    if (!invoicesMap.has(invoiceKey)) {
+      invoicesMap.set(invoiceKey, []);
+    }
+    invoicesMap.get(invoiceKey)?.push(item);
   });
 
-  xmlString += '</purchasedItems>';
+  invoicesMap.forEach((itemsInInvoice, invoiceKey) => {
+    if (itemsInInvoice.length === 0) return;
+
+    const firstItem = itemsInInvoice[0]; // Usar o primeiro item para dados da nota
+    const invoiceId = firstItem.invoice_id || `NFe-${invoiceKey}`; // Usar invoice_id como Id da infNFe
+    const invoiceNumber = firstItem.invoice_number || 'SEM_NUMERO';
+    const supplierName = firstItem.x_fant || 'FORNECEDOR_DESCONHECIDO';
+    const emissionDate = firstItem.invoice_emission_date ? format(parseISO(firstItem.invoice_emission_date), 'yyyy-MM-dd') : 'SEM_DATA';
+
+    xmlString += `  <NFe>\n`;
+    xmlString += `    <infNFe Id="${escapeXml(invoiceId)}">\n`;
+    xmlString += `      <ide>\n`;
+    xmlString += `        <nNF>${escapeXml(invoiceNumber)}</nNF>\n`;
+    xmlString += `        <dhEmi>${escapeXml(emissionDate)}</dhEmi>\n`;
+    xmlString += `      </ide>\n`;
+    xmlString += `      <emit>\n`;
+    xmlString += `        <xFant>${escapeXml(supplierName)}</xFant>\n`;
+    xmlString += `      </emit>\n`;
+
+    itemsInInvoice.forEach(item => {
+      xmlString += `      <det nItem="${escapeXml(item.item_sequence_number || '1')}">\n`;
+      xmlString += `        <prod>\n`;
+      xmlString += `          <cProd>${escapeXml(item.c_prod)}</cProd>\n`;
+      xmlString += `          <xProd>${escapeXml(item.descricao_do_produto)}</xProd>\n`;
+      xmlString += `          <uCom>${escapeXml(item.u_com)}</uCom>\n`;
+      xmlString += `          <qCom>${escapeXml(item.q_com)}</qCom>\n`;
+      xmlString += `          <vUnCom>${escapeXml(item.v_un_com)}</vUnCom>\n`;
+      xmlString += `        </prod>\n`;
+      xmlString += `      </det>\n`;
+    });
+
+    xmlString += `    </infNFe>\n`;
+    xmlString += `  </NFe>\n`;
+  });
+
+  xmlString += '</nfeCollection>';
   return xmlString;
 };
