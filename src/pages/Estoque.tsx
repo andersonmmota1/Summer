@@ -612,8 +612,8 @@ const Estoque: React.FC = () => {
                                 "ml-2 h-4 w-4 transition-transform",
                                 sortConfigStock.direction === 'desc' && "rotate-180"
                               )}
-                            />
-                          )}
+                            )}
+                          />
                         </Button>
                       </TableHead>
                       <TableHead className="text-right">
@@ -724,9 +724,57 @@ const Estoque: React.FC = () => {
                             )}
                           </Button>
                         </TableHead>
-                        <TableHead>Nome Interno do Produto</TableHead>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Descrição do Produto (XML)</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('display_internal_product_name')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Nome Interno do Produto
+                            {sortConfigPurchasedItems.key === 'display_internal_product_name' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('x_fant')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Fornecedor
+                            {sortConfigPurchasedItems.key === 'x_fant' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('descricao_do_produto')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Descrição do Produto (XML)
+                            {sortConfigPurchasedItems.key === 'descricao_do_produto' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead>
                           <Button
                             variant="ghost"
@@ -761,7 +809,23 @@ const Estoque: React.FC = () => {
                             )}
                           </Button>
                         </TableHead>
-                        <TableHead className="text-right">Valor Unitário</TableHead>
+                        <TableHead className="text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('v_un_com')}
+                            className="px-0 py-0 h-auto justify-end w-full"
+                          >
+                            Valor Unitário
+                            {sortConfigPurchasedItems.key === 'v_un_com' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
