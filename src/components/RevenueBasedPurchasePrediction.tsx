@@ -64,7 +64,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
   historicalDaysCount,
 }) => {
   const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>('');
-  const [totalHistoricalRevenue, setTotalHistoricalRevenue] = useState<number>(0); // NOVO: Total de faturamento histórico
+  const [totalHistoricalRevenue, setTotalHistoricalRevenue] = useState<number>(0);
   const [calculatedRevenueMultiplier, setCalculatedRevenueMultiplier] = useState<number>(1);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
@@ -80,9 +80,22 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     }
     // Resetar a previsão quando os dados históricos mudam
     setPurchasePrediction([]);
-    setProjectedRevenueInput('');
-    setCalculatedRevenueMultiplier(1);
+    setProjectedRevenueInput(''); // Limpa o input de faturamento projetado
+    setCalculatedRevenueMultiplier(1); // Reseta o multiplicador
   }, [rawSoldItems, historicalDaysCount]);
+
+  // NOVO: Efeito para calcular o multiplicador em tempo real
+  useEffect(() => {
+    const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
+    let multiplier = 1;
+    if (parsedProjectedRevenue > 0 && totalHistoricalRevenue > 0) {
+      multiplier = parsedProjectedRevenue / totalHistoricalRevenue;
+    } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') {
+      multiplier = 0; // Se o input é 0, o multiplicador é 0
+    }
+    setCalculatedRevenueMultiplier(multiplier);
+  }, [projectedRevenueInput, totalHistoricalRevenue]);
+
 
   const handleGeneratePrediction = async () => {
     if (historicalDaysCount <= 0) {
@@ -108,16 +121,8 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
         totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.quantity_sold;
       });
 
-      // --- Cálculo do Multiplicador de Faturamento ---
-      let revenueMultiplier = 1;
-      const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
-
-      if (parsedProjectedRevenue > 0 && totalHistoricalRevenue > 0) {
-        revenueMultiplier = parsedProjectedRevenue / totalHistoricalRevenue;
-      } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') {
-        revenueMultiplier = 0;
-      }
-      setCalculatedRevenueMultiplier(revenueMultiplier);
+      // O calculatedRevenueMultiplier já está atualizado pelo useEffect
+      const revenueMultiplier = calculatedRevenueMultiplier;
 
       // --- Demanda Projetada de Produtos Vendidos (COM MULTIPLICADOR) ---
       const projectedSoldProductDemand: Record<string, number> = {};
@@ -278,12 +283,14 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
               value={projectedRevenueInput}
               onChange={(e) => {
                 const value = e.target.value;
+                // Permite apenas números, vírgulas e pontos para formatação
                 if (/^[0-9.,]*$/.test(value)) {
                   setProjectedRevenueInput(value);
                 }
               }}
               onBlur={(e) => {
                 const parsed = parseBrazilianFloat(e.target.value);
+                // Formata o número de volta para string com vírgula como separador decimal
                 setProjectedRevenueInput(parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ','));
               }}
               placeholder="0,00"
