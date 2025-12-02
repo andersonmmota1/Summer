@@ -121,7 +121,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       if (!user?.id) return [];
       const { data, error } = await supabase
         .from('purchased_items')
-        .select('*, invoice_emission_date')
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date') // Listar explicitamente as colunas
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       if (error) throw error;

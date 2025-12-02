@@ -131,7 +131,7 @@ const Estoque: React.FC = () => {
       if (!user?.id) return [];
       let query = supabase
         .from('purchased_items')
-        .select('*, invoice_emission_date')
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date') // Listar explicitamente as colunas
         .eq('user_id', user.id)
         .order('invoice_emission_date', { ascending: false }) // Ordenar por data de emissão
         .order('created_at', { ascending: false }); // E depois por data de criação
@@ -186,7 +186,7 @@ const Estoque: React.FC = () => {
   });
 
   const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || isErrorPurchasedItemsCount;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount;
   const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount;
 
   useEffect(() => {
