@@ -89,7 +89,7 @@ interface SortConfigPurchasedItems {
 }
 
 interface SortConfigStock {
-  key: keyof CurrentStockSummary | null;
+  key: keyof CurrentStockSummary | 'stock_value' | null; // Adicionado 'stock_value'
   direction: 'asc' | 'desc' | null;
 }
 
@@ -413,7 +413,7 @@ const Estoque: React.FC = () => {
   }, [enrichedPurchasedItems, searchTerm, sortConfigPurchasedItems]);
 
   // Função para lidar com a ordenação da tabela de resumo de estoque
-  const handleSortStock = (key: keyof CurrentStockSummary) => {
+  const handleSortStock = (key: keyof CurrentStockSummary | 'stock_value') => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfigStock.key === key && sortConfigStock.direction === 'asc') {
       direction = 'desc';
@@ -430,6 +430,17 @@ const Estoque: React.FC = () => {
       sortableStockItems.sort((a, b) => {
         const aValue = a[sortConfigStock.key!];
         const bValue = b[sortConfigStock.key!];
+
+        if (sortConfigStock.key === 'stock_value') {
+          const aAvgCost = a.total_purchased_quantity_converted > 0 ? a.total_purchased_value / a.total_purchased_quantity_converted : 0;
+          const bAvgCost = b.total_purchased_quantity_converted > 0 ? b.total_purchased_value / b.total_purchased_quantity_converted : 0;
+          const aStockValue = aAvgCost * a.current_stock_quantity;
+          const bStockValue = bAvgCost * b.current_stock_quantity;
+
+          if (aStockValue < bStockValue) return sortConfigStock.direction === 'asc' ? -1 : 1;
+          if (aStockValue > bStockValue) return sortConfigStock.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
 
         if (aValue === null || aValue === undefined) return sortConfigStock.direction === 'asc' ? 1 : -1;
         if (bValue === null || bValue === undefined) return sortConfigStock.direction === 'asc' ? -1 : 1;
@@ -462,16 +473,22 @@ const Estoque: React.FC = () => {
       'Qtd. Comprada (Convertida)',
       'Qtd. Consumida (Vendas)',
       'Valor Total Comprado',
+      'Valor em Estoque', // Adicionado
     ];
 
-    const formattedData = sortedStockData.map(item => ({
-      'Nome Interno do Produto': item.internal_product_name,
-      'Unidade Interna': item.internal_unit,
-      'Estoque Atual': item.current_stock_quantity,
-      'Qtd. Comprada (Convertida)': item.total_purchased_quantity_converted,
-      'Qtd. Consumida (Vendas)': item.total_consumed_quantity_from_sales,
-      'Valor Total Comprado': item.total_purchased_value,
-    }));
+    const formattedData = sortedStockData.map(item => {
+      const averageUnitCost = item.total_purchased_quantity_converted > 0 ? item.total_purchased_value / item.total_purchased_quantity_converted : 0;
+      const itemStockValue = averageUnitCost * item.current_stock_quantity;
+      return {
+        'Nome Interno do Produto': item.internal_product_name,
+        'Unidade Interna': item.internal_unit,
+        'Estoque Atual': item.current_stock_quantity,
+        'Qtd. Comprada (Convertida)': item.total_purchased_quantity_converted,
+        'Qtd. Consumida (Vendas)': item.total_consumed_quantity_from_sales,
+        'Valor Total Comprado': item.total_purchased_value,
+        'Valor em Estoque': itemStockValue, // Incluído no export
+      };
+    });
 
     const blob = createExcelFile(formattedData, headers, 'ResumoEstoqueAtual');
     const url = URL.createObjectURL(blob);
@@ -653,54 +670,92 @@ const Estoque: React.FC = () => {
                           )}
                         </Button>
                       </TableHead>
-                      <TableHead className="text-right">Valor Total Comprado</TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSortStock('total_purchased_value')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Valor Total Comprado
+                          {sortConfigStock.key === 'total_purchased_value' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfigStock.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSortStock('stock_value')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Valor em Estoque
+                          {sortConfigStock.key === 'stock_value' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfigStock.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
                       <TableHead className="text-right">Detalhes de Uso</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedStockData?.map((item, index) => (
-                      <React.Fragment key={index}>
-                        <TableRow>
-                          <TableCell className="font-medium">{item.internal_product_name}</TableCell>
-                          <TableCell>{item.internal_unit}</TableCell>
-                          <TableCell className="text-right">{item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.total_purchased_quantity_converted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.total_purchased_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="w-9 p-0"
-                              onClick={() => handleToggleRow(item.internal_product_name)}
-                            >
-                              <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
-                              <span className="sr-only">Toggle detalhes de uso</span>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        {openRows[item.internal_product_name] && (
+                    {sortedStockData?.map((item, index) => {
+                      const averageUnitCost = item.total_purchased_quantity_converted > 0 ? item.total_purchased_value / item.total_purchased_quantity_converted : 0;
+                      const itemStockValue = averageUnitCost * item.current_stock_quantity;
+                      return (
+                        <React.Fragment key={index}>
                           <TableRow>
-                            <TableCell colSpan={7} className="py-0 pl-12 pr-4">
-                              <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
-                                <p className="font-semibold mb-1">Utilizado em:</p>
-                                {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).length > 0 ? (
-                                  <ul className="list-disc list-inside space-y-0.5">
-                                    {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).map((usage, i) => (
-                                      <li key={i}>
-                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) - Total Vendido: {usage.total_sold_product_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
-                                )}
-                              </div>
+                            <TableCell className="font-medium">{item.internal_product_name}</TableCell>
+                            <TableCell>{item.internal_unit}</TableCell>
+                            <TableCell className="text-right">{item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.total_purchased_quantity_converted.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.total_consumed_quantity_from_sales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.total_purchased_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">{itemStockValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-9 p-0"
+                                onClick={() => handleToggleRow(item.internal_product_name)}
+                              >
+                                <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
+                                <span className="sr-only">Toggle detalhes de uso</span>
+                              </Button>
                             </TableCell>
                           </TableRow>
-                        )}
-                      </React.Fragment>
-                    ))}
+                          {openRows[item.internal_product_name] && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="py-0 pl-12 pr-4">
+                                <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
+                                  <p className="font-semibold mb-1">Utilizado em:</p>
+                                  {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).length > 0 ? (
+                                    <ul className="list-disc list-inside space-y-0.5">
+                                      {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).map((usage, i) => (
+                                        <li key={i}>
+                                          {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) - Total Vendido: {usage.total_sold_product_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <p>Nenhum produto vendido utiliza esta matéria-prima diretamente.</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
