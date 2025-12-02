@@ -157,7 +157,9 @@ const Inicio: React.FC = () => {
         average_ticket,
         itemCount,
       };
-    }).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+    })
+    .filter(group => group.total_quantity_sold > 0 || group.total_value_sold > 0) // Filtra grupos com quantidade e valor zero
+    .sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
   }, [rawSoldItems]);
 
   // NOVO: Agregação de vendas por Subgrupo
@@ -190,7 +192,9 @@ const Inicio: React.FC = () => {
         average_ticket,
         itemCount,
       };
-    }).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+    })
+    .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0) // Filtra subgrupos com quantidade e valor zero
+    .sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
   }, [rawSoldItems]);
 
   return (
