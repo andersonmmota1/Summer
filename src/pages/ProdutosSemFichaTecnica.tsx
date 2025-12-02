@@ -11,6 +11,7 @@ import { createExcelFile } from '@/utils/excel';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { Input } from '@/components/ui/input'; // Importar Input
 
 interface ProductWithoutRecipeSummary {
   user_id: string;
@@ -31,6 +32,7 @@ interface SortConfig {
 const ProdutosSemFichaTecnica: React.FC = () => {
   const { user } = useSession();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sold_product_name', direction: 'asc' }); // Estado de ordenação
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
   const { data: productsWithoutRecipes, isLoading, isError, error } = useQuery<ProductWithoutRecipeSummary[], Error>({
     queryKey: ['products_without_recipes_summary', user?.id],
@@ -53,7 +55,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       console.error('Erro ao carregar produtos sem ficha técnica:', error);
       showError(`Erro ao carregar dados: ${error?.message}`);
     }
-  }, [isError, error, productsWithoutRecipes]);
+  }, [isError, error]);
 
   // Função para lidar com a ordenação
   const handleSort = (key: keyof ProductWithoutRecipeSummary) => {
@@ -64,13 +66,26 @@ const ProdutosSemFichaTecnica: React.FC = () => {
     setSortConfig({ key, direction });
   };
 
-  // Dados ordenados
-  const sortedProductsWithoutRecipes = useMemo(() => {
+  // Dados filtrados e ordenados
+  const filteredAndSortedProductsWithoutRecipes = useMemo(() => {
     if (!productsWithoutRecipes) return [];
-    let sortableItems = [...productsWithoutRecipes];
+    let itemsToProcess = [...productsWithoutRecipes];
 
+    // 1. Filtragem pelo termo de busca
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      itemsToProcess = itemsToProcess.filter(item =>
+        (item.sold_product_name?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.additional_code?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        String(item.total_sales_count).toLowerCase().includes(lowerCaseSearchTerm) ||
+        String(item.total_quantity_sold).toLowerCase().includes(lowerCaseSearchTerm) ||
+        String(item.total_revenue).toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
+
+    // 2. Ordenação
     if (sortConfig.key) {
-      sortableItems.sort((a, b) => {
+      itemsToProcess.sort((a, b) => {
         const aValue = a[sortConfig.key!];
         const bValue = b[sortConfig.key!];
 
@@ -89,11 +104,11 @@ const ProdutosSemFichaTecnica: React.FC = () => {
         return 0;
       });
     }
-    return sortableItems;
-  }, [productsWithoutRecipes, sortConfig]);
+    return itemsToProcess;
+  }, [productsWithoutRecipes, sortConfig, searchTerm]); // Adicionar searchTerm como dependência
 
   const handleExportToExcel = () => {
-    if (!sortedProductsWithoutRecipes || sortedProductsWithoutRecipes.length === 0) {
+    if (!filteredAndSortedProductsWithoutRecipes || filteredAndSortedProductsWithoutRecipes.length === 0) {
       showWarning('Não há produtos sem ficha técnica para exportar.');
       return;
     }
@@ -107,7 +122,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       // 'Última Data de Venda', // Removido
     ];
 
-    const formattedData = sortedProductsWithoutRecipes.map(item => ({
+    const formattedData = filteredAndSortedProductsWithoutRecipes.map(item => ({
       'Codigo Produto': item.additional_code || 'N/A', // Movido para o início
       'Nome do Produto Vendido': item.sold_product_name,
       'Total de Vendas': item.total_sales_count,
@@ -155,7 +170,12 @@ const ProdutosSemFichaTecnica: React.FC = () => {
         É importante cadastrar as fichas técnicas na página "Carga de Dados" para que o custo dos produtos vendidos e o estoque sejam calculados corretamente.
       </p>
 
-      {sortedProductsWithoutRecipes && sortedProductsWithoutRecipes.length === 0 ? (
+      {filteredAndSortedProductsWithoutRecipes && filteredAndSortedProductsWithoutRecipes.length === 0 && productsWithoutRecipes && productsWithoutRecipes.length > 0 ? (
+        <div className="text-center text-gray-600 dark:text-gray-400 py-8">
+          <p className="text-lg">Nenhum resultado encontrado para o filtro atual.</p>
+          <p className="text-sm mt-2">Tente ajustar o termo de busca.</p>
+        </div>
+      ) : filteredAndSortedProductsWithoutRecipes && filteredAndSortedProductsWithoutRecipes.length === 0 && productsWithoutRecipes && productsWithoutRecipes.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">🎉 Todos os produtos vendidos já possuem ficha técnica cadastrada!</p>
           <p className="text-sm mt-2">Não há produtos pendentes de ficha técnica.</p>
@@ -174,6 +194,12 @@ const ProdutosSemFichaTecnica: React.FC = () => {
                 <Download className="h-4 w-4" /> Exportar para Excel
               </Button>
             </div>
+            <Input
+              placeholder="Filtrar por código, nome do produto, vendas, quantidade ou receita..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm mt-4"
+            />
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -269,7 +295,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedProductsWithoutRecipes?.map((item, index) => (
+                  {filteredAndSortedProductsWithoutRecipes?.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Movido para o início */}
                       <TableCell className="font-medium">{item.sold_product_name}</TableCell>

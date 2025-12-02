@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input'; // Importar Input
 
 interface InternalProductAverageCost {
   user_id: string;
@@ -40,6 +41,7 @@ interface SortConfig {
 const ProdutosInternosNaoUtilizados: React.FC = () => {
   const { user } = useSession();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
+  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
 
   const { data: allInternalProducts, isLoading: isLoadingAll, isError: isErrorAll, error: errorAll } = useQuery<InternalProductAverageCost[], Error>({
     queryKey: ['internal_product_average_cost', user?.id],
@@ -92,19 +94,42 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
   };
 
   const unusedInternalProducts = useMemo(() => {
-    if (!allInternalProducts) return []; // Se não há produtos internos comprados, não há o que filtrar
+    if (!allInternalProducts) return [];
 
     // Se não há fichas técnicas, todos os produtos comprados são considerados "não utilizados"
     if (!usedInternalProductsInRecipes || usedInternalProductsInRecipes.length === 0) {
-      return allInternalProducts;
+      let itemsToProcess = [...allInternalProducts];
+      // Aplicar filtro de busca aqui também, se não houver receitas
+      if (searchTerm) {
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+        itemsToProcess = itemsToProcess.filter(item =>
+          item.internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+          item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
+          String(item.total_value_purchased).toLowerCase().includes(lowerCaseSearchTerm) ||
+          String(item.total_quantity_converted).toLowerCase().includes(lowerCaseSearchTerm) ||
+          String(item.average_unit_cost).toLowerCase().includes(lowerCaseSearchTerm)
+        );
+      }
+      return itemsToProcess;
     }
 
     const usedProductNames = new Set(usedInternalProductsInRecipes.map(p => p.internal_product_name.trim()));
 
     let sortableItems = allInternalProducts.filter(product => {
-      // Filtra produtos que NÃO estão na lista de produtos utilizados em receitas
       return !usedProductNames.has(product.internal_product_name.trim());
     });
+
+    // Aplicar filtro de busca
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      sortableItems = sortableItems.filter(item =>
+        item.internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        item.internal_unit.toLowerCase().includes(lowerCaseSearchTerm) ||
+        String(item.total_value_purchased).toLowerCase().includes(lowerCaseSearchTerm) ||
+        String(item.total_quantity_converted).toLowerCase().includes(lowerCaseSearchTerm) ||
+        String(item.average_unit_cost).toLowerCase().includes(lowerCaseSearchTerm)
+      );
+    }
 
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
@@ -127,7 +152,7 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
       });
     }
     return sortableItems;
-  }, [allInternalProducts, usedInternalProductsInRecipes, sortConfig]);
+  }, [allInternalProducts, usedInternalProductsInRecipes, sortConfig, searchTerm]); // Adicionar searchTerm como dependência
 
   const totalValuePurchasedSum = useMemo(() => {
     return unusedInternalProducts.reduce((sum, item) => sum + item.total_value_purchased, 0);
@@ -259,6 +284,12 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
                   <Download className="h-4 w-4" /> Exportar para Excel
                 </Button>
               </div>
+              <Input
+                placeholder="Filtrar por nome, unidade, valor ou quantidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm mt-4"
+              />
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
