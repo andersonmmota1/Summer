@@ -107,6 +107,11 @@ const VendasPorData: React.FC = () => {
     return rawSoldItems.sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
 
+  // NOVO: Totalizador do Valor Total Vendido
+  const grandTotalValueSold = useMemo(() => {
+    return rawSoldItems?.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0) || 0;
+  }, [rawSoldItems]);
+
   const handleClearDateFilter = () => {
     setDateRange(undefined);
   };
@@ -181,6 +186,21 @@ const VendasPorData: React.FC = () => {
           </Button>
         )}
       </div>
+
+      {/* NOVO CARD: Totalizador do Valor Total Vendido */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Valor Total Vendido (Período Selecionado)</CardTitle>
+          <CardDescription>
+            Somatório do valor total de todos os produtos vendidos no período filtrado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            {grandTotalValueSold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card: Vendas Agregadas por Data */}
