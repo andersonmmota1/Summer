@@ -75,7 +75,16 @@ const WebScraper: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'itens_comprados_do_scraper.xml';
+
+      // NOVO: Usar a chave de acesso (invoice_id) do primeiro item como nome do arquivo
+      let filename = 'itens_comprados_do_scraper.xml'; // Fallback
+      if (purchasedItems.length > 0 && purchasedItems[0].invoice_id) {
+        // Sanitizar o invoice_id para ser um nome de arquivo válido
+        const sanitizedInvoiceId = purchasedItems[0].invoice_id.replace(/[^a-zA-Z0-9-]/g, '_');
+        filename = `${sanitizedInvoiceId}.xml`;
+      }
+      
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
