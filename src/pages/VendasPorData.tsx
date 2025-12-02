@@ -5,8 +5,14 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon, XCircle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
 
 interface SoldItemRaw {
   id: string;
@@ -15,9 +21,9 @@ interface SoldItemRaw {
   quantity_sold: number;
   unit_price: number;
   total_value_sold: number | null;
-  group_name: string | null; // Adicionado
+  group_name: string | null;
   subgroup_name: string | null;
-  additional_code: string | null; // Adicionado
+  additional_code: string | null;
 }
 
 interface SalesByDateAggregated {
@@ -29,44 +35,39 @@ interface SalesByDateAggregated {
 
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const fetchAllSoldItems = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
       return [];
     }
 
-    let allData: SoldItemRaw[] = [];
-    let offset = 0;
-    const limit = 1000;
-    let hasMore = true;
+    let query = supabase
+      .from('sold_items')
+      .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code')
+      .eq('user_id', user.id);
 
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('sold_items')
-        .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code') // Selecionar novos campos
-        .eq('user_id', user.id)
-        .order('sale_date', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      if (error) {
-        console.error('VendasPorData: Erro ao carregar todos os itens vendidos (paginação):', error);
-        showError(`Erro ao carregar dados: ${error.message}`);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        allData = allData.concat(data);
-        offset += data.length;
-        hasMore = data.length === limit;
-      } else {
-        hasMore = false;
-      }
+    if (dateRange?.from) {
+      query = query.gte('sale_date', format(dateRange.from, 'yyyy-MM-dd'));
     }
-    return allData;
+    if (dateRange?.to) {
+      query = query.lte('sale_date', format(dateRange.to, 'yyyy-MM-dd'));
+    }
+
+    query = query.order('sale_date', { ascending: false });
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('VendasPorData: Erro ao carregar todos os itens vendidos:', error);
+      showError(`Erro ao carregar dados: ${error.message}`);
+      throw error;
+    }
+    return data || [];
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_vendas_por_data', user?.id],
+    queryKey: ['all_sold_items_vendas_por_data', user?.id, dateRange], // Adicionado dateRange à chave da query
     queryFn: fetchAllSoldItems,
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
@@ -103,11 +104,12 @@ const VendasPorData: React.FC = () => {
 
   const individualSoldItems = useMemo(() => {
     if (!rawSoldItems) return [];
-
-    let filteredItems = rawSoldItems;
-
-    return filteredItems.sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
+    return rawSoldItems.sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
+
+  const handleClearDateFilter = () => {
+    setDateRange(undefined);
+  };
 
   if (isLoading) {
     return (
@@ -135,6 +137,51 @@ const VendasPorData: React.FC = () => {
         Visualize o resumo das vendas por data e os produtos vendidos individualmente.
       </p>
 
+      <div className="flex items-center gap-4 mb-6">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              id="date"
+              variant={"outline"}
+              className={cn(
+                "w-[300px] justify-start text-left font-normal",
+                !dateRange?.from && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  <>
+                    {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
+                    {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
+                  </>
+                ) : (
+                  format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                )
+              ) : (
+                <span>Selecione um intervalo de datas</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              locale={ptBR}
+            />
+          </PopoverContent>
+        </Popover>
+        {dateRange?.from && (
+          <Button variant="outline" onClick={handleClearDateFilter} className="gap-2">
+            <XCircle className="h-4 w-4" /> Limpar Filtro
+          </Button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Card: Vendas Agregadas por Data */}
         <Card>
@@ -146,7 +193,7 @@ const VendasPorData: React.FC = () => {
           </CardHeader>
           <CardContent>
             {aggregatedSalesByDate.length === 0 ? (
-              <p className="text-center text-gray-600 dark:text-gray-400 py-4">Nenhuma venda encontrada.</p>
+              <p className="text-center text-gray-600 dark:text-gray-400 py-4">Nenhuma venda encontrada para o período selecionado.</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -190,15 +237,15 @@ const VendasPorData: React.FC = () => {
           </CardHeader>
           <CardContent>
             {individualSoldItems.length === 0 ? (
-              <p className="text-center text-gray-600 dark:text-gray-400 py-4">Nenhum produto vendido encontrado.</p>
+              <p className="text-center text-gray-600 dark:text-gray-400 py-4">Nenhum produto vendido encontrado para o período selecionado.</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Adicional (Grupo)</TableHead> {/* Novo cabeçalho */}
-                      <TableHead>Cód. Produto</TableHead> {/* Novo cabeçalho */}
+                      <TableHead>Adicional (Grupo)</TableHead>
+                      <TableHead>Cód. Produto</TableHead>
                       <TableHead>Produto</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
@@ -210,8 +257,8 @@ const VendasPorData: React.FC = () => {
                         key={item.id}
                       >
                         <TableCell>{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell>{item.group_name || 'N/A'}</TableCell> {/* Novo campo */}
-                        <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Novo campo */}
+                        <TableCell>{item.group_name || 'N/A'}</TableCell>
+                        <TableCell>{item.additional_code || 'N/A'}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{(item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
