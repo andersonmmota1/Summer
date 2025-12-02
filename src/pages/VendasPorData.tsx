@@ -12,7 +12,7 @@ import { CalendarIcon, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
+import { DateRange } from 'react-day-picker'; // Mantido para tipagem, mas usaremos Date[]
 
 interface SoldItemRaw {
   id: string;
@@ -35,24 +35,25 @@ interface SalesByDateAggregated {
 
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  // ATUALIZADO: Agora armazena um array de Dates para seleção múltipla
+  const [selectedDates, setSelectedDates] = useState<Date[] | undefined>(undefined);
+
+  // Formata as datas selecionadas para o formato 'yyyy-MM-dd' para a query do Supabase
+  const formattedSelectedDates = useMemo(() => {
+    if (!selectedDates || selectedDates.length === 0) return [];
+    return selectedDates.map(date => format(date, 'yyyy-MM-dd'));
+  }, [selectedDates]);
 
   const fetchAllSoldItems = async (): Promise<SoldItemRaw[]> => {
-    if (!user?.id) {
+    if (!user?.id || formattedSelectedDates.length === 0) {
       return [];
     }
 
     let query = supabase
       .from('sold_items')
       .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code')
-      .eq('user_id', user.id);
-
-    if (dateRange?.from) {
-      query = query.gte('sale_date', format(dateRange.from, 'yyyy-MM-dd'));
-    }
-    if (dateRange?.to) {
-      query = query.lte('sale_date', format(dateRange.to, 'yyyy-MM-dd'));
-    }
+      .eq('user_id', user.id)
+      .in('sale_date', formattedSelectedDates); // ATUALIZADO: Usar 'in' para múltiplas datas
 
     query = query.order('sale_date', { ascending: false });
 
@@ -67,9 +68,9 @@ const VendasPorData: React.FC = () => {
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_vendas_por_data', user?.id, dateRange], // Adicionado dateRange à chave da query
+    queryKey: ['all_sold_items_vendas_por_data', user?.id, formattedSelectedDates], // ATUALIZADO: Depende das datas formatadas
     queryFn: fetchAllSoldItems,
-    enabled: !!user?.id,
+    enabled: !!user?.id && formattedSelectedDates.length > 0, // Habilitar apenas se houver datas selecionadas
     staleTime: 1000 * 60 * 5,
     onError: (err) => {
       console.error('VendasPorData: Erro no React Query ao carregar dados brutos de vendas:', err);
@@ -113,7 +114,7 @@ const VendasPorData: React.FC = () => {
   }, [rawSoldItems]);
 
   const handleClearDateFilter = () => {
-    setDateRange(undefined);
+    setSelectedDates(undefined); // ATUALIZADO: Limpa o array de datas selecionadas
   };
 
   if (isLoading) {
@@ -150,37 +151,30 @@ const VendasPorData: React.FC = () => {
               variant={"outline"}
               className={cn(
                 "w-[300px] justify-start text-left font-normal",
-                !dateRange?.from && "text-muted-foreground"
+                !selectedDates || selectedDates.length === 0 && "text-muted-foreground" // ATUALIZADO: Verifica o array
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
-                    {format(dateRange.to, "dd/MM/yyyy", { locale: ptBR })}
-                  </>
-                ) : (
-                  format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
-                )
+              {selectedDates && selectedDates.length > 0 ? ( // ATUALIZADO: Exibe a contagem de dias
+                `${selectedDates.length} dia(s) selecionado(s)`
               ) : (
-                <span>Selecione um intervalo de datas</span>
+                <span>Selecione os dias para análise</span>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               initialFocus
-              mode="range"
-              defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={setDateRange}
+              mode="multiple" // ATUALIZADO: Modo de seleção múltipla
+              defaultMonth={selectedDates?.[0]} // ATUALIZADO: Usa a primeira data selecionada como mês padrão
+              selected={selectedDates}
+              onSelect={setSelectedDates}
               numberOfMonths={2}
               locale={ptBR}
             />
           </PopoverContent>
         </Popover>
-        {dateRange?.from && (
+        {selectedDates && selectedDates.length > 0 && ( // ATUALIZADO: Condição para mostrar o botão de limpar
           <Button variant="outline" onClick={handleClearDateFilter} className="gap-2">
             <XCircle className="h-4 w-4" /> Limpar Filtro
           </Button>
