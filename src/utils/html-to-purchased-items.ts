@@ -93,6 +93,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
             x_fant: supplierName,
             invoice_emission_date: invoiceEmissionDate,
             is_manual_entry: false, // Considerado como vindo de um documento, não manual
+            raw_xml_data: null, // NOVO: Não há dados XML brutos para HTML
           });
         }
       });

@@ -80,6 +80,11 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                   'item_sequence_number': itemSequenceNumber,
                   'x_fant': supplierName, // Usando o nome do fornecedor determinado
                   'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
+                  'raw_xml_data': { // NOVO: Armazena o XML interno do item como um objeto JSON
+                    det: itemElement.outerHTML, // Armazena o outerHTML da tag <det>
+                    // Você pode adicionar outros campos da nota fiscal aqui se quiser que eles sejam repetidos para cada item
+                    // Por exemplo: invoice_full_xml: xmlDoc.documentElement.outerHTML
+                  }
                 });
               }
             }
@@ -107,6 +112,9 @@ export const readXmlFile = (file: File): Promise<any[]> => {
                 'item_sequence_number': null,
                 'x_fant': supplierName, // Usando o nome do fornecedor determinado
                 'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
+                'raw_xml_data': { // NOVO: Armazena o XML interno do item como um objeto JSON
+                    prod: prodElement.outerHTML, // Armazena o outerHTML da tag <prod>
+                }
               });
             }
           });

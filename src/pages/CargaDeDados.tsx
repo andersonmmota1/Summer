@@ -62,6 +62,7 @@ export interface PurchasedItem { // Exportar a interface para uso no xml-exporte
   invoice_number: string | null;
   invoice_emission_date: string | null;
   is_manual_entry: boolean; // NOVO: Adicionado campo para entrada manual
+  raw_xml_data?: any; // NOVO: Adicionado campo para dados XML brutos
 }
 
 // NOVO: Interface para os dados de vendas horárias lidos do Excel
@@ -420,6 +421,7 @@ const CargaDeDados: React.FC = () => {
             x_fant: row.x_fant,
             invoice_emission_date: parsedEmissionDate,
             is_manual_entry: false, // XML uploads are not manual entries
+            raw_xml_data: row.raw_xml_data || null, // NOVO: Adiciona os dados XML brutos
           };
         });
 
@@ -514,9 +516,8 @@ const CargaDeDados: React.FC = () => {
             value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
           });
         }
-        const combinedItem = combinedDataMap.get(key)!;
         for (let i = 0; i <= 23; i++) {
-          combinedItem[`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
+          combinedDataMap.get(key)![`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
       });
 
@@ -895,7 +896,7 @@ const CargaDeDados: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('purchased_items')
-        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry') // Listar explicitamente as colunas, incluindo is_manual_entry
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry, raw_xml_data') // Listar explicitamente as colunas, incluindo is_manual_entry e raw_xml_data
         .eq('user_id', user?.id) // Filtrar por user_id
         .order('created_at', { ascending: false });
 
@@ -920,7 +921,8 @@ const CargaDeDados: React.FC = () => {
         'Número do Item na Nota',
         'Data de Emissão da NF',
         'Data de Registro no Sistema',
-        'Entrada Manual', // NOVO: Cabeçalho para a nova coluna
+        'Entrada Manual',
+        'Dados XML Brutos', // NOVO: Cabeçalho para a nova coluna
       ];
 
       const formattedData = data.map(item => ({
@@ -937,7 +939,8 @@ const CargaDeDados: React.FC = () => {
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
         'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
         'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
-        'Entrada Manual': item.is_manual_entry ? 'Sim' : 'Não', // NOVO: Valor para a nova coluna
+        'Entrada Manual': item.is_manual_entry ? 'Sim' : 'Não',
+        'Dados XML Brutos': item.raw_xml_data ? JSON.stringify(item.raw_xml_data) : '', // NOVO: Inclui os dados XML brutos como string JSON
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
@@ -963,7 +966,7 @@ const CargaDeDados: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('purchased_items')
-        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry')
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry, raw_xml_data')
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
@@ -974,6 +977,7 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
+      // A função exportPurchasedItemsToXml agora pode usar raw_xml_data se disponível
       const xmlContent = exportPurchasedItemsToXml(data);
       const blob = new Blob([xmlContent], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
@@ -1459,6 +1463,7 @@ const CargaDeDados: React.FC = () => {
         x_fant: values.x_fant,
         invoice_emission_date: values.invoice_emission_date ? format(values.invoice_emission_date, 'yyyy-MM-dd') : null,
         is_manual_entry: true, // NOVO: Marca como entrada manual
+        raw_xml_data: null, // Entradas manuais não têm dados XML brutos
       };
 
       const { error } = await supabase

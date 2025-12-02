@@ -24,6 +24,9 @@ const escapeXml = (text: string | number | boolean | null | undefined): string =
  * onde cada nota fiscal segue uma estrutura simplificada de NFe/NFC-e.
  * Assume que os itens fornecidos podem pertencer a diferentes notas fiscais.
  *
+ * Se um item tiver `raw_xml_data.det` (o XML bruto do detalhe do item), ele será usado.
+ * Caso contrário, o XML será gerado a partir dos campos estruturados.
+ *
  * @param allItems Array de objetos PurchasedItem, possivelmente de várias notas.
  * @returns Uma string XML contendo múltiplas estruturas de NFe/NFC-e.
  */
@@ -65,15 +68,26 @@ export const exportPurchasedItemsToXml = (allItems: PurchasedItem[]): string => 
     xmlString += `      </emit>\n`;
 
     itemsInInvoice.forEach(item => {
-      xmlString += `      <det nItem="${escapeXml(item.item_sequence_number || '1')}">\n`;
-      xmlString += `        <prod>\n`;
-      xmlString += `          <cProd>${escapeXml(item.c_prod)}</cProd>\n`;
-      xmlString += `          <xProd>${escapeXml(item.descricao_do_produto)}</xProd>\n`;
-      xmlString += `          <uCom>${escapeXml(item.u_com)}</uCom>\n`;
-      xmlString += `          <qCom>${escapeXml(item.q_com)}</qCom>\n`;
-      xmlString += `          <vUnCom>${escapeXml(item.v_un_com)}</vUnCom>\n`;
-      xmlString += `        </prod>\n`;
-      xmlString += `      </det>\n`;
+      // Se raw_xml_data.det existe, usa o XML bruto do item
+      if (item.raw_xml_data && item.raw_xml_data.det) {
+        xmlString += `      ${item.raw_xml_data.det}\n`; // Adiciona o XML bruto do detalhe do item
+      } else if (item.raw_xml_data && item.raw_xml_data.prod) { // Fallback para <prod> se <det> não estiver presente
+        xmlString += `      <det nItem="${escapeXml(item.item_sequence_number || '1')}">\n`;
+        xmlString += `        ${item.raw_xml_data.prod}\n`;
+        xmlString += `      </det>\n`;
+      }
+      else {
+        // Caso contrário, gera o XML a partir dos campos estruturados
+        xmlString += `      <det nItem="${escapeXml(item.item_sequence_number || '1')}">\n`;
+        xmlString += `        <prod>\n`;
+        xmlString += `          <cProd>${escapeXml(item.c_prod)}</cProd>\n`;
+        xmlString += `          <xProd>${escapeXml(item.descricao_do_produto)}</xProd>\n`;
+        xmlString += `          <uCom>${escapeXml(item.u_com)}</uCom>\n`;
+        xmlString += `          <qCom>${escapeXml(item.q_com)}</qCom>\n`;
+        xmlString += `          <vUnCom>${escapeXml(item.v_un_com)}</vUnCom>\n`;
+        xmlString += `        </prod>\n`;
+        xmlString += `      </det>\n`;
+      }
     });
 
     xmlString += `    </infNFe>\n`;
