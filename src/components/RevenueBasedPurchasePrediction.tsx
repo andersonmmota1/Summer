@@ -124,6 +124,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       // --- Demanda Projetada de Produtos Vendidos (COM MULTIPLICADOR) ---
       const projectedSoldProductDemand: Record<string, number> = {};
       Object.keys(totalHistoricalQuantitySoldPerProduct).forEach(productName => {
+        // A demanda projetada é a quantidade histórica total multiplicada pelo fator de faturamento
         projectedSoldProductDemand[productName] = totalHistoricalQuantitySoldPerProduct[productName] * revenueMultiplier;
       });
 
