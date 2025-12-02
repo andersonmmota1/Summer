@@ -12,6 +12,7 @@ interface SoldItemRaw {
   quantity_sold: number;
   total_value_sold: number | null;
   group_name: string | null; // Adicionado
+  subgroup_name: string | null; // Adicionado
   additional_code: string | null; // Adicionado
 }
 
@@ -20,6 +21,12 @@ interface SalesByDate {
   total_quantity_sold: number;
   total_value_sold: number;
   itemCount: number;
+}
+
+interface AggregatedSales {
+  name: string;
+  total_quantity_sold: number;
+  total_value_sold: number;
 }
 
 const Inicio: React.FC = () => {
@@ -40,7 +47,7 @@ const Inicio: React.FC = () => {
     while (hasMore) {
       let query = supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, additional_code') // Selecionar novos campos
+        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, subgroup_name, additional_code') // Selecionar novos campos
         .eq('user_id', user.id);
 
       // Removido: if (selectedProduct) {
@@ -117,6 +124,54 @@ const Inicio: React.FC = () => {
     return salesByDate?.reduce((sum, sale) => sum + sale.total_value_sold, 0) || 0;
   }, [salesByDate]);
 
+  // NOVO: Agregação de vendas por Grupo
+  const salesByGroup = useMemo(() => {
+    if (!rawSoldItems) return [];
+
+    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
+
+    rawSoldItems.forEach(item => {
+      const groupName = item.group_name || 'Sem Grupo';
+      const itemTotalValue = item.total_value_sold ?? 0;
+
+      if (!aggregatedData[groupName]) {
+        aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0 };
+      }
+      aggregatedData[groupName].total_quantity_sold += item.quantity_sold;
+      aggregatedData[groupName].total_value_sold += itemTotalValue;
+    });
+
+    return Object.keys(aggregatedData).map(groupName => ({
+      name: groupName,
+      total_quantity_sold: aggregatedData[groupName].total_quantity_sold,
+      total_value_sold: aggregatedData[groupName].total_value_sold,
+    })).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+  }, [rawSoldItems]);
+
+  // NOVO: Agregação de vendas por Subgrupo
+  const salesBySubgroup = useMemo(() => {
+    if (!rawSoldItems) return [];
+
+    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
+
+    rawSoldItems.forEach(item => {
+      const subgroupName = item.subgroup_name || 'Sem Subgrupo';
+      const itemTotalValue = item.total_value_sold ?? 0;
+
+      if (!aggregatedData[subgroupName]) {
+        aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0 };
+      }
+      aggregatedData[subgroupName].total_quantity_sold += item.quantity_sold;
+      aggregatedData[subgroupName].total_value_sold += itemTotalValue;
+    });
+
+    return Object.keys(aggregatedData).map(subgroupName => ({
+      name: subgroupName,
+      total_quantity_sold: aggregatedData[subgroupName].total_quantity_sold,
+      total_value_sold: aggregatedData[subgroupName].total_value_sold,
+    })).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+  }, [rawSoldItems]);
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -134,7 +189,7 @@ const Inicio: React.FC = () => {
         </div>
       )} */}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"> {/* Layout ajustado para 4 colunas em telas grandes */}
         <Card>
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
@@ -179,6 +234,78 @@ const Inicio: React.FC = () => {
               <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                 {totalValueSoldSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* NOVO CARD: Vendas por Grupo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendas por Grupo</CardTitle>
+            <CardDescription>
+              Valor total vendido por cada grupo de produtos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center text-gray-600 dark:text-gray-400 py-4">
+                Carregando vendas por grupo...
+              </div>
+            ) : isError ? (
+              <div className="text-center text-red-600 dark:text-red-400 py-4">
+                Erro ao carregar vendas por grupo: {error?.message}
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {salesByGroup.length > 0 ? (
+                  salesByGroup.map((group, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-gray-800 dark:text-gray-200">{group.name}</span>
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-600 dark:text-gray-400">Nenhum dado de grupo encontrado.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* NOVO CARD: Vendas por Subgrupo */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendas por Subgrupo</CardTitle>
+            <CardDescription>
+              Valor total vendido por cada subgrupo de produtos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center text-gray-600 dark:text-gray-400 py-4">
+                Carregando vendas por subgrupo...
+              </div>
+            ) : isError ? (
+              <div className="text-center text-red-600 dark:text-red-400 py-4">
+                Erro ao carregar vendas por subgrupo: {error?.message}
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {salesBySubgroup.length > 0 ? (
+                  salesBySubgroup.map((subgroup, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-gray-800 dark:text-gray-200">{subgroup.name}</span>
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-600 dark:text-gray-400">Nenhum dado de subgrupo encontrado.</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
