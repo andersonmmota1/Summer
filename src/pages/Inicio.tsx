@@ -29,7 +29,7 @@ interface AggregatedSales {
   total_quantity_sold: number;
   total_value_sold: number;
   average_ticket: number; // Adicionado para o ticket médio
-  itemCount: number; // Adicionado para a quantidade de itens
+  // Removido: itemCount: number; // Removido, pois não será mais usado para 'Qtd. Itens'
 }
 
 const Inicio: React.FC = () => {
@@ -135,20 +135,20 @@ const Inicio: React.FC = () => {
       }
       aggregatedData[groupName].total_quantity_sold += item.quantity_sold;
       aggregatedData[groupName].total_value_sold += itemTotalValue;
-      aggregatedData[groupName].itemCount++; // Incrementa a contagem de itens
+      aggregatedData[groupName].itemCount++; // Mantemos itemCount aqui para o cálculo do ticket médio, mas não será exibido diretamente como 'Qtd. Itens'
     });
 
     return Object.keys(aggregatedData).map(groupName => {
       const total_quantity_sold = aggregatedData[groupName].total_quantity_sold;
       const total_value_sold = aggregatedData[groupName].total_value_sold;
-      const itemCount = aggregatedData[groupName].itemCount;
+      const itemCount = aggregatedData[groupName].itemCount; // Usado para ticket médio
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: groupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
-        itemCount,
+        // Removido: itemCount, // Não será exibido diretamente
       };
     })
     .filter(group => group.total_quantity_sold > 0 || group.total_value_sold > 0) // Filtra grupos com quantidade e valor zero
@@ -170,20 +170,20 @@ const Inicio: React.FC = () => {
       }
       aggregatedData[subgroupName].total_quantity_sold += item.quantity_sold;
       aggregatedData[subgroupName].total_value_sold += itemTotalValue;
-      aggregatedData[subgroupName].itemCount++; // Incrementa a contagem de itens
+      aggregatedData[subgroupName].itemCount++; // Mantemos itemCount aqui para o cálculo do ticket médio, mas não será exibido diretamente como 'Qtd. Itens'
     });
 
     return Object.keys(aggregatedData).map(subgroupName => {
       const total_quantity_sold = aggregatedData[subgroupName].total_quantity_sold;
       const total_value_sold = aggregatedData[subgroupName].total_value_sold;
-      const itemCount = aggregatedData[subgroupName].itemCount;
+      const itemCount = aggregatedData[subgroupName].itemCount; // Usado para ticket médio
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: subgroupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
-        itemCount,
+        // Removido: itemCount, // Não será exibido diretamente
       };
     })
     .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0) // Filtra subgrupos com quantidade e valor zero
@@ -290,7 +290,7 @@ const Inicio: React.FC = () => {
                     <TableRow>
                       <TableHead className="text-xs">Grupo</TableHead>
                       <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
-                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead> {/* Cabeçalho mantido */}
                       <TableHead className="text-right text-xs">Ticket Médio</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -303,7 +303,7 @@ const Inicio: React.FC = () => {
                             {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {group.itemCount.toLocaleString('pt-BR')}
+                            {group.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {/* AGORA EXIBE total_quantity_sold */}
                           </TableCell>
                           <TableCell className="text-right text-xs">
                             {group.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -348,7 +348,7 @@ const Inicio: React.FC = () => {
                     <TableRow>
                       <TableHead className="text-xs">Subgrupo</TableHead>
                       <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
-                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead> {/* Cabeçalho mantido */}
                       <TableHead className="text-right text-xs">Ticket Médio</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -361,7 +361,7 @@ const Inicio: React.FC = () => {
                             {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {subgroup.itemCount.toLocaleString('pt-BR')}
+                            {subgroup.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {/* AGORA EXIBE total_quantity_sold */}
                           </TableCell>
                           <TableCell className="text-right text-xs">
                             {subgroup.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
