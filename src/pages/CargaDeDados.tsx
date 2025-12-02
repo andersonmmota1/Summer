@@ -979,7 +979,16 @@ const CargaDeDados: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'itens_comprados_detalhado.xml';
+
+      // Determinar o nome do arquivo
+      let filename = 'itens_comprados_detalhado.xml';
+      if (data.length > 0 && data[0].invoice_id) {
+        // Usar o invoice_id do primeiro item e sanitizá-lo para o nome do arquivo
+        const sanitizedInvoiceId = data[0].invoice_id.replace(/[^a-zA-Z0-9-]/g, '_'); // Remove caracteres inválidos
+        filename = `${sanitizedInvoiceId}.xml`;
+      }
+      
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -1385,8 +1394,8 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
-      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] }); // Invalida a query da Análise de Fornecedor
-      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] }); // Invalida a query da Estoque
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] });
     } catch (error: any) {
       showError(`Erro ao limpar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
