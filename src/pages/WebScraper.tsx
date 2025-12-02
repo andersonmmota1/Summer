@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useSession } from '@/components/SessionContextProvider';
+import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items'; // Importar a nova função
+import { exportPurchasedItemsToXml } from '@/utils/xml-exporter'; // Importar a função de exportação XML
 
 const WebScraper: React.FC = () => {
+  const { user } = useSession();
   const [targetUrl, setTargetUrl] = useState('');
   const [pageContent, setPageContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,8 +26,6 @@ const WebScraper: React.FC = () => {
     const loadingToastId = showLoading('Buscando conteúdo da URL...');
 
     try {
-      // Substitua 'htkmxbxjyavfmmxzfwdf' pelo seu Project ID real do Supabase
-      // E 'fetch-url-content' pelo nome da sua Edge Function
       const { data, error } = await supabase.functions.invoke('fetch-url-content', {
         body: { url: targetUrl },
       });
@@ -46,6 +48,45 @@ const WebScraper: React.FC = () => {
     } finally {
       dismissToast(loadingToastId);
       setLoading(false);
+    }
+  };
+
+  const handleExtractAndDownloadXml = async () => {
+    if (!pageContent) {
+      showError('Nenhum conteúdo de página para extrair. Por favor, busque uma URL primeiro.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível extrair e baixar XML.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Extraindo dados e gerando XML...');
+    try {
+      const purchasedItems = await extractPurchasedItemsFromHtml(pageContent, user.id);
+      
+      if (purchasedItems.length === 0) {
+        showWarning('Nenhum item de produto válido foi extraído do conteúdo HTML. O arquivo XML não será gerado.');
+        return;
+      }
+
+      const xmlContent = exportPurchasedItemsToXml(purchasedItems);
+      const blob = new Blob([xmlContent], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'itens_comprados_do_scraper.xml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${purchasedItems.length} itens extraídos e baixados como XML com sucesso!`);
+
+    } catch (error: any) {
+      console.error('Erro ao extrair e baixar XML:', error);
+      showError(`Erro ao extrair e baixar XML: ${error.message}`);
+    } finally {
+      dismissToast(loadingToastId);
     }
   };
 
@@ -87,8 +128,19 @@ const WebScraper: React.FC = () => {
       {pageContent && (
         <Card>
           <CardHeader>
-            <CardTitle>Conteúdo da Página</CardTitle>
-            <CardDescription>O HTML bruto retornado pela URL.</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Conteúdo da Página</CardTitle>
+                <CardDescription>O HTML bruto retornado pela URL.</CardDescription>
+              </div>
+              <Button onClick={handleExtractAndDownloadXml} disabled={loading || !pageContent} variant="outline">
+                Extrair e Baixar como XML de Itens Comprados
+              </Button>
+            </div>
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+              **Aviso**: A extração de dados para XML é otimizada para o formato HTML de NFC-e.
+              Pode não funcionar corretamente com outras estruturas de página.
+            </p>
           </CardHeader>
           <CardContent>
             <Textarea
