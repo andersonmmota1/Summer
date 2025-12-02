@@ -4,6 +4,7 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Importar componentes de tabela
 // Removido: import { useFilter } from '@/contexts/FilterContext';
 
 interface SoldItemRaw {
@@ -27,7 +28,7 @@ interface AggregatedSales {
   name: string;
   total_quantity_sold: number;
   total_value_sold: number;
-  average_ticket?: number; // Adicionado para o ticket médio
+  average_ticket: number; // Adicionado para o ticket médio
   itemCount: number; // Adicionado para a quantidade de itens
 }
 
@@ -209,8 +210,8 @@ const Inicio: React.FC = () => {
         </div>
       )} */}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"> {/* Layout ajustado para 2 colunas em telas grandes */}
-        <Card> {/* Removido lg:col-span-2 */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Layout ajustado para 2 colunas em telas grandes */}
+        <Card>
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
             <CardDescription>
@@ -234,7 +235,7 @@ const Inicio: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card> {/* Removido lg:col-span-2 */}
+        <Card>
           <CardHeader>
             <CardTitle>Valor Total Vendido</CardTitle>
             <CardDescription>
@@ -258,8 +259,8 @@ const Inicio: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* NOVO CARD: Vendas por Grupo */}
-        <Card> {/* Não precisa de col-span, pois o grid já é de 2 colunas */}
+        {/* NOVO CARD: Vendas por Grupo (agora como tabela) */}
+        <Card>
           <CardHeader>
             <CardTitle>Vendas por Grupo</CardTitle>
             <CardDescription>
@@ -276,31 +277,48 @@ const Inicio: React.FC = () => {
                 Erro ao carregar vendas por grupo: {error?.message}
               </div>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {salesByGroup.length > 0 ? (
-                  salesByGroup.map((group, index) => (
-                    <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm border-b last:border-b-0 py-1">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">{group.name}</span>
-                      <div className="flex flex-col sm:flex-row sm:gap-1 text-right">
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          (Qtd Itens: {group.itemCount}, Ticket Médio: {group.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-gray-600 dark:text-gray-400">Nenhum dado de grupo encontrado.</p>
-                )}
+              <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Grupo</TableHead>
+                      <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
+                      <TableHead className="text-right text-xs">Ticket Médio</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salesByGroup.length > 0 ? (
+                      salesByGroup.map((group, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium text-xs">{group.name}</TableCell>
+                          <TableCell className="text-right text-xs">
+                            {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {group.itemCount.toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {group.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-12 text-center text-xs text-gray-600 dark:text-gray-400">
+                          Nenhum dado de grupo encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* NOVO CARD: Vendas por Subgrupo */}
-        <Card> {/* Não precisa de col-span, pois o grid já é de 2 colunas */}
+        {/* NOVO CARD: Vendas por Subgrupo (agora como tabela) */}
+        <Card>
           <CardHeader>
             <CardTitle>Vendas por Subgrupo</CardTitle>
             <CardDescription>
@@ -317,24 +335,41 @@ const Inicio: React.FC = () => {
                 Erro ao carregar vendas por subgrupo: {error?.message}
               </div>
             ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {salesBySubgroup.length > 0 ? (
-                  salesBySubgroup.map((subgroup, index) => (
-                    <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm border-b last:border-b-0 py-1">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">{subgroup.name}</span>
-                      <div className="flex flex-col sm:flex-row sm:gap-1 text-right">
-                        <span className="text-gray-900 dark:text-gray-100">
-                          {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          (Qtd Itens: {subgroup.itemCount}, Ticket Médio: {subgroup.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-gray-600 dark:text-gray-400">Nenhum dado de subgrupo encontrado.</p>
-                )}
+              <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Subgrupo</TableHead>
+                      <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
+                      <TableHead className="text-right text-xs">Ticket Médio</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salesBySubgroup.length > 0 ? (
+                      salesBySubgroup.map((subgroup, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium text-xs">{subgroup.name}</TableCell>
+                          <TableCell className="text-right text-xs">
+                            {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {subgroup.itemCount.toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            {subgroup.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-12 text-center text-xs text-gray-600 dark:text-gray-400">
+                          Nenhum dado de subgrupo encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </CardContent>
