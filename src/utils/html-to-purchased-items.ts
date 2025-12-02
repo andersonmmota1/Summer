@@ -21,19 +21,29 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       const invoiceIdElement = doc.querySelector('.chave');
       const invoiceId = invoiceIdElement?.textContent?.replace(/\s/g, '') || null; // Remover espaços da chave de acesso
 
-      const invoiceNumberElement = doc.querySelector('#infos strong:contains("Número:")');
-      const invoiceNumber = invoiceNumberElement?.nextSibling?.textContent?.trim() || null;
-
-      const invoiceEmissionDateElement = doc.querySelector('#infos strong:contains("Emissão:")');
+      // Encontrar elementos de número e emissão sem :contains()
+      const infosSection = doc.querySelector('#infos');
+      let invoiceNumber: string | null = null;
       let invoiceEmissionDate: string | null = null;
-      if (invoiceEmissionDateElement?.nextSibling?.textContent) {
-        const rawDateString = invoiceEmissionDateElement.nextSibling.textContent.split('-')[0]?.trim(); // Pega "02/12/2025 11:11:28"
-        // A função parseBrazilianDate já lida com o formato DD/MM/YYYY e retorna YYYY-MM-DD
-        invoiceEmissionDate = parseBrazilianDate(rawDateString);
-      }
+      let supplierName: string | null = null;
 
+      if (infosSection) {
+        const strongElements = infosSection.querySelectorAll('strong');
+        strongElements.forEach(strong => {
+          if (strong.textContent?.includes('Número:')) {
+            invoiceNumber = strong.nextSibling?.textContent?.trim() || null;
+          } else if (strong.textContent?.includes('Emissão:')) {
+            const rawDateString = strong.nextSibling?.textContent?.split('-')[0]?.trim();
+            if (rawDateString) {
+              invoiceEmissionDate = parseBrazilianDate(rawDateString);
+            }
+          }
+        });
+      }
+      
       const supplierNameElement = doc.querySelector('#u20.txtTopo');
-      const supplierName = supplierNameElement?.textContent?.trim() || null;
+      supplierName = supplierNameElement?.textContent?.trim() || null;
+
 
       // Extrair itens da tabela
       const itemRows = doc.querySelectorAll('#tabResult tr');
