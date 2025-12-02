@@ -63,8 +63,24 @@ interface ProductNameConversion {
   updated_at: string;
 }
 
+// Nova interface para as conversões de unidades
+interface UnitConversion {
+  id: string;
+  user_id: string;
+  supplier_product_code: string;
+  supplier_name: string;
+  supplier_unit: string;
+  internal_unit: string;
+  conversion_factor: number;
+  created_at: string;
+  updated_at: string;
+  supplier_product_description: string | null;
+}
+
 interface DisplayPurchasedItem extends PurchasedItem {
   display_internal_product_name: string;
+  converted_quantity: number; // Novo campo para quantidade convertida
+  internal_unit_display: string; // Novo campo para unidade interna
 }
 
 interface SortConfigPurchasedItems {
@@ -127,7 +143,7 @@ const Estoque: React.FC = () => {
     },
   });
 
-  // NOVO: Query para buscar as quantidades totais vendidas de cada produto final
+  // Query para buscar as quantidades totais vendidas de cada produto final
   const { data: soldProductTotals, isLoading: isLoadingSoldProductTotals, isError: isErrorSoldProductTotals, error: errorSoldProductTotals } = useQuery<SoldProductTotalQuantity[], Error>({
     queryKey: ['sold_product_total_quantities', user?.id],
     queryFn: async () => {
@@ -182,7 +198,7 @@ const Estoque: React.FC = () => {
     },
   });
 
-  // NOVO: Query para buscar a contagem de itens comprados individualmente
+  // Query para buscar a contagem de itens comprados individualmente
   const { data: purchasedItemsCount, isLoading: isLoadingPurchasedItemsCount, isError: isErrorPurchasedItemsCount, error: errorPurchasedItemsCount } = useQuery<number, Error>({
     queryKey: ['purchased_items_count', user?.id],
     queryFn: async () => {
@@ -220,9 +236,28 @@ const Estoque: React.FC = () => {
     },
   });
 
-  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount || isLoadingSoldProductTotals;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || isErrorSoldProductTotals;
-  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount || errorSoldProductTotals;
+  // NOVO: Query para buscar todas as conversões de unidades
+  const { data: unitConversions, isLoading: isLoadingUnitConversions, isError: isErrorUnitConversions, error: errorUnitConversions } = useQuery<UnitConversion[], Error>({
+    queryKey: ['unit_conversions_stock', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('unit_conversions')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar conversões de unidades: ${err.message}`);
+    },
+  });
+
+  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount || isLoadingSoldProductTotals || isLoadingUnitConversions;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || isErrorSoldProductTotals || isErrorUnitConversions;
+  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount || errorSoldProductTotals || errorUnitConversions;
 
   useEffect(() => {
     if (isError) {
@@ -263,26 +298,48 @@ const Estoque: React.FC = () => {
 
   // Lógica para enriquecer itens comprados com o nome interno correto para exibição
   const enrichedPurchasedItems = useMemo(() => {
-    if (!purchasedItems || !productNameConversions) return [];
+    if (!purchasedItems || !productNameConversions || !unitConversions) return [];
 
     let items = purchasedItems.map(item => {
+      // 1. Determinar o nome interno de exibição
+      let displayInternalName = item.descricao_do_produto || 'Não Mapeado'; // Default para descrição original
       if (item.internal_product_name) {
-        return { ...item, display_internal_product_name: item.internal_product_name };
+        displayInternalName = item.internal_product_name;
+      } else {
+        const mappedNameConversion = productNameConversions.find(conversion =>
+          conversion.supplier_product_code === item.c_prod &&
+          conversion.supplier_name === item.x_fant
+        );
+        if (mappedNameConversion) {
+          displayInternalName = mappedNameConversion.internal_product_name;
+        }
       }
 
-      const mappedConversion = productNameConversions.find(conversion =>
+      // 2. Determinar a quantidade convertida e a unidade interna de exibição
+      let convertedQuantity = item.q_com;
+      let internalUnitDisplay = item.u_com; // Default para unidade original
+
+      const mappedUnitConversion = unitConversions.find(conversion =>
         conversion.supplier_product_code === item.c_prod &&
-        conversion.supplier_name === item.x_fant
+        conversion.supplier_name === item.x_fant &&
+        conversion.supplier_unit === item.u_com
       );
+
+      if (mappedUnitConversion) {
+        convertedQuantity = item.q_com * mappedUnitConversion.conversion_factor;
+        internalUnitDisplay = mappedUnitConversion.internal_unit;
+      }
 
       return {
         ...item,
-        display_internal_product_name: mappedConversion?.internal_product_name || item.descricao_do_produto || 'Não Mapeado'
+        display_internal_product_name: displayInternalName,
+        converted_quantity: convertedQuantity,
+        internal_unit_display: internalUnitDisplay,
       };
     });
 
     return items;
-  }, [purchasedItems, productNameConversions]);
+  }, [purchasedItems, productNameConversions, unitConversions]);
 
   // Função para lidar com a ordenação da tabela de entradas detalhadas
   const handleSortPurchasedItems = (key: keyof DisplayPurchasedItem) => {
@@ -305,7 +362,9 @@ const Estoque: React.FC = () => {
         (item.x_fant?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm))
+        (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.internal_unit_display?.toLowerCase().includes(lowerCaseSearchTerm)) || // Adicionado filtro por unidade interna
+        (String(item.converted_quantity).toLowerCase().includes(lowerCaseSearchTerm)) // Adicionado filtro por quantidade convertida
       );
     }
 
@@ -668,15 +727,31 @@ const Estoque: React.FC = () => {
                         <TableHead>Nome Interno do Produto</TableHead>
                         <TableHead>Fornecedor</TableHead>
                         <TableHead>Descrição do Produto (XML)</TableHead>
-                        <TableHead>Unidade</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSortPurchasedItems('internal_unit_display')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Unidade Interna
+                            {sortConfigPurchasedItems.key === 'internal_unit_display' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfigPurchasedItems.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead className="text-right">
                           <Button
                             variant="ghost"
-                            onClick={() => handleSortPurchasedItems('q_com')}
+                            onClick={() => handleSortPurchasedItems('converted_quantity')}
                             className="px-0 py-0 h-auto justify-end w-full"
                           >
-                            Quantidade
-                            {sortConfigPurchasedItems.key === 'q_com' && (
+                            Qtd. Comprada (Convertida)
+                            {sortConfigPurchasedItems.key === 'converted_quantity' && (
                               <ArrowUpDown
                                 className={cn(
                                   "ml-2 h-4 w-4 transition-transform",
@@ -705,8 +780,8 @@ const Estoque: React.FC = () => {
                             <TableCell>{item.display_internal_product_name}</TableCell>
                             <TableCell>{item.x_fant || 'N/A'}</TableCell>
                             <TableCell>{item.descricao_do_produto}</TableCell>
-                            <TableCell>{item.u_com}</TableCell>
-                            <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell>{item.internal_unit_display}</TableCell>
+                            <TableCell className="text-right">{item.converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                             <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           </TableRow>
                         ))
