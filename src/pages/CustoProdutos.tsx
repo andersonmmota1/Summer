@@ -4,7 +4,7 @@ import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
 // Removido: import { useFilter } from '@/contexts/FilterContext';
@@ -23,14 +23,19 @@ interface SoldProductRecipeDetail {
   component_cost: number;
 }
 
+// Nova interface para configuração de ordenação
+interface SortConfig {
+  key: keyof SoldProductCost | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const CustoProdutos: React.FC = () => {
   const { user } = useSession();
-  // Removido: const { filters } = useFilter();
-  // Removido: const { selectedProduct } = filters;
   const [soldProductCosts, setSoldProductCosts] = useState<SoldProductCost[]>([]);
   const [recipeDetails, setRecipeDetails] = useState<SoldProductRecipeDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sold_product_name', direction: 'asc' }); // Estado de ordenação
 
   useEffect(() => {
     if (user?.id) {
@@ -38,15 +43,12 @@ const CustoProdutos: React.FC = () => {
     } else {
       setLoading(false);
     }
-  }, [user?.id]); // Removido selectedProduct das dependências
+  }, [user?.id]);
 
   const fetchProductCostsAndRecipes = async () => {
     setLoading(true);
     const loadingToastId = showLoading('Calculando custo dos produtos vendidos e carregando fichas técnicas...');
     try {
-      // Fetch aggregated sold product costs
-      // Este card agrega por sold_product_name, então filtrar por internal_product_name é complexo aqui.
-      // Por enquanto, vamos manter este card sem filtro direto por selectedProduct.
       const { data: costsData, error: costsError } = await supabase
         .from('sold_product_cost')
         .select('*')
@@ -56,17 +58,12 @@ const CustoProdutos: React.FC = () => {
       if (costsError) throw costsError;
       setSoldProductCosts(costsData || []);
 
-      // Fetch detailed recipe components with costs
       let detailsQuery = supabase
         .from('sold_product_recipe_details')
         .select('*')
         .eq('user_id', user?.id)
         .order('sold_product_name', { ascending: true })
         .order('internal_product_name', { ascending: true });
-
-      // Removido: if (selectedProduct) {
-      // Removido:   detailsQuery = detailsQuery.eq('internal_product_name', selectedProduct); // Filtrar por nome interno do produto
-      // Removido: }
 
       const { data: detailsData, error: detailsError } = await detailsQuery;
 
@@ -100,6 +97,43 @@ const CustoProdutos: React.FC = () => {
     }));
   };
 
+  // Função para lidar com a ordenação
+  const handleSort = (key: keyof SoldProductCost) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Dados de custo de produtos vendidos ordenados
+  const sortedSoldProductCosts = useMemo(() => {
+    if (!soldProductCosts) return [];
+    let sortableItems = [...soldProductCosts];
+
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [soldProductCosts, sortConfig]);
+
   if (loading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -117,14 +151,6 @@ const CustoProdutos: React.FC = () => {
         Esta página exibe o custo estimado de cada produto vendido, calculado com base nas fichas técnicas cadastradas e no custo médio das matérias-primas (produtos internos).
         Expanda cada produto para ver os detalhes da sua ficha técnica e o custo individual de cada componente.
       </p>
-
-      {/* Removido: {selectedProduct && (
-        <div className="mb-4">
-          <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Filtrando por Produto Interno: <span className="font-bold text-primary">{selectedProduct}</span>
-          </span>
-        </div>
-      )} */}
 
       {soldProductCosts.length === 0 && recipeDetails.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
@@ -146,13 +172,45 @@ const CustoProdutos: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto Vendido</TableHead>
-                    <TableHead className="text-right">Custo Unitário Estimado</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('sold_product_name')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Produto Vendido
+                        {sortConfig.key === 'sold_product_name' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('estimated_cost_of_sold_product')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Custo Unitário Estimado
+                        {sortConfig.key === 'estimated_cost_of_sold_product' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
                     <TableHead className="text-right">Detalhes da Ficha Técnica</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {soldProductCosts.map((item, index) => (
+                  {sortedSoldProductCosts.map((item, index) => (
                     <React.Fragment key={index}>
                       <TableRow>
                         <TableCell className="font-medium">{item.sold_product_name}</TableCell>
