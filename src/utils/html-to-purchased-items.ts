@@ -1,81 +1,142 @@
-import { PurchasedItem } from '@/pages/CargaDeDados';
 import { parseBrazilianFloat, parseBrazilianDate } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid'; // Para gerar IDs únicos
+import { NFeDetailedItem } from '@/types/nfe'; // Importar a nova interface
 
 /**
  * Extrai dados de itens comprados de uma string HTML de NFC-e.
  * Esta função é altamente dependente da estrutura HTML específica de uma NFC-e.
  * @param htmlContent A string HTML bruta da página da NFC-e.
  * @param userId O ID do usuário para associar aos itens.
- * @returns Uma Promise que resolve para um array de objetos PurchasedItem.
+ * @returns Uma Promise que resolve para um array de objetos NFeDetailedItem.
  */
-export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: string): Promise<PurchasedItem[]> => {
+export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: string): Promise<NFeDetailedItem[]> => {
   return new Promise((resolve, reject) => {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
 
-      const items: PurchasedItem[] = [];
+      const items: NFeDetailedItem[] = [];
 
-      // Extrair dados da nota fiscal
-      const invoiceIdElement = doc.querySelector('.chave');
-      const invoiceId = invoiceIdElement?.textContent?.replace(/\s/g, '') || null; // Remover espaços da chave de acesso
+      // --- Extrair dados da Nota Fiscal (nível superior) ---
+      const infNFeId = doc.querySelector('.chave')?.textContent?.replace(/\s/g, '') || null;
 
-      let invoiceNumber: string | null = null;
-      let invoiceEmissionDate: string | null = null;
-      let supplierName: string | null = null;
-      let totalInvoiceValue: number | null = null; // NOVO: Variável para o valor total da nota
+      let nNF: string | null = null;
+      let dhEmi: string | null = null;
+      let xNomeEmit: string | null = null;
+      let emitCNPJ: string | null = null;
+      let vNFTotal: number | null = null;
+      let vProdTotal: number | null = null;
+      let vTotTribTotal: number | null = null;
+      let infCpl: string | null = null;
+      let tPag: string | null = null;
+      let vPag: number | null = null;
+      let destCNPJ: string | null = null;
+      let xNomeDest: string | null = null;
 
-      // Encontrar elementos de número e emissão iterando sobre os strongs na seção #infos
+      // Seção #infos (geralmente contém número, emissão)
       const infosSection = doc.querySelector('#infos');
       if (infosSection) {
         const strongElements = infosSection.querySelectorAll('strong');
         strongElements.forEach(strong => {
           if (strong.textContent?.includes('Número:')) {
-            invoiceNumber = strong.nextSibling?.textContent?.trim() || null;
+            nNF = strong.nextSibling?.textContent?.trim() || null;
           } else if (strong.textContent?.includes('Emissão:')) {
             const rawDateString = strong.nextSibling?.textContent?.split('-')[0]?.trim();
             if (rawDateString) {
-              invoiceEmissionDate = parseBrazilianDate(rawDateString);
+              dhEmi = parseBrazilianDate(rawDateString); // Converte para YYYY-MM-DD
             }
           }
         });
       }
-      
-      const supplierNameElement = doc.querySelector('#u20.txtTopo');
-      supplierName = supplierNameElement?.textContent?.trim() || null;
 
-      // NOVO: Tentar extrair o valor total da nota fiscal
-      const totalNfElement = doc.querySelector('#totalNf'); // Exemplo de seletor comum para total da NF
+      // Emitente
+      const emitSection = doc.querySelector('#u20'); // Seletor comum para o bloco do emitente
+      if (emitSection) {
+        xNomeEmit = emitSection.querySelector('.txtTopo')?.textContent?.trim() || null;
+        const cnpjEmitElement = emitSection.querySelector('.txtCNPJ');
+        if (cnpjEmitElement) {
+          emitCNPJ = cnpjEmitElement.textContent?.replace('CNPJ:', '').trim() || null;
+        }
+        // Outros campos do emitente (endereço, IE, CRT) são mais complexos de raspar de forma genérica do HTML
+        // e podem não estar presentes ou ter seletores muito variados.
+        // Por enquanto, focamos nos mais comuns.
+      }
+
+      // Totais
+      const totalNfElement = doc.querySelector('#totalNf'); // Valor total da nota
       if (totalNfElement) {
         const totalText = totalNfElement.textContent?.replace('R$', '').trim();
         if (totalText) {
-          totalInvoiceValue = parseBrazilianFloat(totalText);
+          vNFTotal = parseBrazilianFloat(totalText);
         }
       }
-      // Outros seletores possíveis para o total da nota, caso #totalNf não funcione
-      if (totalInvoiceValue === null) {
-        const totalValueElement = doc.querySelector('.total-value strong'); // Outro seletor comum
-        if (totalValueElement) {
-          const totalText = totalValueElement.textContent?.replace('R$', '').trim();
-          if (totalText) {
-            totalInvoiceValue = parseBrazilianFloat(totalText);
+      // Outros seletores para totais
+      const totalValueElement = doc.querySelector('.total-value strong');
+      if (vNFTotal === null && totalValueElement) {
+        const totalText = totalValueElement.textContent?.replace('R$', '').trim();
+        if (totalText) {
+          vNFTotal = parseBrazilianFloat(totalText);
+        }
+      }
+
+      const vProdTotalElement = doc.querySelector('#totalProdutos'); // Exemplo para total de produtos
+      if (vProdTotalElement) {
+        const prodTotalText = vProdTotalElement.textContent?.replace('R$', '').trim();
+        if (prodTotalText) {
+          vProdTotal = parseBrazilianFloat(prodTotalText);
+        }
+      }
+
+      const vTotTribTotalElement = doc.querySelector('#totalTributos'); // Exemplo para total de tributos
+      if (vTotTribTotalElement) {
+        const tribTotalText = vTotTribTotalElement.textContent?.replace('R$', '').trim();
+        if (tribTotalText) {
+          vTotTribTotal = parseBrazilianFloat(tribTotalText);
+        }
+      }
+
+      // Pagamento
+      const pagSection = doc.querySelector('#pag'); // Seletor comum para o bloco de pagamento
+      if (pagSection) {
+        const tPagElement = pagSection.querySelector('.tipoPagamento'); // Exemplo
+        tPag = tPagElement?.textContent?.trim() || null;
+
+        const vPagElement = pagSection.querySelector('.valorPagamento'); // Exemplo
+        if (vPagElement) {
+          const vPagText = vPagElement.textContent?.replace('R$', '').trim();
+          if (vPagText) {
+            vPag = parseBrazilianFloat(vPagText);
           }
         }
       }
 
+      // Destinatário
+      const destSection = doc.querySelector('#dest'); // Seletor comum para o bloco do destinatário
+      if (destSection) {
+        const xNomeDestElement = destSection.querySelector('.txtNome');
+        xNomeDest = xNomeDestElement?.textContent?.trim() || null;
+        const cnpjDestElement = destSection.querySelector('.txtCNPJ');
+        if (cnpjDestElement) {
+          destCNPJ = cnpjDestElement.textContent?.replace('CNPJ:', '').trim() || null;
+        }
+      }
 
-      // Extrair itens da tabela
+      // Informações Adicionais
+      const infAdicElement = doc.querySelector('#infAdic'); // Seletor comum
+      if (infAdicElement) {
+        infCpl = infAdicElement.textContent?.trim() || null;
+      }
+
+
+      // --- Extrair Itens da Tabela ---
       const itemRows = doc.querySelectorAll('#tabResult tr');
 
       itemRows.forEach((row, index) => {
-        // Tenta pegar do ID, senão usa o índice + 1 como número sequencial
-        const itemSequenceNumber = row.id ? parseInt(row.id.replace('Item + ', '')) : (index + 1); 
+        const nItem = row.id ? parseInt(row.id.replace('Item + ', '')) : (index + 1); 
 
-        const txtTitElement = row.querySelector('.txtTit');
-        const descricaoDoProduto = txtTitElement?.firstChild?.textContent?.trim() || '';
+        const xProd = row.querySelector('.txtTit')?.firstChild?.textContent?.trim() || '';
 
-        let cProd = ''; // Declarar cProd com let e inicializar aqui
+        let cProd = '';
         const rCodElement = row.querySelector('.RCod');
         if (rCodElement && rCodElement.textContent) {
           const cProdMatch = rCodElement.textContent.match(/\(Código:\s*(\d+)\s*\)/);
@@ -84,36 +145,52 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
           }
         }
 
-        const rQtdElement = row.querySelector('.Rqtd strong');
-        const qComText = rQtdElement?.nextSibling?.textContent?.trim() || '0';
+        const qComText = row.querySelector('.Rqtd strong')?.nextSibling?.textContent?.trim() || '0';
         const qCom = parseBrazilianFloat(qComText.replace('Qtde.:', ''));
 
-        const rUnElement = row.querySelector('.RUN strong');
-        const uComText = rUnElement?.nextSibling?.textContent?.trim() || '';
+        const uComText = row.querySelector('.RUN strong')?.nextSibling?.textContent?.trim() || '';
         const uCom = uComText.replace('UN:', '');
 
-        const rVlUnitElement = row.querySelector('.RvlUnit strong');
-        const vUnComText = rVlUnitElement?.nextSibling?.textContent?.trim() || '0';
+        const vUnComText = row.querySelector('.RvlUnit strong')?.nextSibling?.textContent?.trim() || '0';
         const vUnCom = parseBrazilianFloat(vUnComText.replace('Vl. Unit.:', ''));
 
-        if (descricaoDoProduto && cProd && qCom > 0) {
+        const vProdElement = row.querySelector('.RvlItem strong'); // Valor total do item
+        const vProd = vProdElement ? parseBrazilianFloat(vProdElement.textContent?.trim() || '0') : (qCom * vUnCom);
+
+        const vTotTribItemElement = row.querySelector('.vTotTribItem'); // Exemplo para tributos do item
+        const vTotTribItem = vTotTribItemElement ? parseBrazilianFloat(vTotTribItemElement.textContent?.replace('R$', '').trim() || '0') : null;
+
+
+        if (xProd && cProd && qCom > 0) {
           items.push({
-            id: uuidv4(), // Gerar um ID único para cada item
+            // Campos da NFeDetailedItem
+            Id: infNFeId,
+            nNF: nNF,
+            dhEmi: dhEmi,
+            xNomeEmit: xNomeEmit,
+            emitCNPJ: emitCNPJ,
+            vNFTotal: vNFTotal,
+            vProdTotal: vProdTotal,
+            vTotTribTotal: vTotTribTotal,
+            infCpl: infCpl,
+            tPag: tPag,
+            vPag: vPag,
+            destCNPJ: destCNPJ,
+            xNomeDest: xNomeDest,
+
+            nItem: nItem,
+            cProd: cProd,
+            xProd: xProd,
+            qCom: qCom,
+            uCom: uCom,
+            vUnCom: vUnCom,
+            vProd: vProd,
+            vTotTribItem: vTotTribItem,
+
+            // Campos adicionais para uso interno
             user_id: userId,
-            c_prod: cProd,
-            descricao_do_produto: descricaoDoProduto,
-            u_com: uCom,
-            q_com: qCom,
-            v_un_com: vUnCom,
             created_at: new Date().toISOString(),
-            internal_product_name: null, // Não disponível no HTML da NFC-e
-            invoice_id: invoiceId,
-            invoice_number: invoiceNumber,
-            item_sequence_number: itemSequenceNumber,
-            x_fant: supplierName,
-            invoice_emission_date: invoiceEmissionDate,
-            is_manual_entry: false, // Considerado como vindo de um documento, não manual
-            total_invoice_value: totalInvoiceValue, // NOVO: Adiciona o valor total da nota
+            is_manual_entry: false,
           });
         }
       });
@@ -123,7 +200,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         return;
       }
 
-      console.log('Itens extraídos do HTML:', items); // Log para depuração
+      console.log('Itens extraídos do HTML:', items);
       resolve(items);
 
     } catch (error: any) {

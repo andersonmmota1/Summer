@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useSession } from '@/components/SessionContextProvider';
 import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items'; // Importar a nova função
 import { exportPurchasedItemsToXml } from '@/utils/xml-exporter'; // Importar a função de exportação XML
+import { NFeDetailedItem } from '@/types/nfe'; // Importar a nova interface
 
 const WebScraper: React.FC = () => {
   const { user } = useSession();
@@ -63,25 +64,27 @@ const WebScraper: React.FC = () => {
 
     const loadingToastId = showLoading('Extraindo dados e gerando XML...');
     try {
-      const purchasedItems = await extractPurchasedItemsFromHtml(pageContent, user.id);
+      // extractPurchasedItemsFromHtml agora retorna NFeDetailedItem[]
+      const detailedNFeItems: NFeDetailedItem[] = await extractPurchasedItemsFromHtml(pageContent, user.id);
       
-      if (purchasedItems.length === 0) {
+      if (detailedNFeItems.length === 0) {
         showWarning('Nenhum item de produto válido foi extraído do conteúdo HTML. O arquivo XML não será gerado.');
         return;
       }
 
-      const xmlContent = exportPurchasedItemsToXml(purchasedItems);
+      // exportPurchasedItemsToXml agora aceita NFeDetailedItem[]
+      const xmlContent = exportPurchasedItemsToXml(detailedNFeItems);
       const blob = new Blob([xmlContent], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
-      // Usar a chave de acesso (invoice_id) do primeiro item como nome do arquivo
-      let filename = 'itens_comprados_do_scraper.xml'; // Fallback
-      if (purchasedItems.length > 0 && purchasedItems[0].invoice_id) {
-        // Sanitizar o invoice_id para ser um nome de arquivo válido
-        const sanitizedInvoiceId = purchasedItems[0].invoice_id.replace(/[^a-zA-Z0-9-]/g, '_');
-        filename = `${sanitizedInvoiceId}.xml`;
+      // Usar a chave de acesso (Id) do primeiro item como nome do arquivo
+      let filename = 'nfe_extraida_do_scraper.xml'; // Fallback
+      if (detailedNFeItems.length > 0 && detailedNFeItems[0].Id) {
+        // Sanitizar o Id para ser um nome de arquivo válido
+        const sanitizedId = detailedNFeItems[0].Id.replace(/[^a-zA-Z0-9-]/g, '_');
+        filename = `${sanitizedId}.xml`;
       }
       
       a.download = filename;
@@ -89,7 +92,7 @@ const WebScraper: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccess(`Dados de ${purchasedItems.length} itens extraídos e baixados como XML com sucesso!`);
+      showSuccess(`Dados de ${detailedNFeItems.length} itens extraídos e baixados como XML com sucesso!`);
 
     } catch (error: any) {
       console.error('Erro ao extrair e baixar XML:', error);
