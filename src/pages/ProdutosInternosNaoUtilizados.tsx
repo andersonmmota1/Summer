@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
+import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 interface InternalProductAverageCost {
   user_id: string;
@@ -31,8 +32,15 @@ interface UnusedInternalProduct {
   average_unit_cost: number;
 }
 
+// Nova interface para configuração de ordenação
+interface SortConfig {
+  key: keyof UnusedInternalProduct | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const ProdutosInternosNaoUtilizados: React.FC = () => {
   const { user } = useSession();
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' }); // Estado de ordenação
 
   // Fetch all internal products that have an average cost (meaning they've been purchased and converted)
   const { data: allInternalProducts, isLoading: isLoadingAll, isError: isErrorAll, error: errorAll } = useQuery<InternalProductAverageCost[], Error>({
@@ -78,13 +86,45 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     }
   }, [isError, error]);
 
+  // Função para lidar com a ordenação
+  const handleSort = (key: keyof UnusedInternalProduct) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const unusedInternalProducts = useMemo(() => {
     if (!allInternalProducts || !usedInternalProductsInRecipes) return [];
 
     const usedProductNames = new Set(usedInternalProductsInRecipes.map(p => p.internal_product_name));
 
-    return allInternalProducts.filter(product => !usedProductNames.has(product.internal_product_name));
-  }, [allInternalProducts, usedInternalProductsInRecipes]);
+    let sortableItems = allInternalProducts.filter(product => !usedProductNames.has(product.internal_product_name));
+
+    // Aplicar ordenação
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [allInternalProducts, usedInternalProductsInRecipes, sortConfig]);
 
   const handleExportToExcel = () => {
     if (!unusedInternalProducts || unusedInternalProducts.length === 0) {
@@ -173,11 +213,91 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome Interno do Produto</TableHead>
-                    <TableHead>Unidade Interna</TableHead>
-                    <TableHead className="text-right">Valor Total Comprado</TableHead>
-                    <TableHead className="text-right">Qtd. Total Convertida</TableHead>
-                    <TableHead className="text-right">Custo Unitário Médio</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('internal_product_name')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Nome Interno do Produto
+                        {sortConfig.key === 'internal_product_name' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('internal_unit')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Unidade Interna
+                        {sortConfig.key === 'internal_unit' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_value_purchased')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Valor Total Comprado
+                        {sortConfig.key === 'total_value_purchased' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_quantity_converted')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Qtd. Total Convertida
+                        {sortConfig.key === 'total_quantity_converted' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('average_unit_cost')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Custo Unitário Médio
+                        {sortConfig.key === 'average_unit_cost' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
