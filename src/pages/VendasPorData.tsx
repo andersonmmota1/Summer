@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO, addDays, addMonths } from 'date-fns'; // Importar addMonths
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, XCircle } from 'lucide-react';
@@ -133,6 +133,9 @@ const VendasPorData: React.FC = () => {
     setSelectedDates(undefined);
   };
 
+  // Definir o mês padrão para o calendário: mês anterior ao atual
+  const defaultCalendarMonth = useMemo(() => addMonths(new Date(), -1), []);
+
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
@@ -182,7 +185,7 @@ const VendasPorData: React.FC = () => {
             <Calendar
               initialFocus
               mode="multiple"
-              defaultMonth={selectedDates?.[0]}
+              month={defaultCalendarMonth} {/* ATUALIZADO: Define o mês inicial para o mês anterior */}
               selected={selectedDates}
               onSelect={setSelectedDates}
               numberOfMonths={2}

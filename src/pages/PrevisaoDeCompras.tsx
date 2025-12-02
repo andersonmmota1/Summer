@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker'; // Manter DateRange para tipagem, mas usaremos Date[]
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, addMonths } from 'date-fns'; // Importar addMonths
 import { ptBR } from 'date-fns/locale';
 import { createExcelFile } from '@/utils/excel';
 
@@ -302,6 +302,9 @@ const PrevisaoDeCompras: React.FC = () => {
     showSuccess('Previsão de compras exportada para Excel com sucesso!');
   };
 
+  // Definir o mês padrão para o calendário: mês anterior ao atual
+  const defaultCalendarMonth = useMemo(() => addMonths(new Date(), -1), []);
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -345,6 +348,7 @@ const PrevisaoDeCompras: React.FC = () => {
                   <Calendar
                     initialFocus
                     mode="multiple" // ATUALIZADO: Modo de seleção múltipla
+                    month={defaultCalendarMonth} {/* ATUALIZADO: Define o mês inicial para o mês anterior */}
                     selected={historicalSelectedDates}
                     onSelect={setHistoricalSelectedDates}
                     numberOfMonths={2}
