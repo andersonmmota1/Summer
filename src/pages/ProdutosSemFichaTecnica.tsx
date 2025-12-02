@@ -1,15 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
 
 interface ProductWithoutRecipeSummary {
   user_id: string;
@@ -21,8 +22,15 @@ interface ProductWithoutRecipeSummary {
   // last_sale_date: string; // Removido
 }
 
+// Nova interface para configuração de ordenação
+interface SortConfig {
+  key: keyof ProductWithoutRecipeSummary | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const ProdutosSemFichaTecnica: React.FC = () => {
   const { user } = useSession();
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'sold_product_name', direction: 'asc' }); // Estado de ordenação
 
   const { data: productsWithoutRecipes, isLoading, isError, error } = useQuery<ProductWithoutRecipeSummary[], Error>({
     queryKey: ['products_without_recipes_summary', user?.id],
@@ -47,8 +55,45 @@ const ProdutosSemFichaTecnica: React.FC = () => {
     }
   }, [isError, error, productsWithoutRecipes]);
 
+  // Função para lidar com a ordenação
+  const handleSort = (key: keyof ProductWithoutRecipeSummary) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Dados ordenados
+  const sortedProductsWithoutRecipes = useMemo(() => {
+    if (!productsWithoutRecipes) return [];
+    let sortableItems = [...productsWithoutRecipes];
+
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [productsWithoutRecipes, sortConfig]);
+
   const handleExportToExcel = () => {
-    if (!productsWithoutRecipes || productsWithoutRecipes.length === 0) {
+    if (!sortedProductsWithoutRecipes || sortedProductsWithoutRecipes.length === 0) {
       showWarning('Não há produtos sem ficha técnica para exportar.');
       return;
     }
@@ -62,7 +107,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
       // 'Última Data de Venda', // Removido
     ];
 
-    const formattedData = productsWithoutRecipes.map(item => ({
+    const formattedData = sortedProductsWithoutRecipes.map(item => ({
       'Codigo Produto': item.additional_code || 'N/A', // Movido para o início
       'Nome do Produto Vendido': item.sold_product_name,
       'Total de Vendas': item.total_sales_count,
@@ -110,7 +155,7 @@ const ProdutosSemFichaTecnica: React.FC = () => {
         É importante cadastrar as fichas técnicas na página "Carga de Dados" para que o custo dos produtos vendidos e o estoque sejam calculados corretamente.
       </p>
 
-      {productsWithoutRecipes && productsWithoutRecipes.length === 0 ? (
+      {sortedProductsWithoutRecipes && sortedProductsWithoutRecipes.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">🎉 Todos os produtos vendidos já possuem ficha técnica cadastrada!</p>
           <p className="text-sm mt-2">Não há produtos pendentes de ficha técnica.</p>
@@ -135,16 +180,96 @@ const ProdutosSemFichaTecnica: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Codigo Produto</TableHead> {/* Movido para o início */}
-                    <TableHead>Nome do Produto Vendido</TableHead>
-                    <TableHead className="text-right">Total de Vendas</TableHead>
-                    <TableHead className="text-right">Qtd. Total Vendida</TableHead>
-                    <TableHead className="text-right">Receita Total</TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('additional_code')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Codigo Produto
+                        {sortConfig.key === 'additional_code' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('sold_product_name')}
+                        className="px-0 py-0 h-auto"
+                      >
+                        Nome do Produto Vendido
+                        {sortConfig.key === 'sold_product_name' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_sales_count')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Total de Vendas
+                        {sortConfig.key === 'total_sales_count' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_quantity_sold')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Qtd. Total Vendida
+                        {sortConfig.key === 'total_quantity_sold' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleSort('total_revenue')}
+                        className="px-0 py-0 h-auto justify-end w-full"
+                      >
+                        Receita Total
+                        {sortConfig.key === 'total_revenue' && (
+                          <ArrowUpDown
+                            className={cn(
+                              "ml-2 h-4 w-4 transition-transform",
+                              sortConfig.direction === 'desc' && "rotate-180"
+                            )}
+                          />
+                        )}
+                      </Button>
+                    </TableHead>
                     {/* <TableHead>Última Venda</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productsWithoutRecipes?.map((item, index) => (
+                  {sortedProductsWithoutRecipes?.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell>{item.additional_code || 'N/A'}</TableCell> {/* Movido para o início */}
                       <TableCell className="font-medium">{item.sold_product_name}</TableCell>
