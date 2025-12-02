@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarIcon, Download, ArrowUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
+import { cn, parseBrazilianFloat } from '@/lib/utils'; // Import parseBrazilianFloat
 import { DateRange } from 'react-day-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,6 +22,7 @@ interface SoldItemRaw {
   sale_date: string;
   product_name: string;
   quantity_sold: number;
+  total_value_sold: number | null; // Adicionado
 }
 
 interface ProductRecipe {
@@ -55,8 +56,12 @@ const PrevisaoDeCompras: React.FC = () => {
   const [historicalSelectedDates, setHistoricalSelectedDates] = useState<Date[] | undefined>(undefined);
   const [projectionDays, setProjectionDays] = useState<number>(7);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
-  const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
+
+  // NOVO: Estados para a nova lógica de projeção de faturamento
+  const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>(''); // Input do usuário como string
+  const [calculatedAverageDailyRevenue, setCalculatedAverageDailyRevenue] = useState<number>(0);
+  const [calculatedRevenueMultiplier, setCalculatedRevenueMultiplier] = useState<number>(1); // Default para 1 (sem escala)
 
   const formattedHistoricalDates = useMemo(() => {
     if (!historicalSelectedDates || historicalSelectedDates.length === 0) return [];
@@ -70,7 +75,7 @@ const PrevisaoDeCompras: React.FC = () => {
 
       const { data, error } = await supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold')
+        .select('sale_date, product_name, quantity_sold, total_value_sold') // Incluir total_value_sold
         .eq('user_id', user.id)
         .in('sale_date', formattedHistoricalDates);
 
@@ -153,21 +158,43 @@ const PrevisaoDeCompras: React.FC = () => {
         throw new Error('O número de dias históricos selecionados deve ser maior que zero.');
       }
 
-      const dailySales: Record<string, number> = {};
+      // --- Lógica de Média de Vendas por Quantidade ---
+      const dailySalesQuantity: Record<string, number> = {};
       rawSoldItems.forEach(item => {
-        dailySales[item.product_name] = (dailySales[item.product_name] || 0) + item.quantity_sold;
+        dailySalesQuantity[item.product_name] = (dailySalesQuantity[item.product_name] || 0) + item.quantity_sold;
       });
 
       const averageDailySales: Record<string, number> = {};
-      Object.keys(dailySales).forEach(productName => {
-        averageDailySales[productName] = dailySales[productName] / historicalDays;
+      Object.keys(dailySalesQuantity).forEach(productName => {
+        averageDailySales[productName] = dailySalesQuantity[productName] / historicalDays;
       });
 
+      // --- Lógica de Média de Faturamento Diário (NOVO) ---
+      let totalHistoricalRevenue = 0;
+      rawSoldItems.forEach(item => {
+        totalHistoricalRevenue += (item.total_value_sold ?? 0);
+      });
+      const avgDailyRevenue = historicalDays > 0 ? totalHistoricalRevenue / historicalDays : 0;
+      setCalculatedAverageDailyRevenue(avgDailyRevenue);
+
+      // --- Cálculo do Multiplicador de Faturamento (NOVO) ---
+      let revenueMultiplier = 1; // Default: sem alteração
+      const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
+
+      if (parsedProjectedRevenue > 0 && avgDailyRevenue > 0 && projectionDays > 0) {
+        revenueMultiplier = parsedProjectedRevenue / (avgDailyRevenue * projectionDays);
+      } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') { // Se o usuário digitou 0, o multiplicador é 0
+        revenueMultiplier = 0;
+      }
+      setCalculatedRevenueMultiplier(revenueMultiplier);
+
+      // --- Demanda Projetada de Produtos Vendidos (AGORA COM MULTIPLICADOR) ---
       const projectedSoldProductDemand: Record<string, number> = {};
       Object.keys(averageDailySales).forEach(productName => {
-        projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays;
+        projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays * revenueMultiplier;
       });
 
+      // --- Demanda Projetada de Produtos Internos ---
       const projectedInternalProductDemand: Record<string, number> = {};
 
       Object.keys(projectedSoldProductDemand).forEach(soldProductName => {
@@ -353,6 +380,54 @@ const PrevisaoDeCompras: React.FC = () => {
                 onChange={(e) => setProjectionDays(Math.max(1, Number(e.target.value)))}
                 min="1"
                 className="w-full md:w-32"
+              />
+            </div>
+          </div>
+          {/* NOVO: Seção de Projeção de Faturamento */}
+          <div className="space-y-4 border-t pt-4 mt-4 border-gray-200 dark:border-gray-700">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Projeção de Faturamento</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="average-daily-revenue" className="mb-2 block">Média de Faturamento Diário (Histórico)</Label>
+                <Input
+                  id="average-daily-revenue"
+                  type="text"
+                  value={calculatedAverageDailyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  readOnly
+                  className="w-full bg-gray-50 dark:bg-gray-700"
+                />
+              </div>
+              <div>
+                <Label htmlFor="projected-revenue" className="mb-2 block">Faturamento Projetado (Total para o período)</Label>
+                <Input
+                  id="projected-revenue"
+                  type="text"
+                  value={projectedRevenueInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Permite apenas números, vírgulas e pontos
+                    if (/^[0-9.,]*$/.test(value)) {
+                      setProjectedRevenueInput(value);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const parsed = parseBrazilianFloat(e.target.value);
+                    // Formata de volta para string com vírgula como separador decimal
+                    setProjectedRevenueInput(parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ','));
+                  }}
+                  placeholder="0,00"
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="revenue-multiplier" className="mb-2 block">Multiplicador de Faturamento</Label>
+              <Input
+                id="revenue-multiplier"
+                type="text"
+                value={calculatedRevenueMultiplier.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                readOnly
+                className="w-full bg-gray-50 dark:bg-gray-700"
               />
             </div>
           </div>
