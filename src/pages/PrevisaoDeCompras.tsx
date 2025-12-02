@@ -10,10 +10,10 @@ import { CalendarIcon, Download, ArrowUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker'; // Manter DateRange para tipagem, mas usaremos Date[]
+import { DateRange } from 'react-day-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { format, parseISO, differenceInDays, addMonths } from 'date-fns'; // Importar addMonths
+import { format, parseISO, differenceInDays, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { createExcelFile } from '@/utils/excel';
 
@@ -52,22 +52,19 @@ interface SortConfig {
 
 const PrevisaoDeCompras: React.FC = () => {
   const { user } = useSession();
-  // ATUALIZADO: Agora armazena um array de Dates para seleção múltipla
   const [historicalSelectedDates, setHistoricalSelectedDates] = useState<Date[] | undefined>(undefined);
-  const [projectionDays, setProjectionDays] = useState<number>(7); // Padrão: projetar para os próximos 7 dias
+  const [projectionDays, setProjectionDays] = useState<number>(7);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
 
-  // Formata as datas selecionadas para o formato 'yyyy-MM-dd' para a query do Supabase
   const formattedHistoricalDates = useMemo(() => {
     if (!historicalSelectedDates || historicalSelectedDates.length === 0) return [];
     return historicalSelectedDates.map(date => format(date, 'yyyy-MM-dd'));
   }, [historicalSelectedDates]);
 
-  // 1. Fetch Historical Sold Items
   const { data: rawSoldItems, isLoading: isLoadingSoldItems, isError: isErrorSoldItems, error: errorSoldItems } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['historical_sold_items', user?.id, formattedHistoricalDates], // Chave da query depende das datas formatadas
+    queryKey: ['historical_sold_items', user?.id, formattedHistoricalDates],
     queryFn: async () => {
       if (!user?.id || formattedHistoricalDates.length === 0) return [];
 
@@ -75,16 +72,15 @@ const PrevisaoDeCompras: React.FC = () => {
         .from('sold_items')
         .select('sale_date, product_name, quantity_sold')
         .eq('user_id', user.id)
-        .in('sale_date', formattedHistoricalDates); // ATUALIZADO: Usar 'in' para múltiplas datas
+        .in('sale_date', formattedHistoricalDates);
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.id && formattedHistoricalDates.length > 0, // Habilitar apenas se houver datas selecionadas
+    enabled: !!user?.id && formattedHistoricalDates.length > 0,
     staleTime: 1000 * 60 * 5,
   });
 
-  // 2. Fetch Product Recipes
   const { data: productRecipes, isLoading: isLoadingRecipes, isError: isErrorRecipes, error: errorRecipes } = useQuery<ProductRecipe[], Error>({
     queryKey: ['product_recipes_prediction', user?.id],
     queryFn: async () => {
@@ -100,7 +96,6 @@ const PrevisaoDeCompras: React.FC = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // 3. Fetch Current Stock Summary
   const { data: currentStock, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
     queryKey: ['current_stock_summary_prediction', user?.id],
     queryFn: async () => {
@@ -113,7 +108,7 @@ const PrevisaoDeCompras: React.FC = () => {
       return data || [];
     },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 1, // Estoque pode mudar mais frequentemente, 1 minuto
+    staleTime: 1000 * 60 * 1,
   });
 
   const isLoading = isLoadingSoldItems || isLoadingRecipes || isLoadingStock || loadingPrediction;
@@ -132,7 +127,6 @@ const PrevisaoDeCompras: React.FC = () => {
       showError('Usuário não autenticado. Não é possível gerar previsão de compras.');
       return;
     }
-    // ATUALIZADO: Verificar se há datas selecionadas
     if (!historicalSelectedDates || historicalSelectedDates.length === 0) {
       showError('Por favor, selecione pelo menos um dia histórico para a análise.');
       return;
@@ -154,31 +148,27 @@ const PrevisaoDeCompras: React.FC = () => {
     const loadingToastId = showLoading('Gerando previsão de compras...');
 
     try {
-      // 1. Calcular vendas diárias médias por produto vendido no período histórico
-      // ATUALIZADO: historicalDays é o número de dias selecionados
       const historicalDays = historicalSelectedDates.length;
       if (historicalDays <= 0) {
         throw new Error('O número de dias históricos selecionados deve ser maior que zero.');
       }
 
-      const dailySales: Record<string, number> = {}; // { "Produto X": total_quantity_sold }
+      const dailySales: Record<string, number> = {};
       rawSoldItems.forEach(item => {
         dailySales[item.product_name] = (dailySales[item.product_name] || 0) + item.quantity_sold;
       });
 
-      const averageDailySales: Record<string, number> = {}; // { "Produto X": avg_daily_quantity_sold }
+      const averageDailySales: Record<string, number> = {};
       Object.keys(dailySales).forEach(productName => {
         averageDailySales[productName] = dailySales[productName] / historicalDays;
       });
 
-      // 2. Projetar demanda futura de produtos vendidos
-      const projectedSoldProductDemand: Record<string, number> = {}; // { "Produto X": projected_quantity }
+      const projectedSoldProductDemand: Record<string, number> = {};
       Object.keys(averageDailySales).forEach(productName => {
         projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays;
       });
 
-      // 3. Desmembrar em matérias-primas (produtos internos)
-      const projectedInternalProductDemand: Record<string, number> = {}; // { "Materia Prima Y": total_projected_quantity_needed }
+      const projectedInternalProductDemand: Record<string, number> = {};
 
       Object.keys(projectedSoldProductDemand).forEach(soldProductName => {
         const projectedQuantity = projectedSoldProductDemand[soldProductName];
@@ -196,7 +186,6 @@ const PrevisaoDeCompras: React.FC = () => {
         });
       });
 
-      // 4. Comparar com estoque atual e calcular necessidade de compra
       const finalPrediction: PurchasePredictionItem[] = [];
       const stockMap = new Map(currentStock?.map(s => [s.internal_product_name, s]) || []);
 
@@ -205,9 +194,9 @@ const PrevisaoDeCompras: React.FC = () => {
         const stockInfo = stockMap.get(internalProductName);
 
         const currentStockQuantity = stockInfo?.current_stock_quantity || 0;
-        const internalUnit = stockInfo?.internal_unit || 'unidade'; // Fallback unit
+        const internalUnit = stockInfo?.internal_unit || 'unidade';
 
-        const purchaseQuantityNeeded = Math.max(0, projectedDemand - currentStockQuantity); // Não pode ser negativo
+        const purchaseQuantityNeeded = Math.max(0, projectedDemand - currentStockQuantity);
 
         finalPrediction.push({
           internal_product_name: internalProductName,
@@ -218,7 +207,6 @@ const PrevisaoDeCompras: React.FC = () => {
         });
       });
 
-      // Ordenar a previsão final (ex: por quantidade de compra necessária, decrescente)
       finalPrediction.sort((a, b) => b.purchase_quantity_needed - a.purchase_quantity_needed);
 
       setPurchasePrediction(finalPrediction);
@@ -302,7 +290,6 @@ const PrevisaoDeCompras: React.FC = () => {
     showSuccess('Previsão de compras exportada para Excel com sucesso!');
   };
 
-  // Definir o mês padrão para o calendário: mês anterior ao atual
   const defaultCalendarMonth = useMemo(() => addMonths(new Date(), -1), []);
 
   return (
@@ -347,8 +334,8 @@ const PrevisaoDeCompras: React.FC = () => {
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     initialFocus
-                    mode="multiple" // ATUALIZADO: Modo de seleção múltipla
-                    month={defaultCalendarMonth} {/* ATUALIZADO: Define o mês inicial para o mês anterior */}
+                    mode="multiple"
+                    month={defaultCalendarMonth}
                     selected={historicalSelectedDates}
                     onSelect={setHistoricalSelectedDates}
                     numberOfMonths={2}
