@@ -658,12 +658,38 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        sold_product_name: String(row['Produto Vendido']),
-        internal_product_name: String(row['Nome Interno']),
-        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']),
-      }));
+      // Deduplicar os dados antes de formatar e enviar
+      const uniqueRecipes = new Map<string, any>();
+      data.forEach((row: any, index: number) => {
+        const soldProductName = String(row['Produto Vendido']).trim();
+        const internalProductName = String(row['Nome Interno']).trim();
+        
+        if (!soldProductName || !internalProductName) {
+          showWarning(`Linha ${index + 2} do arquivo de Ficha Técnica ignorada: 'Produto Vendido' ou 'Nome Interno' está vazio.`);
+          return;
+        }
+
+        const key = `${soldProductName}-${internalProductName}`; // Chave de unicidade
+        if (uniqueRecipes.has(key)) {
+          showWarning(`Linha ${index + 2} do arquivo de Ficha Técnica: Duplicata para Produto Vendido "${soldProductName}" e Nome Interno "${internalProductName}" encontrada e ignorada.`);
+        } else {
+          uniqueRecipes.set(key, {
+            user_id: user.id,
+            sold_product_name: soldProductName,
+            internal_product_name: internalProductName,
+            quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']),
+          });
+        }
+      });
+
+      const formattedData = Array.from(uniqueRecipes.values());
+
+      if (formattedData.length === 0) {
+        showWarning('Nenhuma ficha técnica válida foi encontrada no arquivo após a deduplicação.');
+        dismissToast(loadingToastId);
+        setSelectedProductRecipeExcelFile(null);
+        return;
+      }
 
       const { error } = await supabase
         .from('product_recipes')
@@ -686,6 +712,7 @@ const CargaDeDados: React.FC = () => {
         queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
         queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
         queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['product_recipes_internal_products', user?.id] }); // Invalida para Produtos Internos Não Utilizados
       }
       setSelectedProductRecipeExcelFile(null);
     }
@@ -1250,6 +1277,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
       queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
+      queryClient.invalidateQueries({ queryKey: ['product_recipes_internal_products', user?.id] }); // Invalida para Produtos Internos Não Utilizados
     } catch (error: any) {
       showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
