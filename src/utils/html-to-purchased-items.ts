@@ -57,7 +57,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
 
         const rCodElement = row.querySelector('.RCod');
         const cProdMatch = rCodElement?.textContent?.match(/\(Código:\s*(\d+)\s*\)/);
-        const cProd = cProdMatch ? cProdMatch[1] : '';
+        const cProd = cProdMatch ? cProd[1] : '';
 
         const rQtdElement = row.querySelector('.Rqtd strong');
         const qComText = rQtdElement?.nextSibling?.textContent?.trim() || '0';
@@ -97,6 +97,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         return;
       }
 
+      console.log('Itens extraídos do HTML:', items); // Log para depuração
       resolve(items);
 
     } catch (error: any) {
