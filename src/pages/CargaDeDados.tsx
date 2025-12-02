@@ -635,6 +635,179 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  // NOVO: Função para upload de Ficha Técnica
+  const handleUploadProductRecipeExcel = async () => {
+    if (!selectedProductRecipeExcelFile) {
+      showError('Por favor, selecione um arquivo Excel de ficha técnica para carregar.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar fichas técnicas.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando ficha técnica de produtos...');
+    let hasError = false;
+
+    try {
+      const data: any[] = await readExcelFile(selectedProductRecipeExcelFile);
+
+      if (!data || data.length === 0) {
+        showError(`O arquivo Excel "${selectedProductRecipeExcelFile.name}" está vazio ou não contém dados válidos.`);
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        sold_product_name: String(row['Produto Vendido']),
+        internal_product_name: String(row['Nome Interno']),
+        quantity_needed: parseBrazilianFloat(row['Quantidade Necessária']),
+      }));
+
+      const { error } = await supabase
+        .from('product_recipes')
+        .upsert(formattedData, { onConflict: 'user_id, sold_product_name, internal_product_name', ignoreDuplicates: false }); // Atualiza se houver conflito
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} fichas técnicas carregados com sucesso!`);
+    } catch (error: any) {
+      showError(`Erro ao carregar ficha técnica: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      hasError = true;
+    } finally {
+      dismissToast(loadingToastId);
+      if (!hasError) {
+        queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
+        queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
+        queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
+        queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
+        queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] });
+      }
+      setSelectedProductRecipeExcelFile(null);
+    }
+  };
+
+  // NOVO: Função para upload de Conversão de Nomes de Produtos
+  const handleUploadProductNameConversionExcel = async () => {
+    if (!selectedProductNameConversionExcelFile) {
+      showError('Por favor, selecione um arquivo Excel de conversão de nomes para carregar.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar conversões de nomes de produtos.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando conversões de nomes de produtos...');
+    let hasError = false;
+
+    try {
+      const data: any[] = await readExcelFile(selectedProductNameConversionExcelFile);
+
+      if (!data || data.length === 0) {
+        showError(`O arquivo Excel "${selectedProductNameConversionExcelFile.name}" está vazio ou não contém dados válidos.`);
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        supplier_product_code: String(row['Código Fornecedor']),
+        supplier_name: String(row['Nome Fornecedor']),
+        supplier_product_name: String(row['Descrição Produto Fornecedor']),
+        internal_product_name: String(row['Nome Interno do Produto']),
+      }));
+
+      const { error } = await supabase
+        .from('product_name_conversions')
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name', ignoreDuplicates: false });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos carregados com sucesso!`);
+    } catch (error: any) {
+      showError(`Erro ao carregar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      hasError = true;
+    } finally {
+      dismissToast(loadingToastId);
+      if (!hasError) {
+        queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
+        queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+        queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product_and_supplier'] });
+        queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+        queryClient.invalidateQueries({ queryKey: ['product_name_conversions_for_analysis', user?.id] });
+        queryClient.invalidateQueries({ queryKey: ['product_name_conversions_stock', user?.id] });
+      }
+      setSelectedProductNameConversionExcelFile(null);
+    }
+  };
+
+  // NOVO: Função para upload de Conversão de Unidades
+  const handleUploadUnitConversionExcel = async () => {
+    if (!selectedUnitConversionExcelFile) {
+      showError('Por favor, selecione um arquivo Excel de conversão de unidades para carregar.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível carregar conversões de unidades.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Carregando conversões de unidades...');
+    let hasError = false;
+
+    try {
+      const data: any[] = await readExcelFile(selectedUnitConversionExcelFile);
+
+      if (!data || data.length === 0) {
+        showError(`O arquivo Excel "${selectedUnitConversionExcelFile.name}" está vazio ou não contém dados válidos.`);
+        dismissToast(loadingToastId);
+        return;
+      }
+
+      const formattedData = data.map((row: any) => ({
+        user_id: user.id,
+        supplier_product_code: String(row['Código Fornecedor']),
+        supplier_name: String(row['Nome Fornecedor']),
+        supplier_product_description: String(row['Descrição Produto Fornecedor']),
+        supplier_unit: String(row['Unidade Fornecedor']),
+        internal_unit: String(row['Unidade Interna']),
+        conversion_factor: parseBrazilianFloat(row['Fator de Conversão']),
+      }));
+
+      const { error } = await supabase
+        .from('unit_conversions')
+        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit', ignoreDuplicates: false });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      showSuccess(`Dados de ${formattedData.length} conversões de unidades carregados com sucesso!`);
+    } catch (error: any) {
+      showError(`Erro ao carregar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
+      hasError = true;
+    } finally {
+      dismissToast(loadingToastId);
+      if (!hasError) {
+        queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
+        queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+        queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      }
+      setSelectedUnitConversionExcelFile(null);
+    }
+  };
+
   const handleDownloadSoldItemsTemplate = () => {
     const blob = createEmptyExcelTemplate(soldItemsTemplateHeaders, 'Template_ProdutosVendidos');
     const url = URL.createObjectURL(blob);
