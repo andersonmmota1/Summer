@@ -4,14 +4,14 @@ import { showSuccess, showError, showLoading, dismissToast, showWarning } from '
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ArrowUpDown, Download } from 'lucide-react'; // Importar Download
+import { ChevronDown, ArrowUpDown, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Input } from '@/components/ui/input'; // Importar o componente Input
-import { createExcelFile } from '@/utils/excel'; // Importar createExcelFile
+import { Input } from '@/components/ui/input';
+import { createExcelFile } from '@/utils/excel';
 
 interface CurrentStockSummary {
   internal_product_name: string;
@@ -28,6 +28,12 @@ interface InternalProductUsage {
   quantity_needed: number;
 }
 
+// Nova interface para os dados de produtos vendidos agregados
+interface SoldProductTotalQuantity {
+  product_name: string;
+  total_quantity_sold: number;
+}
+
 // Interfaces para os novos dados de entrada de estoque
 interface PurchasedItem {
   id: string;
@@ -38,12 +44,12 @@ interface PurchasedItem {
   q_com: number;
   v_un_com: number;
   created_at: string;
-  internal_product_name: string | null; // Este é o campo na tabela purchased_items, que pode ser nulo
+  internal_product_name: string | null;
   invoice_id: string | null;
   item_sequence_number: number | null;
-  x_fant: string | null; // Nome fantasia do fornecedor
-  invoice_number: string | null; // Número sequencial da nota
-  invoice_emission_date: string | null; // Data de Emissão da NF
+  x_fant: string | null;
+  invoice_number: string | null;
+  invoice_emission_date: string | null;
 }
 
 interface ProductNameConversion {
@@ -52,23 +58,20 @@ interface ProductNameConversion {
   supplier_product_code: string;
   supplier_product_name: string | null;
   supplier_name: string;
-  internal_product_name: string; // Este é o nome interno mapeado que queremos exibir
+  internal_product_name: string;
   created_at: string;
   updated_at: string;
 }
 
-// Interface para itens comprados enriquecidos com o nome interno correto para exibição
 interface DisplayPurchasedItem extends PurchasedItem {
   display_internal_product_name: string;
 }
 
-// Nova interface para configuração de ordenação para Purchased Items
 interface SortConfigPurchasedItems {
   key: keyof DisplayPurchasedItem | null;
   direction: 'asc' | 'desc' | null;
 }
 
-// Nova interface para configuração de ordenação para Current Stock Summary
 interface SortConfigStock {
   key: keyof CurrentStockSummary | null;
   direction: 'asc' | 'desc' | null;
@@ -77,9 +80,9 @@ interface SortConfigStock {
 const Estoque: React.FC = () => {
   const { user } = useSession();
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
-  const [searchTerm, setSearchTerm] = useState<string>(''); // Novo estado para o termo de busca
-  const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'invoice_emission_date', direction: 'desc' }); // Estado de ordenação para entradas detalhadas
-  const [sortConfigStock, setSortConfigStock] = useState<SortConfigStock>({ key: 'internal_product_name', direction: 'asc' }); // Estado de ordenação para resumo de estoque
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'invoice_emission_date', direction: 'desc' });
+  const [sortConfigStock, setSortConfigStock] = useState<SortConfigStock>({ key: 'internal_product_name', direction: 'asc' });
 
   // Query para buscar o resumo do estoque atual
   const { data: stockData, isLoading: isLoadingStock, isError: isErrorStock, error: errorStock } = useQuery<CurrentStockSummary[], Error>({
@@ -124,6 +127,38 @@ const Estoque: React.FC = () => {
     },
   });
 
+  // NOVO: Query para buscar as quantidades totais vendidas de cada produto final
+  const { data: soldProductTotals, isLoading: isLoadingSoldProductTotals, isError: isErrorSoldProductTotals, error: errorSoldProductTotals } = useQuery<SoldProductTotalQuantity[], Error>({
+    queryKey: ['sold_product_total_quantities', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      // A view 'sold_items' já agrega as quantidades diárias.
+      // Precisamos agregar ainda mais por 'product_name' para obter o total geral.
+      const { data, error } = await supabase
+        .from('sold_items')
+        .select('product_name, quantity_sold')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Agrega as quantidades vendidas por product_name
+      const aggregated = data.reduce((acc, item) => {
+        acc[item.product_name] = (acc[item.product_name] || 0) + item.quantity_sold;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return Object.keys(aggregated).map(product_name => ({
+        product_name,
+        total_quantity_sold: aggregated[product_name],
+      }));
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5,
+    onError: (err) => {
+      showError(`Erro ao carregar totais de produtos vendidos: ${err.message}`);
+    },
+  });
+
   // Query para buscar todos os itens comprados detalhados
   const { data: purchasedItems, isLoading: isLoadingPurchasedItems, isError: isErrorPurchasedItems, error: errorPurchasedItems } = useQuery<PurchasedItem[], Error>({
     queryKey: ['all_purchased_items_stock', user?.id],
@@ -131,10 +166,10 @@ const Estoque: React.FC = () => {
       if (!user?.id) return [];
       let query = supabase
         .from('purchased_items')
-        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date') // Listar explicitamente as colunas
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date')
         .eq('user_id', user.id)
-        .order('invoice_emission_date', { ascending: false }) // Ordenar por data de emissão
-        .order('created_at', { ascending: false }); // E depois por data de criação
+        .order('invoice_emission_date', { ascending: false })
+        .order('created_at', { ascending: false });
       
       const { data, error } = await query;
       if (error) throw error;
@@ -154,7 +189,7 @@ const Estoque: React.FC = () => {
       if (!user?.id) return 0;
       const { count, error } = await supabase
         .from('purchased_items')
-        .select('*', { count: 'exact', head: true }) // Usar head: true para apenas contar, sem retornar dados
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
       if (error) throw error;
       return count || 0;
@@ -185,9 +220,9 @@ const Estoque: React.FC = () => {
     },
   });
 
-  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount;
-  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount;
+  const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount || isLoadingSoldProductTotals;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || isErrorSoldProductTotals;
+  const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount || errorSoldProductTotals;
 
   useEffect(() => {
     if (isError) {
@@ -196,15 +231,24 @@ const Estoque: React.FC = () => {
     }
   }, [isError, error]);
 
-  const groupedUsage = useMemo(() => {
-    return internalProductUsage?.reduce((acc, usage) => {
+  // Memo para agrupar o uso de produtos internos e incluir as quantidades totais vendidas
+  const groupedUsageWithSoldQuantities = useMemo(() => {
+    if (!internalProductUsage || !soldProductTotals) return {};
+
+    const soldTotalsMap = soldProductTotals.reduce((acc, item) => {
+      acc[item.product_name] = item.total_quantity_sold;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return internalProductUsage.reduce((acc, usage) => {
       if (!acc[usage.internal_product_name]) {
         acc[usage.internal_product_name] = [];
       }
-      acc[usage.internal_product_name].push(usage);
+      const totalSold = soldTotalsMap[usage.sold_product_name] || 0;
+      acc[usage.internal_product_name].push({ ...usage, total_sold_product_quantity: totalSold });
       return acc;
-    }, {} as Record<string, InternalProductUsage[]>) || {};
-  }, [internalProductUsage]);
+    }, {} as Record<string, (InternalProductUsage & { total_sold_product_quantity: number })[]>);
+  }, [internalProductUsage, soldProductTotals]);
 
   const handleToggleRow = (productName: string) => {
     setOpenRows(prev => ({
@@ -402,7 +446,7 @@ const Estoque: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Grid para os cards de resumo */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Valor Total do Estoque</CardTitle>
@@ -561,11 +605,11 @@ const Estoque: React.FC = () => {
                             <TableCell colSpan={7} className="py-0 pl-12 pr-4">
                               <div className="py-2 text-sm text-gray-600 dark:text-gray-400">
                                 <p className="font-semibold mb-1">Utilizado em:</p>
-                                {(groupedUsage[item.internal_product_name] || []).length > 0 ? (
+                                {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).length > 0 ? (
                                   <ul className="list-disc list-inside space-y-0.5">
-                                    {(groupedUsage[item.internal_product_name] || []).map((usage, i) => (
+                                    {(groupedUsageWithSoldQuantities[item.internal_product_name] || []).map((usage, i) => (
                                       <li key={i}>
-                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                        {usage.sold_product_name} (Qtd. Necessária: {usage.quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) - Total Vendido: {usage.total_sold_product_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </li>
                                     ))}
                                   </ul>
