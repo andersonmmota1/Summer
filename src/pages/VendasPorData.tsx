@@ -33,12 +33,17 @@ interface SalesByDateAggregated {
   itemCount: number;
 }
 
+// NOVO: Interface para os dados agregados por produto
+interface AggregatedSoldProduct {
+  product_name: string;
+  total_quantity_sold: number;
+  total_value_sold: number;
+}
+
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
-  // ATUALIZADO: Agora armazena um array de Dates para seleção múltipla
   const [selectedDates, setSelectedDates] = useState<Date[] | undefined>(undefined);
 
-  // Formata as datas selecionadas para o formato 'yyyy-MM-dd' para a query do Supabase
   const formattedSelectedDates = useMemo(() => {
     if (!selectedDates || selectedDates.length === 0) return [];
     return selectedDates.map(date => format(date, 'yyyy-MM-dd'));
@@ -53,7 +58,7 @@ const VendasPorData: React.FC = () => {
       .from('sold_items')
       .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code')
       .eq('user_id', user.id)
-      .in('sale_date', formattedSelectedDates); // ATUALIZADO: Usar 'in' para múltiplas datas
+      .in('sale_date', formattedSelectedDates);
 
     query = query.order('sale_date', { ascending: false });
 
@@ -68,9 +73,9 @@ const VendasPorData: React.FC = () => {
   };
 
   const { data: rawSoldItems, isLoading, isError, error } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['all_sold_items_vendas_por_data', user?.id, formattedSelectedDates], // ATUALIZADO: Depende das datas formatadas
+    queryKey: ['all_sold_items_vendas_por_data', user?.id, formattedSelectedDates],
     queryFn: fetchAllSoldItems,
-    enabled: !!user?.id && formattedSelectedDates.length > 0, // Habilitar apenas se houver datas selecionadas
+    enabled: !!user?.id && formattedSelectedDates.length > 0,
     staleTime: 1000 * 60 * 5,
     onError: (err) => {
       console.error('VendasPorData: Erro no React Query ao carregar dados brutos de vendas:', err);
@@ -103,18 +108,29 @@ const VendasPorData: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
 
-  const individualSoldItems = useMemo(() => {
+  // NOVO: Agregação por produto para a tabela "Produtos Vendidos Detalhados"
+  const aggregatedSoldProducts = useMemo(() => {
     if (!rawSoldItems) return [];
-    return rawSoldItems.sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
+
+    const productMap = new Map<string, AggregatedSoldProduct>();
+
+    rawSoldItems.forEach(item => {
+      const productName = item.product_name;
+      const current = productMap.get(productName) || { product_name: productName, total_quantity_sold: 0, total_value_sold: 0 };
+      current.total_quantity_sold += item.quantity_sold;
+      current.total_value_sold += (item.total_value_sold ?? 0);
+      productMap.set(productName, current);
+    });
+
+    return Array.from(productMap.values()).sort((a, b) => b.total_value_sold - a.total_value_sold);
   }, [rawSoldItems]);
 
-  // NOVO: Totalizador do Valor Total Vendido
   const grandTotalValueSold = useMemo(() => {
     return rawSoldItems?.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0) || 0;
   }, [rawSoldItems]);
 
   const handleClearDateFilter = () => {
-    setSelectedDates(undefined); // ATUALIZADO: Limpa o array de datas selecionadas
+    setSelectedDates(undefined);
   };
 
   if (isLoading) {
@@ -151,11 +167,11 @@ const VendasPorData: React.FC = () => {
               variant={"outline"}
               className={cn(
                 "w-[300px] justify-start text-left font-normal",
-                !selectedDates || selectedDates.length === 0 && "text-muted-foreground" // ATUALIZADO: Verifica o array
+                !selectedDates || selectedDates.length === 0 && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {selectedDates && selectedDates.length > 0 ? ( // ATUALIZADO: Exibe a contagem de dias
+              {selectedDates && selectedDates.length > 0 ? (
                 `${selectedDates.length} dia(s) selecionado(s)`
               ) : (
                 <span>Selecione os dias para análise</span>
@@ -165,8 +181,8 @@ const VendasPorData: React.FC = () => {
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               initialFocus
-              mode="multiple" // ATUALIZADO: Modo de seleção múltipla
-              defaultMonth={selectedDates?.[0]} // ATUALIZADO: Usa a primeira data selecionada como mês padrão
+              mode="multiple"
+              defaultMonth={selectedDates?.[0]}
               selected={selectedDates}
               onSelect={setSelectedDates}
               numberOfMonths={2}
@@ -174,14 +190,13 @@ const VendasPorData: React.FC = () => {
             />
           </PopoverContent>
         </Popover>
-        {selectedDates && selectedDates.length > 0 && ( // ATUALIZADO: Condição para mostrar o botão de limpar
+        {selectedDates && selectedDates.length > 0 && (
           <Button variant="outline" onClick={handleClearDateFilter} className="gap-2">
             <XCircle className="h-4 w-4" /> Limpar Filtro
           </Button>
         )}
       </div>
 
-      {/* NOVO CARD: Totalizador do Valor Total Vendido */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Valor Total Vendido (Período Selecionado)</CardTitle>
@@ -197,7 +212,6 @@ const VendasPorData: React.FC = () => {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card: Vendas Agregadas por Data */}
         <Card>
           <CardHeader>
             <CardTitle>Vendas por Data</CardTitle>
@@ -241,40 +255,32 @@ const VendasPorData: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Card: Produtos Vendidos Detalhados */}
+        {/* Card: Produtos Vendidos Detalhados (agora agregado por produto) */}
         <Card>
           <CardHeader>
             <CardTitle>Produtos Vendidos Detalhados</CardTitle>
             <CardDescription>
-              Lista de cada item vendido.
+              Somatório de quantidade e valor por produto vendido no período selecionado.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {individualSoldItems.length === 0 ? (
+            {aggregatedSoldProducts.length === 0 ? (
               <p className="text-center text-gray-600 dark:text-gray-400 py-4">Nenhum produto vendido encontrado para o período selecionado.</p>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Adicional (Grupo)</TableHead>
-                      <TableHead>Cód. Produto</TableHead>
                       <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">Quantidade Total</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {individualSoldItems.map((item) => (
-                      <TableRow
-                        key={item.id}
-                      >
-                        <TableCell>{format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                        <TableCell>{item.group_name || 'N/A'}</TableCell>
-                        <TableCell>{item.additional_code || 'N/A'}</TableCell>
+                    {aggregatedSoldProducts.map((item, index) => (
+                      <TableRow key={item.product_name || index}>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell className="text-right">{item.quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{(item.total_value_sold ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                       </TableRow>
                     ))}
