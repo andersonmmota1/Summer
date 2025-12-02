@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO, addDays, addMonths } from 'date-fns'; // Importar addMonths
+import { format, parseISO, addMonths } from 'date-fns'; // Importar addMonths
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, XCircle } from 'lucide-react';
