@@ -345,10 +345,11 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
