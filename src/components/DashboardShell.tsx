@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,7 +24,8 @@ const DashboardShell: React.FC = () => {
     { name: 'Custo de Produtos', path: '/custo-produtos' },
     { name: 'Produtos Sem Ficha Técnica', path: '/produtos-sem-ficha-tecnica' },
     { name: 'Produtos Internos Não Utilizados', path: '/produtos-internos-nao-utilizados' },
-    { name: 'Previsão de Compras', path: '/previsao-de-compras' }, // Novo item de navegação
+    { name: 'Previsão de Compras', path: '/previsao-de-compras' },
+    { name: 'Web Scraper (Experimental)', path: '/web-scraper' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {
