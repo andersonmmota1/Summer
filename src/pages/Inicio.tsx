@@ -94,38 +94,31 @@ const Inicio: React.FC = () => {
     },
   });
 
-  const salesByDate = useMemo(() => {
-    if (!rawSoldItems) return [];
+  // Removido: salesByDate não é mais usado para os totais globais, mas pode ser mantido se usado em outro lugar.
+  // const salesByDate = useMemo(() => {
+  //   if (!rawSoldItems) return [];
 
-    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
+  //   const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
     
-    rawSoldItems.forEach(item => {
-      const dateKey = item.sale_date;
-      const itemTotalValue = item.total_value_sold ?? 0;
+  //   rawSoldItems.forEach(item => {
+  //     const dateKey = item.sale_date;
+  //     const itemTotalValue = item.total_value_sold ?? 0;
       
-      if (!aggregatedData[dateKey]) {
-        aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
-      }
-      aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
-      aggregatedData[dateKey].total_value_sold += itemTotalValue;
-      aggregatedData[dateKey].itemCount++;
-    });
+  //     if (!aggregatedData[dateKey]) {
+  //       aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
+  //     }
+  //     aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
+  //     aggregatedData[dateKey].total_value_sold += itemTotalValue;
+  //     aggregatedData[dateKey].itemCount++;
+  //   });
 
-    return Object.keys(aggregatedData).map(dateKey => ({
-      sale_date: dateKey,
-      total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
-      total_value_sold: aggregatedData[dateKey].total_value_sold,
-      itemCount: aggregatedData[dateKey].itemCount,
-    })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
-  }, [rawSoldItems]);
-
-  const totalQuantitySoldSum = useMemo(() => {
-    return salesByDate?.reduce((sum, sale) => sum + sale.total_quantity_sold, 0) || 0;
-  }, [salesByDate]);
-
-  const totalValueSoldSum = useMemo(() => {
-    return salesByDate?.reduce((sum, sale) => sum + sale.total_value_sold, 0) || 0;
-  }, [salesByDate]);
+  //   return Object.keys(aggregatedData).map(dateKey => ({
+  //     sale_date: dateKey,
+  //     total_quantity_sold: aggregatedData[dateKey].total_quantity_sold,
+  //     total_value_sold: aggregatedData[dateKey].total_value_sold,
+  //     itemCount: aggregatedData[dateKey].itemCount,
+  //   })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
+  // }, [rawSoldItems]);
 
   // NOVO: Agregação de vendas por Grupo
   const salesByGroup = useMemo(() => {
@@ -196,6 +189,16 @@ const Inicio: React.FC = () => {
     .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0) // Filtra subgrupos com quantidade e valor zero
     .sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
   }, [rawSoldItems]);
+
+  // ATUALIZADO: Calcular totalQuantitySoldSum e totalValueSoldSum com base nos dados agregados e filtrados por grupo
+  // Isso garante que os totais globais reflitam apenas os grupos/subgrupos com vendas reais.
+  const totalQuantitySoldSum = useMemo(() => {
+    return salesByGroup.reduce((sum, group) => sum + group.total_quantity_sold, 0);
+  }, [salesByGroup]);
+
+  const totalValueSoldSum = useMemo(() => {
+    return salesByGroup.reduce((sum, group) => sum + group.total_value_sold, 0);
+  }, [salesByGroup]);
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
