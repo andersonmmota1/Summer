@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useSession } from '@/components/SessionContextProvider';
-import { format, parseISO, isValid } from 'date-fns'; // Importar isValid
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat, parseBrazilianDate, cn } from '@/lib/utils';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -59,7 +59,8 @@ interface PurchasedItem {
   item_sequence_number: number | null;
   x_fant: string | null;
   invoice_number: string | null;
-  invoice_emission_date: string | null; // Adicionado
+  invoice_emission_date: string | null;
+  is_manual_entry: boolean; // NOVO: Adicionado campo para entrada manual
 }
 
 // NOVO: Interface para os dados de vendas horárias lidos do Excel
@@ -416,7 +417,8 @@ const CargaDeDados: React.FC = () => {
             invoice_number: row.invoice_number,
             item_sequence_number: row.item_sequence_number,
             x_fant: row.x_fant,
-            invoice_emission_date: parsedEmissionDate, // Use the validated and formatted date
+            invoice_emission_date: parsedEmissionDate,
+            is_manual_entry: false, // XML uploads are not manual entries
           };
         });
 
@@ -892,7 +894,7 @@ const CargaDeDados: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('purchased_items')
-        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date') // Listar explicitamente as colunas
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry') // Listar explicitamente as colunas, incluindo is_manual_entry
         .eq('user_id', user?.id) // Filtrar por user_id
         .order('created_at', { ascending: false });
 
@@ -915,8 +917,9 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)',
         'ID da Nota (Chave de Acesso)',
         'Número do Item na Nota',
-        'Data de Emissão da NF', // Adicionado
-        'Data de Registro no Sistema', // Renomeado para clareza
+        'Data de Emissão da NF',
+        'Data de Registro no Sistema',
+        'Entrada Manual', // NOVO: Cabeçalho para a nova coluna
       ];
 
       const formattedData = data.map(item => ({
@@ -931,8 +934,9 @@ const CargaDeDados: React.FC = () => {
         'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
         'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
         'Número do Item na Nota': item.item_sequence_number || 'N/A',
-        'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A', // Usando a nova coluna, formatada sem hora
-        'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }), // Mantendo created_at para registro no sistema
+        'Data de Emissão da NF': item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A',
+        'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
+        'Entrada Manual': item.is_manual_entry ? 'Sim' : 'Não', // NOVO: Valor para a nova coluna
       }));
 
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
@@ -1223,6 +1227,45 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
+  // NOVO: Função para limpar APENAS itens comprados manualmente
+  const handleClearManualPurchasedItems = async () => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível limpar itens comprados manualmente.');
+      return;
+    }
+    const loadingToastId = showLoading('Limpando itens comprados manualmente...');
+    try {
+      const { error } = await supabase
+        .from('purchased_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_manual_entry', true); // Deleta apenas entradas manuais
+
+      if (error) throw error;
+
+      showSuccess('Todos os itens comprados manualmente foram removidos com sucesso!');
+      // Invalida as queries relevantes
+      queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['aggregated_supplier_products'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_supplier'] });
+      queryClient.invalidateQueries({ queryKey: ['total_purchased_by_internal_product'] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
+      queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_descricoes'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_u_coms'] });
+      queryClient.invalidateQueries({ queryKey: ['unique_x_fants'] });
+    } catch (error: any) {
+      showError(`Erro ao limpar itens comprados manualmente: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
   // ATUALIZADO: Lógica de limpeza para a nova tabela de produtos vendidos
   const handleClearSoldItems = async () => {
     if (!user?.id) {
@@ -1369,13 +1412,13 @@ const CargaDeDados: React.FC = () => {
         invoice_number: values.invoice_number || null,
         item_sequence_number: values.item_sequence_number || null,
         x_fant: values.x_fant,
-        // Formata a data de emissão para YYYY-MM-DD antes de enviar para o Supabase
         invoice_emission_date: values.invoice_emission_date ? format(values.invoice_emission_date, 'yyyy-MM-dd') : null,
+        is_manual_entry: true, // NOVO: Marca como entrada manual
       };
 
       const { error } = await supabase
         .from('purchased_items')
-        .insert([formattedData]); // Usar insert para entrada manual, sem onConflict para permitir duplicação se não houver invoice_id/item_sequence_number
+        .insert([formattedData]);
 
       if (error) {
         throw new Error(error.message);
@@ -1393,7 +1436,7 @@ const CargaDeDados: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost'] });
       queryClient.invalidateQueries({ queryKey: ['all_purchased_items'] });
-      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] }); // Invalida o cache de valores únicos
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods'] });
       queryClient.invalidateQueries({ queryKey: ['unique_descricoes'] });
       queryClient.invalidateQueries({ queryKey: ['unique_u_coms'] });
       queryClient.invalidateQueries({ queryKey: ['unique_x_fants'] });
@@ -1415,9 +1458,9 @@ const CargaDeDados: React.FC = () => {
       </p>
 
       <Tabs defaultValue="xml-purchased" className="w-full">
-        <TabsList className="grid w-full grid-cols-5"> {/* Aumentado para 5 colunas */}
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
-          <TabsTrigger value="manual-purchased">Entrada Manual (Itens Comprados)</TabsTrigger> {/* Nova aba */}
+          <TabsTrigger value="manual-purchased">Entrada Manual (Itens Comprados)</TabsTrigger>
           <TabsTrigger value="excel-sold">Produtos Vendidos (Excel)</TabsTrigger>
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
           <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
@@ -1454,11 +1497,12 @@ const CargaDeDados: React.FC = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="manual-purchased" className="mt-4"> {/* Conteúdo da nova aba */}
+        <TabsContent value="manual-purchased" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Entrada Manual de Itens Comprados</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Insira manualmente os detalhes de um item comprado. Use as sugestões para preencher campos com valores existentes.
+              Itens adicionados aqui serão marcados como "Entrada Manual" no sistema.
             </p>
 
             <Form {...form}>
@@ -1565,20 +1609,18 @@ const CargaDeDados: React.FC = () => {
                         <FormControl>
                           <Input
                             {...field}
-                            type="text" // Usar text para permitir input de vírgula
+                            type="text"
                             onChange={(e) => {
                               const value = e.target.value;
-                              // Permite apenas números, vírgula e ponto
                               if (/^[0-9.,]*$/.test(value)) {
                                 field.onChange(value);
                               }
                             }}
                             onBlur={(e) => {
-                              // Formata para float brasileiro no blur
                               const parsed = parseBrazilianFloat(e.target.value);
                               field.onChange(parsed);
                             }}
-                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')} // Exibe com vírgula
+                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')}
                             placeholder="0,00"
                           />
                         </FormControl>
@@ -1596,7 +1638,7 @@ const CargaDeDados: React.FC = () => {
                         <FormControl>
                           <Input
                             {...field}
-                            type="text" // Usar text para permitir input de vírgula
+                            type="text"
                             onChange={(e) => {
                               const value = e.target.value;
                               if (/^[0-9.,]*$/.test(value)) {
@@ -1607,7 +1649,7 @@ const CargaDeDados: React.FC = () => {
                               const parsed = parseBrazilianFloat(e.target.value);
                               field.onChange(parsed);
                             }}
-                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')} // Exibe com vírgula
+                            value={field.value === 0 ? '' : String(field.value).replace('.', ',')}
                             placeholder="0,00"
                           />
                         </FormControl>
@@ -2006,6 +2048,27 @@ const CargaDeDados: React.FC = () => {
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleClearPurchasedItems} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Sim, Limpar Dados
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* NOVO: Botão para limpar apenas entradas manuais */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="bg-yellow-500 hover:bg-yellow-600 text-white">Limpar Itens Comprados Manuais</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. Isso removerá permanentemente *apenas* os itens comprados que foram adicionados manualmente.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearManualPurchasedItems} className="bg-yellow-500 hover:bg-yellow-600 text-white">
+                  Sim, Limpar Entradas Manuais
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
