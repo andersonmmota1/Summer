@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createExcelFile, readExcelFile, createEmptyExcelTemplate } from '@/utils/excel';
 import { readXmlFile } from '@/utils/xml';
+import { exportPurchasedItemsToXml } from '@/utils/xml-exporter'; // Importar a nova função
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,7 +46,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
-interface PurchasedItem {
+export interface PurchasedItem { // Exportar a interface para uso no xml-exporter
   id: string;
   user_id: string;
   c_prod: string;
@@ -951,6 +952,41 @@ const CargaDeDados: React.FC = () => {
       showSuccess(`Dados de ${data.length} itens comprados detalhados baixados com sucesso!`);
     } catch (error: any) {
       showError(`Erro ao baixar itens comprados: ${error.message || 'Verifique o console para mais detalhes.'}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
+
+  // NOVO: Função para baixar todos os itens comprados em formato XML
+  const handleDownloadAllPurchasedItemsXml = async () => {
+    const loadingToastId = showLoading('Baixando todos os itens comprados em XML...');
+    try {
+      const { data, error } = await supabase
+        .from('purchased_items')
+        .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        showError('Nenhum item comprado encontrado para baixar em XML.');
+        return;
+      }
+
+      const xmlContent = exportPurchasedItemsToXml(data);
+      const blob = new Blob([xmlContent], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'itens_comprados_detalhado.xml';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccess(`Dados de ${data.length} itens comprados detalhados baixados em XML com sucesso!`);
+    } catch (error: any) {
+      showError(`Erro ao baixar itens comprados em XML: ${error.message || 'Verifique o console para mais detalhes.'}`);
     } finally {
       dismissToast(loadingToastId);
     }
@@ -2011,6 +2047,9 @@ const CargaDeDados: React.FC = () => {
         <div className="flex flex-wrap gap-4">
           <Button onClick={handleDownloadAllPurchasedItems}>
             Baixar Itens Comprados (Excel)
+          </Button>
+          <Button onClick={handleDownloadAllPurchasedItemsXml}> {/* NOVO BOTÃO */}
+            Baixar Itens Comprados (XML)
           </Button>
           <Button onClick={handleDownloadAllSoldItems}>
             Baixar Produtos Vendidos (Excel)
