@@ -10,7 +10,7 @@ import { CalendarIcon, Download, ArrowUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
+import { DateRange } from 'react-day-picker'; // Manter DateRange para tipagem, mas usaremos Date[]
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -52,32 +52,35 @@ interface SortConfig {
 
 const PrevisaoDeCompras: React.FC = () => {
   const { user } = useSession();
-  const [historicalDateRange, setHistoricalDateRange] = useState<DateRange | undefined>(undefined);
+  // ATUALIZADO: Agora armazena um array de Dates para seleção múltipla
+  const [historicalSelectedDates, setHistoricalSelectedDates] = useState<Date[] | undefined>(undefined);
   const [projectionDays, setProjectionDays] = useState<number>(7); // Padrão: projetar para os próximos 7 dias
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
 
+  // Formata as datas selecionadas para o formato 'yyyy-MM-dd' para a query do Supabase
+  const formattedHistoricalDates = useMemo(() => {
+    if (!historicalSelectedDates || historicalSelectedDates.length === 0) return [];
+    return historicalSelectedDates.map(date => format(date, 'yyyy-MM-dd'));
+  }, [historicalSelectedDates]);
+
   // 1. Fetch Historical Sold Items
   const { data: rawSoldItems, isLoading: isLoadingSoldItems, isError: isErrorSoldItems, error: errorSoldItems } = useQuery<SoldItemRaw[], Error>({
-    queryKey: ['historical_sold_items', user?.id, historicalDateRange],
+    queryKey: ['historical_sold_items', user?.id, formattedHistoricalDates], // Chave da query depende das datas formatadas
     queryFn: async () => {
-      if (!user?.id || !historicalDateRange?.from || !historicalDateRange?.to) return [];
-
-      const fromDate = format(historicalDateRange.from, 'yyyy-MM-dd');
-      const toDate = format(historicalDateRange.to, 'yyyy-MM-dd');
+      if (!user?.id || formattedHistoricalDates.length === 0) return [];
 
       const { data, error } = await supabase
         .from('sold_items')
         .select('sale_date, product_name, quantity_sold')
         .eq('user_id', user.id)
-        .gte('sale_date', fromDate)
-        .lte('sale_date', toDate);
+        .in('sale_date', formattedHistoricalDates); // ATUALIZADO: Usar 'in' para múltiplas datas
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.id && !!historicalDateRange?.from && !!historicalDateRange?.to,
+    enabled: !!user?.id && formattedHistoricalDates.length > 0, // Habilitar apenas se houver datas selecionadas
     staleTime: 1000 * 60 * 5,
   });
 
@@ -129,8 +132,9 @@ const PrevisaoDeCompras: React.FC = () => {
       showError('Usuário não autenticado. Não é possível gerar previsão de compras.');
       return;
     }
-    if (!historicalDateRange?.from || !historicalDateRange?.to) {
-      showError('Por favor, selecione um intervalo de datas histórico para a análise.');
+    // ATUALIZADO: Verificar se há datas selecionadas
+    if (!historicalSelectedDates || historicalSelectedDates.length === 0) {
+      showError('Por favor, selecione pelo menos um dia histórico para a análise.');
       return;
     }
     if (projectionDays <= 0) {
@@ -138,7 +142,7 @@ const PrevisaoDeCompras: React.FC = () => {
       return;
     }
     if (!rawSoldItems || rawSoldItems.length === 0) {
-      showWarning('Nenhum dado de venda encontrado para o período histórico selecionado. Não é possível gerar a previsão.');
+      showWarning('Nenhum dado de venda encontrado para os dias históricos selecionados. Não é possível gerar a previsão.');
       return;
     }
     if (!productRecipes || productRecipes.length === 0) {
@@ -151,9 +155,10 @@ const PrevisaoDeCompras: React.FC = () => {
 
     try {
       // 1. Calcular vendas diárias médias por produto vendido no período histórico
-      const historicalDays = differenceInDays(historicalDateRange.to, historicalDateRange.from) + 1;
+      // ATUALIZADO: historicalDays é o número de dias selecionados
+      const historicalDays = historicalSelectedDates.length;
       if (historicalDays <= 0) {
-        throw new Error('O intervalo de datas histórico deve ter pelo menos um dia.');
+        throw new Error('O número de dias históricos selecionados deve ser maior que zero.');
       }
 
       const dailySales: Record<string, number> = {}; // { "Produto X": total_quantity_sold }
@@ -311,45 +316,37 @@ const PrevisaoDeCompras: React.FC = () => {
         <CardHeader>
           <CardTitle>Configurações da Previsão</CardTitle>
           <CardDescription>
-            Defina o período histórico para análise e quantos dias futuros você deseja projetar.
+            Defina os dias históricos para análise e quantos dias futuros você deseja projetar.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
             <div className="flex-1">
-              <Label htmlFor="historical-date-range" className="mb-2 block">Período Histórico de Vendas</Label>
+              <Label htmlFor="historical-date-selection" className="mb-2 block">Dias Históricos de Vendas</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
-                    id="historical-date-range"
+                    id="historical-date-selection"
                     variant={"outline"}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !historicalDateRange?.from && "text-muted-foreground"
+                      !historicalSelectedDates || historicalSelectedDates.length === 0 && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {historicalDateRange?.from ? (
-                      historicalDateRange.to ? (
-                        <>
-                          {format(historicalDateRange.from, "dd/MM/yyyy", { locale: ptBR })} -{" "}
-                          {format(historicalDateRange.to, "dd/MM/yyyy", { locale: ptBR })}
-                        </>
-                      ) : (
-                        format(historicalDateRange.from, "dd/MM/yyyy", { locale: ptBR })
-                      )
+                    {historicalSelectedDates && historicalSelectedDates.length > 0 ? (
+                      `${historicalSelectedDates.length} dia(s) selecionado(s)`
                     ) : (
-                      <span>Selecione um intervalo de datas</span>
+                      <span>Selecione os dias para análise</span>
                     )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     initialFocus
-                    mode="range"
-                    defaultMonth={historicalDateRange?.from}
-                    selected={historicalDateRange}
-                    onSelect={setHistoricalDateRange}
+                    mode="multiple" // ATUALIZADO: Modo de seleção múltipla
+                    selected={historicalSelectedDates}
+                    onSelect={setHistoricalSelectedDates}
                     numberOfMonths={2}
                     locale={ptBR}
                   />
@@ -390,7 +387,7 @@ const PrevisaoDeCompras: React.FC = () => {
       {!isLoading && !isError && purchasePrediction.length === 0 && (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhuma previsão de compras gerada ainda.</p>
-          <p className="text-sm mt-2">Selecione um período histórico e o número de dias para projetar, e clique em "Gerar Previsão de Compras".</p>
+          <p className="text-sm mt-2">Selecione os dias históricos e o número de dias para projetar, e clique em "Gerar Previsão de Compras".</p>
         </div>
       )}
 
