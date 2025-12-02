@@ -4,11 +4,11 @@ import { showSuccess, showError, showWarning } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Download, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
+import { Download, ArrowUpDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
-import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { cn } from '@/lib/utils';
 
 interface InternalProductAverageCost {
   user_id: string;
@@ -32,7 +32,6 @@ interface UnusedInternalProduct {
   average_unit_cost: number;
 }
 
-// Nova interface para configuração de ordenação
 interface SortConfig {
   key: keyof UnusedInternalProduct | null;
   direction: 'asc' | 'desc' | null;
@@ -40,9 +39,8 @@ interface SortConfig {
 
 const ProdutosInternosNaoUtilizados: React.FC = () => {
   const { user } = useSession();
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' }); // Estado de ordenação
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
 
-  // Fetch all internal products that have an average cost (meaning they've been purchased and converted)
   const { data: allInternalProducts, isLoading: isLoadingAll, isError: isErrorAll, error: errorAll } = useQuery<InternalProductAverageCost[], Error>({
     queryKey: ['internal_product_average_cost', user?.id],
     queryFn: async () => {
@@ -59,7 +57,6 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Fetch all internal products that are used in any recipe
   const { data: usedInternalProductsInRecipes, isLoading: isLoadingUsed, isError: isErrorUsed, error: errorUsed } = useQuery<ProductRecipe[], Error>({
     queryKey: ['product_recipes_internal_products', user?.id],
     queryFn: async () => {
@@ -86,7 +83,6 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     }
   }, [isError, error]);
 
-  // Função para lidar com a ordenação
   const handleSort = (key: keyof UnusedInternalProduct) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -102,7 +98,6 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
 
     let sortableItems = allInternalProducts.filter(product => !usedProductNames.has(product.internal_product_name));
 
-    // Aplicar ordenação
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key!];
@@ -126,7 +121,6 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     return sortableItems;
   }, [allInternalProducts, usedInternalProductsInRecipes, sortConfig]);
 
-  // NOVO: Calcular somatórios
   const totalValuePurchasedSum = useMemo(() => {
     return unusedInternalProducts.reduce((sum, item) => sum + item.total_value_purchased, 0);
   }, [unusedInternalProducts]);
