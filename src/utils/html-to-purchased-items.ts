@@ -21,12 +21,12 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       const invoiceIdElement = doc.querySelector('.chave');
       const invoiceId = invoiceIdElement?.textContent?.replace(/\s/g, '') || null; // Remover espaços da chave de acesso
 
-      // Encontrar elementos de número e emissão sem :contains()
-      const infosSection = doc.querySelector('#infos');
       let invoiceNumber: string | null = null;
       let invoiceEmissionDate: string | null = null;
       let supplierName: string | null = null;
 
+      // Encontrar elementos de número e emissão iterando sobre os strongs na seção #infos
+      const infosSection = doc.querySelector('#infos');
       if (infosSection) {
         const strongElements = infosSection.querySelectorAll('strong');
         strongElements.forEach(strong => {
@@ -49,7 +49,8 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       const itemRows = doc.querySelectorAll('#tabResult tr');
 
       itemRows.forEach((row, index) => {
-        const itemSequenceNumber = row.id ? parseInt(row.id.replace('Item + ', '')) : (index + 1); // Tenta pegar do ID, senão usa o índice
+        // Tenta pegar do ID, senão usa o índice + 1 como número sequencial
+        const itemSequenceNumber = row.id ? parseInt(row.id.replace('Item + ', '')) : (index + 1); 
 
         const txtTitElement = row.querySelector('.txtTit');
         const descricaoDoProduto = txtTitElement?.firstChild?.textContent?.trim() || '';
