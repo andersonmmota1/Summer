@@ -76,7 +76,7 @@ const WebScraper: React.FC = () => {
       const a = document.createElement('a');
       a.href = url;
 
-      // NOVO: Usar a chave de acesso (invoice_id) do primeiro item como nome do arquivo
+      // Usar a chave de acesso (invoice_id) do primeiro item como nome do arquivo
       let filename = 'itens_comprados_do_scraper.xml'; // Fallback
       if (purchasedItems.length > 0 && purchasedItems[0].invoice_id) {
         // Sanitizar o invoice_id para ser um nome de arquivo válido
