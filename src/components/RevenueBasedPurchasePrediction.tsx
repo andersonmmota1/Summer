@@ -63,24 +63,21 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
   error,
   historicalDaysCount,
 }) => {
-  const [projectionDays, setProjectionDays] = useState<number>(7);
+  // Removido: const [projectionDays, setProjectionDays] = useState<number>(7);
   const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>('');
-  const [calculatedAverageDailyRevenue, setCalculatedAverageDailyRevenue] = useState<number>(0);
+  const [totalHistoricalRevenue, setTotalHistoricalRevenue] = useState<number>(0); // NOVO: Total de faturamento histórico
   const [calculatedRevenueMultiplier, setCalculatedRevenueMultiplier] = useState<number>(1);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
   const [loadingPrediction, setLoadingPrediction] = useState(false);
 
-  // Recalcular a média de faturamento diário sempre que rawSoldItems ou historicalDaysCount mudar
+  // Recalcular o total de faturamento histórico sempre que rawSoldItems ou historicalDaysCount mudar
   useEffect(() => {
-    if (rawSoldItems && historicalDaysCount > 0) {
-      let totalHistoricalRevenue = 0;
-      rawSoldItems.forEach(item => {
-        totalHistoricalRevenue += (item.total_value_sold ?? 0);
-      });
-      setCalculatedAverageDailyRevenue(totalHistoricalRevenue / historicalDaysCount);
+    if (rawSoldItems && rawSoldItems.length > 0) {
+      const totalRev = rawSoldItems.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
+      setTotalHistoricalRevenue(totalRev);
     } else {
-      setCalculatedAverageDailyRevenue(0);
+      setTotalHistoricalRevenue(0);
     }
     // Resetar a previsão quando os dados históricos mudam
     setPurchasePrediction([]);
@@ -93,10 +90,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       showError('Por favor, selecione pelo menos um dia histórico na seção acima para a análise.');
       return;
     }
-    if (projectionDays <= 0) {
-      showError('O número de dias para projeção deve ser maior que zero.');
-      return;
-    }
+    // Removido: if (projectionDays <= 0) { ... }
     if (!rawSoldItems || rawSoldItems.length === 0) {
       showWarning('Nenhum dado de venda encontrado para os dias históricos selecionados. Não é possível gerar a previsão.');
       return;
@@ -110,23 +104,18 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const loadingToastId = showLoading('Gerando previsão de compras baseada em faturamento...');
 
     try {
-      // --- Lógica de Média de Vendas por Quantidade ---
-      const dailySalesQuantity: Record<string, number> = {};
+      // --- Lógica de Quantidade Total Vendida por Produto no Período Histórico ---
+      const totalHistoricalQuantitySoldPerProduct: Record<string, number> = {};
       rawSoldItems.forEach(item => {
-        dailySalesQuantity[item.product_name] = (dailySalesQuantity[item.product_name] || 0) + item.quantity_sold;
-      });
-
-      const averageDailySales: Record<string, number> = {};
-      Object.keys(dailySalesQuantity).forEach(productName => {
-        averageDailySales[productName] = dailySalesQuantity[productName] / historicalDaysCount;
+        totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.quantity_sold;
       });
 
       // --- Cálculo do Multiplicador de Faturamento ---
       let revenueMultiplier = 1;
       const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
 
-      if (parsedProjectedRevenue > 0 && calculatedAverageDailyRevenue > 0 && projectionDays > 0) {
-        revenueMultiplier = parsedProjectedRevenue / (calculatedAverageDailyRevenue * projectionDays);
+      if (parsedProjectedRevenue > 0 && totalHistoricalRevenue > 0) {
+        revenueMultiplier = parsedProjectedRevenue / totalHistoricalRevenue;
       } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') {
         revenueMultiplier = 0;
       }
@@ -134,8 +123,8 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
 
       // --- Demanda Projetada de Produtos Vendidos (COM MULTIPLICADOR) ---
       const projectedSoldProductDemand: Record<string, number> = {};
-      Object.keys(averageDailySales).forEach(productName => {
-        projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays * revenueMultiplier;
+      Object.keys(totalHistoricalQuantitySoldPerProduct).forEach(productName => {
+        projectedSoldProductDemand[productName] = totalHistoricalQuantitySoldPerProduct[productName] * revenueMultiplier;
       });
 
       // --- Demanda Projetada de Produtos Internos ---
@@ -272,23 +261,13 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Removido: Dias para Projetar */}
           <div>
-            <Label htmlFor="projection-days-revenue" className="mb-2 block">Dias para Projetar</Label>
+            <Label htmlFor="total-historical-revenue-calc" className="mb-2 block">Faturamento Total Histórico</Label>
             <Input
-              id="projection-days-revenue"
-              type="number"
-              value={projectionDays}
-              onChange={(e) => setProjectionDays(Math.max(1, Number(e.target.value)))}
-              min="1"
-              className="w-full"
-            />
-          </div>
-          <div>
-            <Label htmlFor="average-daily-revenue-calc" className="mb-2 block">Média de Faturamento Diário (Histórico)</Label>
-            <Input
-              id="average-daily-revenue-calc"
+              id="total-historical-revenue-calc"
               type="text"
-              value={calculatedAverageDailyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              value={totalHistoricalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               readOnly
               className="w-full bg-gray-50 dark:bg-gray-700"
             />
@@ -313,7 +292,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
               className="w-full"
             />
           </div>
-          <div>
+          <div className="md:col-span-2"> {/* Ocupa duas colunas para centralizar */}
             <Label htmlFor="revenue-multiplier-calc" className="mb-2 block">Multiplicador de Faturamento</Label>
             <Input
               id="revenue-multiplier-calc"
