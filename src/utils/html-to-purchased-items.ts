@@ -55,9 +55,14 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         const txtTitElement = row.querySelector('.txtTit');
         const descricaoDoProduto = txtTitElement?.firstChild?.textContent?.trim() || '';
 
+        let cProd = ''; // Declarar cProd com let e inicializar aqui
         const rCodElement = row.querySelector('.RCod');
-        const cProdMatch = rCodElement?.textContent?.match(/\(Código:\s*(\d+)\s*\)/);
-        const cProd = cProdMatch ? cProd[1] : '';
+        if (rCodElement && rCodElement.textContent) {
+          const cProdMatch = rCodElement.textContent.match(/\(Código:\s*(\d+)\s*\)/);
+          if (cProdMatch && cProdMatch[1]) {
+            cProd = cProdMatch[1];
+          }
+        }
 
         const rQtdElement = row.querySelector('.Rqtd strong');
         const qComText = rQtdElement?.nextSibling?.textContent?.trim() || '0';
