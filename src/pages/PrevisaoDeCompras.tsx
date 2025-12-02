@@ -9,20 +9,21 @@ import { Button } from '@/components/ui/button';
 import { CalendarIcon, Download, ArrowUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { cn, parseBrazilianFloat } from '@/lib/utils'; // Import parseBrazilianFloat
+import { cn, parseBrazilianFloat } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { format, parseISO, differenceInDays, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { createExcelFile } from '@/utils/excel';
+import RevenueBasedPurchasePrediction from '@/components/RevenueBasedPurchasePrediction'; // Importar o novo componente
 
 // Interfaces para os dados necessários
 interface SoldItemRaw {
   sale_date: string;
   product_name: string;
   quantity_sold: number;
-  total_value_sold: number | null; // Adicionado
+  total_value_sold: number | null; 
 }
 
 interface ProductRecipe {
@@ -57,12 +58,7 @@ const PrevisaoDeCompras: React.FC = () => {
   const [projectionDays, setProjectionDays] = useState<number>(7);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
-  const [loadingPrediction, setLoadingPrediction] = useState(false); // NOVO: Estado para controlar o carregamento da previsão
-
-  // NOVO: Estados para a nova lógica de projeção de faturamento
-  const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>(''); // Input do usuário como string
-  const [calculatedAverageDailyRevenue, setCalculatedAverageDailyRevenue] = useState<number>(0);
-  const [calculatedRevenueMultiplier, setCalculatedRevenueMultiplier] = useState<number>(1); // Default para 1 (sem escala)
+  const [loadingPrediction, setLoadingPrediction] = useState(false);
 
   const formattedHistoricalDates = useMemo(() => {
     if (!historicalSelectedDates || historicalSelectedDates.length === 0) return [];
@@ -76,7 +72,7 @@ const PrevisaoDeCompras: React.FC = () => {
 
       const { data, error } = await supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold') // Incluir total_value_sold
+        .select('sale_date, product_name, quantity_sold, total_value_sold')
         .eq('user_id', user.id)
         .in('sale_date', formattedHistoricalDates);
 
@@ -94,7 +90,7 @@ const PrevisaoDeCompras: React.FC = () => {
       const { data, error } = await supabase
         .from('product_recipes')
         .select('sold_product_name, internal_product_name, quantity_needed')
-        .eq('user_id', user.id); // CORRIGIDO: Usando 'user_id'
+        .eq('user_id', user.id);
       if (error) throw error;
       return data || [];
     },
@@ -159,7 +155,7 @@ const PrevisaoDeCompras: React.FC = () => {
         throw new Error('O número de dias históricos selecionados deve ser maior que zero.');
       }
 
-      // --- Lógica de Média de Vendas por Quantidade ---
+      // --- Lógica de Média de Vendas por Quantidade (Original) ---
       const dailySalesQuantity: Record<string, number> = {};
       rawSoldItems.forEach(item => {
         dailySalesQuantity[item.product_name] = (dailySalesQuantity[item.product_name] || 0) + item.quantity_sold;
@@ -170,29 +166,10 @@ const PrevisaoDeCompras: React.FC = () => {
         averageDailySales[productName] = dailySalesQuantity[productName] / historicalDays;
       });
 
-      // --- Lógica de Média de Faturamento Diário (NOVO) ---
-      let totalHistoricalRevenue = 0;
-      rawSoldItems.forEach(item => {
-        totalHistoricalRevenue += (item.total_value_sold ?? 0);
-      });
-      const avgDailyRevenue = historicalDays > 0 ? totalHistoricalRevenue / historicalDays : 0;
-      setCalculatedAverageDailyRevenue(avgDailyRevenue);
-
-      // --- Cálculo do Multiplicador de Faturamento (NOVO) ---
-      let revenueMultiplier = 1; // Default: sem alteração
-      const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
-
-      if (parsedProjectedRevenue > 0 && avgDailyRevenue > 0 && projectionDays > 0) {
-        revenueMultiplier = parsedProjectedRevenue / (avgDailyRevenue * projectionDays);
-      } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') { // Se o usuário digitou 0, o multiplicador é 0
-        revenueMultiplier = 0;
-      }
-      setCalculatedRevenueMultiplier(revenueMultiplier);
-
-      // --- Demanda Projetada de Produtos Vendidos (AGORA COM MULTIPLICADOR) ---
+      // --- Demanda Projetada de Produtos Vendidos (Original) ---
       const projectedSoldProductDemand: Record<string, number> = {};
       Object.keys(averageDailySales).forEach(productName => {
-        projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays * revenueMultiplier;
+        projectedSoldProductDemand[productName] = averageDailySales[productName] * projectionDays;
       });
 
       // --- Demanda Projetada de Produtos Internos ---
@@ -332,7 +309,7 @@ const PrevisaoDeCompras: React.FC = () => {
 
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Configurações da Previsão</CardTitle>
+          <CardTitle>Configurações da Previsão por Dias</CardTitle>
           <CardDescription>
             Defina os dias históricos para análise e quantos dias futuros você deseja projetar.
           </CardDescription>
@@ -384,56 +361,8 @@ const PrevisaoDeCompras: React.FC = () => {
               />
             </div>
           </div>
-          {/* NOVO: Seção de Projeção de Faturamento */}
-          <div className="space-y-4 border-t pt-4 mt-4 border-gray-200 dark:border-gray-700">
-            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Projeção de Faturamento</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="average-daily-revenue" className="mb-2 block">Média de Faturamento Diário (Histórico)</Label>
-                <Input
-                  id="average-daily-revenue"
-                  type="text"
-                  value={calculatedAverageDailyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  readOnly
-                  className="w-full bg-gray-50 dark:bg-gray-700"
-                />
-              </div>
-              <div>
-                <Label htmlFor="projected-revenue" className="mb-2 block">Faturamento Projetado (Total para o período)</Label>
-                <Input
-                  id="projected-revenue"
-                  type="text"
-                  value={projectedRevenueInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    // Permite apenas números, vírgulas e pontos
-                    if (/^[0-9.,]*$/.test(value)) {
-                      setProjectedRevenueInput(value);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const parsed = parseBrazilianFloat(e.target.value);
-                    // Formata de volta para string com vírgula como separador decimal
-                    setProjectedRevenueInput(parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ','));
-                  }}
-                  placeholder="0,00"
-                  className="w-full"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="revenue-multiplier" className="mb-2 block">Multiplicador de Faturamento</Label>
-              <Input
-                id="revenue-multiplier"
-                type="text"
-                value={calculatedRevenueMultiplier.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                readOnly
-                className="w-full bg-gray-50 dark:bg-gray-700"
-              />
-            </div>
-          </div>
           <Button onClick={handleGeneratePrediction} disabled={isLoading}>
-            {isLoading ? 'Gerando...' : 'Gerar Previsão de Compras'}
+            {isLoading ? 'Gerando...' : 'Gerar Previsão de Compras por Dias'}
           </Button>
         </CardContent>
       </Card>
@@ -453,8 +382,8 @@ const PrevisaoDeCompras: React.FC = () => {
 
       {!isLoading && !isError && purchasePrediction.length === 0 && (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
-          <p className="text-lg">Nenhuma previsão de compras gerada ainda.</p>
-          <p className="text-sm mt-2">Selecione os dias históricos e o número de dias para projetar, e clique em "Gerar Previsão de Compras".</p>
+          <p className="text-lg">Nenhuma previsão de compras por dias gerada ainda.</p>
+          <p className="text-sm mt-2">Selecione os dias históricos e o número de dias para projetar, e clique em "Gerar Previsão de Compras por Dias".</p>
         </div>
       )}
 
@@ -463,7 +392,7 @@ const PrevisaoDeCompras: React.FC = () => {
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Lista de Compras Sugerida</CardTitle>
+                <CardTitle>Lista de Compras Sugerida (Baseada em Dias)</CardTitle>
                 <CardDescription>
                   Matérias-primas que precisam ser compradas para atender à demanda projetada.
                 </CardDescription>
@@ -581,6 +510,19 @@ const PrevisaoDeCompras: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* NOVO COMPONENTE PARA PROJEÇÃO DE FATURAMENTO */}
+      <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <RevenueBasedPurchasePrediction
+          rawSoldItems={rawSoldItems}
+          productRecipes={productRecipes}
+          currentStock={currentStock}
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          historicalDaysCount={historicalSelectedDates?.length || 0}
+        />
+      </div>
     </div>
   );
 };
