@@ -256,7 +256,7 @@ const Estoque: React.FC = () => {
   });
 
   const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount || isLoadingSoldProductTotals || isLoadingUnitConversions;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || isErrorSoldProductTotals || isErrorUnitConversions;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || errorSoldProductTotals || errorUnitConversions;
   const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount || errorSoldProductTotals || errorUnitConversions;
 
   useEffect(() => {
@@ -475,11 +475,21 @@ const Estoque: React.FC = () => {
     showSuccess('Resumo do estoque atual exportado para Excel com sucesso!');
   };
 
+  const hasData = (stockData && stockData.length > 0) || (enrichedPurchasedItems && enrichedPurchasedItems.length > 0);
 
   if (isLoading) {
     return (
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-gray-700 dark:text-gray-300">
         Carregando gestão de estoque...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
+        <p>Ocorreu um erro ao carregar os dados: {error?.message}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
       </div>
     );
   }
@@ -495,7 +505,7 @@ const Estoque: React.FC = () => {
         Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
-      {stockData && stockData.length === 0 && enrichedPurchasedItems.length === 0 ? (
+      {!hasData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de estoque ou entrada de produto encontrado.</p>
           <p className="text-sm mt-2">
@@ -612,8 +622,8 @@ const Estoque: React.FC = () => {
                                 "ml-2 h-4 w-4 transition-transform",
                                 sortConfigStock.direction === 'desc' && "rotate-180"
                               )}
-                            )}
-                          />
+                            />
+                          )}
                         </Button>
                       </TableHead>
                       <TableHead className="text-right">
