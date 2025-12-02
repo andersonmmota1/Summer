@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, XCircle } from 'lucide-react';
+import { CalendarIcon, XCircle, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -39,9 +39,16 @@ interface AggregatedSoldProduct {
   total_value_sold: number;
 }
 
+// NOVO: Interface para configuração de ordenação
+interface SortConfig {
+  key: keyof AggregatedSoldProduct | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const VendasPorData: React.FC = () => {
   const { user } = useSession();
   const [selectedDates, setSelectedDates] = useState<Date[] | undefined>(undefined);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'total_value_sold', direction: 'desc' }); // Estado de ordenação padrão
 
   const formattedSelectedDates = useMemo(() => {
     if (!selectedDates || selectedDates.length === 0) return [];
@@ -107,6 +114,14 @@ const VendasPorData: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
 
+  const handleSort = (key: keyof AggregatedSoldProduct) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
   const aggregatedSoldProducts = useMemo(() => {
     if (!rawSoldItems) return [];
 
@@ -120,8 +135,32 @@ const VendasPorData: React.FC = () => {
       productMap.set(productName, current);
     });
 
-    return Array.from(productMap.values()).sort((a, b) => b.total_value_sold - a.total_value_sold);
-  }, [rawSoldItems]);
+    let sortableProducts = Array.from(productMap.values());
+
+    // Aplicar ordenação
+    if (sortConfig.key) {
+      sortableProducts.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
+
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+
+    return sortableProducts;
+  }, [rawSoldItems, sortConfig]); // Adicionar sortConfig como dependência
 
   const grandTotalValueSold = useMemo(() => {
     return rawSoldItems?.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0) || 0;
@@ -270,9 +309,57 @@ const VendasPorData: React.FC = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Quantidade Total</TableHead>
-                      <TableHead className="text-right">Valor Total</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('product_name')}
+                          className="px-0 py-0 h-auto"
+                        >
+                          Produto
+                          {sortConfig.key === 'product_name' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('total_quantity_sold')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Quantidade Total
+                          {sortConfig.key === 'total_quantity_sold' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('total_value_sold')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Valor Total
+                          {sortConfig.key === 'total_value_sold' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
