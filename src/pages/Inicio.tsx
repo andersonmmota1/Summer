@@ -129,13 +129,18 @@ const Inicio: React.FC = () => {
     rawSoldItems.forEach(item => {
       const groupName = item.group_name || 'Sem Grupo';
       const itemTotalValue = item.total_value_sold ?? 0;
+      const itemQuantity = item.quantity_sold ?? 0; // Garante que a quantidade seja 0 se nula/indefinida
 
       if (!aggregatedData[groupName]) {
         aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
-      aggregatedData[groupName].total_quantity_sold += item.quantity_sold;
-      aggregatedData[groupName].total_value_sold += itemTotalValue;
-      aggregatedData[groupName].itemCount++; // Mantemos itemCount aqui para o cálculo do ticket médio, mas não será exibido diretamente como 'Qtd. Itens'
+
+      // Apenas soma a quantidade e o valor se o item tiver um total_value_sold maior que 0
+      if (itemTotalValue > 0) {
+        aggregatedData[groupName].total_quantity_sold += itemQuantity;
+        aggregatedData[groupName].total_value_sold += itemTotalValue;
+        aggregatedData[groupName].itemCount++; // Incrementa itemCount apenas para itens que geram receita
+      }
     });
 
     return Object.keys(aggregatedData).map(groupName => {
@@ -164,13 +169,18 @@ const Inicio: React.FC = () => {
     rawSoldItems.forEach(item => {
       const subgroupName = item.subgroup_name || 'Sem Subgrupo';
       const itemTotalValue = item.total_value_sold ?? 0;
+      const itemQuantity = item.quantity_sold ?? 0; // Garante que a quantidade seja 0 se nula/indefinida
 
       if (!aggregatedData[subgroupName]) {
         aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
-      aggregatedData[subgroupName].total_quantity_sold += item.quantity_sold;
-      aggregatedData[subgroupName].total_value_sold += itemTotalValue;
-      aggregatedData[subgroupName].itemCount++; // Mantemos itemCount aqui para o cálculo do ticket médio, mas não será exibido diretamente como 'Qtd. Itens'
+
+      // Apenas soma a quantidade e o valor se o item tiver um total_value_sold maior que 0
+      if (itemTotalValue > 0) {
+        aggregatedData[subgroupName].total_quantity_sold += itemQuantity;
+        aggregatedData[subgroupName].total_value_sold += itemTotalValue;
+        aggregatedData[subgroupName].itemCount++; // Incrementa itemCount apenas para itens que geram receita
+      }
     });
 
     return Object.keys(aggregatedData).map(subgroupName => {
