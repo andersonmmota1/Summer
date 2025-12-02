@@ -9,8 +9,9 @@ import { ptBR } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
 import { useSession } from '@/components/SessionContextProvider';
 import { createExcelFile } from '@/utils/excel';
-import { Download, XCircle } from 'lucide-react';
-import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { Download, XCircle, ArrowUpDown } from 'lucide-react'; // Importar ArrowUpDown
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input'; // Importar Input
 
 // Interface para os itens comprados diretamente do Supabase
 interface PurchasedItem {
@@ -61,9 +62,17 @@ interface TotalPurchasedByInternalProduct {
   total_value_spent: number;
 }
 
+// Nova interface para configuração de ordenação
+interface SortConfig {
+  key: keyof DisplayPurchasedItem | null;
+  direction: 'asc' | 'desc' | null;
+}
+
 const AnaliseDeFornecedor: React.FC = () => {
   const { user } = useSession();
   const [selectedInternalProductName, setSelectedInternalProductName] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>(''); // NOVO: Estado para o termo de busca
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'invoice_emission_date', direction: 'desc' }); // Estado de ordenação
 
   // Query para buscar o resumo de fornecedores
   const { data: suppliersSummary, isLoading: isLoadingSuppliers, isError: isErrorSuppliers, error: errorSuppliers } = useQuery<TotalPurchasedBySupplier[], Error>({
@@ -151,6 +160,16 @@ const AnaliseDeFornecedor: React.FC = () => {
   // Função para lidar com o clique no nome interno do produto para filtrar
   const handleProductFilterClick = (productName: string) => {
     setSelectedInternalProductName(prevName => (prevName === productName ? null : productName));
+    setSearchTerm(''); // Limpa o termo de busca ao aplicar filtro de produto
+  };
+
+  // Função para lidar com a ordenação
+  const handleSort = (key: keyof DisplayPurchasedItem) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
   };
 
   // Dados de itens comprados enriquecidos com o nome interno correto para exibição
@@ -176,25 +195,68 @@ const AnaliseDeFornecedor: React.FC = () => {
     });
   }, [purchasedItems, productNameConversions]);
 
-  // Dados filtrados para o card de Itens Comprados Detalhados
-  const filteredDisplayPurchasedItems = useMemo(() => {
-    let itemsToFilter: DisplayPurchasedItem[] = enrichedPurchasedItems;
+  // Dados filtrados e ordenados para o card de Itens Comprados Detalhados
+  const filteredAndSortedDisplayPurchasedItems = useMemo(() => {
+    let itemsToProcess: DisplayPurchasedItem[] = enrichedPurchasedItems;
 
-    if (!selectedInternalProductName) return itemsToFilter;
+    // 1. Filtragem por selectedInternalProductName (clique no card de produtos internos)
+    if (selectedInternalProductName) {
+      const normalizedSelectedName = selectedInternalProductName.trim().toLowerCase();
+      itemsToProcess = itemsToProcess.filter(item => {
+        const normalizedDisplayInternalName = item.display_internal_product_name.trim().toLowerCase();
+        const normalizedDescricao = item.descricao_do_produto?.trim().toLowerCase();
+        return normalizedDisplayInternalName === normalizedSelectedName || normalizedDescricao === normalizedSelectedName;
+      });
+    }
 
-    const normalizedSelectedName = selectedInternalProductName.trim().toLowerCase();
+    // 2. Filtragem pelo searchTerm (input de busca)
+    if (searchTerm) {
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      itemsToProcess = itemsToProcess.filter(item =>
+        item.display_internal_product_name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (item.x_fant?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm))
+      );
+    }
 
-    return itemsToFilter.filter(item => {
-      const normalizedDisplayInternalName = item.display_internal_product_name.trim().toLowerCase();
-      const normalizedDescricao = item.descricao_do_produto?.trim().toLowerCase();
+    // 3. Ordenação
+    if (sortConfig.key) {
+      itemsToProcess.sort((a, b) => {
+        const aValue = a[sortConfig.key!];
+        const bValue = b[sortConfig.key!];
 
-      // Filtra com base no nome de exibição ou na descrição original
-      return normalizedDisplayInternalName === normalizedSelectedName || normalizedDescricao === normalizedSelectedName;
-    });
-  }, [enrichedPurchasedItems, selectedInternalProductName]);
+        if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          // Para datas, parsear e comparar
+          if (sortConfig.key === 'invoice_emission_date' || sortConfig.key === 'created_at') {
+            const dateA = parseISO(aValue);
+            const dateB = parseISO(bValue);
+            if (dateA < dateB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (dateA > dateB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+          }
+          // Para outras strings, comparação normal
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+        return 0;
+      });
+    }
+
+    return itemsToProcess;
+  }, [enrichedPurchasedItems, selectedInternalProductName, searchTerm, sortConfig]);
 
   const handleExportAllPurchasedItemsToExcel = () => {
-    if (!filteredDisplayPurchasedItems || filteredDisplayPurchasedItems.length === 0) {
+    if (!filteredAndSortedDisplayPurchasedItems || filteredAndSortedDisplayPurchasedItems.length === 0) {
       showWarning('Não há itens comprados para exportar.');
       return;
     }
@@ -215,7 +277,7 @@ const AnaliseDeFornecedor: React.FC = () => {
       'Data de Registro no Sistema',
     ];
 
-    const formattedData = filteredDisplayPurchasedItems.map(item => ({
+    const formattedData = filteredAndSortedDisplayPurchasedItems.map(item => ({
       'ID do Item': item.id,
       'ID da Nota (Chave de Acesso)': item.invoice_id || 'N/A',
       'Número da Nota (Sequencial)': item.invoice_number || 'N/A',
@@ -277,7 +339,7 @@ const AnaliseDeFornecedor: React.FC = () => {
           <span className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Filtrando por Produto Interno: <span className="font-bold text-primary">{selectedInternalProductName}</span>
           </span>
-          <Button variant="outline" size="sm" onClick={() => setSelectedInternalProductName(null)}>
+          <Button variant="outline" size="sm" onClick={() => handleProductFilterClick('')}> {/* Limpa o filtro de produto */}
             <XCircle className="h-4 w-4 mr-1" /> Limpar Filtro
           </Button>
         </div>
@@ -362,7 +424,7 @@ const AnaliseDeFornecedor: React.FC = () => {
           )}
 
           {/* Card: Itens Comprados Detalhados (agora ocupa duas colunas) */}
-          {filteredDisplayPurchasedItems && filteredDisplayPurchasedItems.length > 0 && (
+          {filteredAndSortedDisplayPurchasedItems && filteredAndSortedDisplayPurchasedItems.length > 0 && (
             <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
               <CardHeader>
                 <div className="flex justify-between items-center">
@@ -376,39 +438,213 @@ const AnaliseDeFornecedor: React.FC = () => {
                     <Download className="h-4 w-4" /> Exportar para Excel
                   </Button>
                 </div>
+                <Input
+                  placeholder="Filtrar por nome interno, fornecedor, descrição, código ou número da nota..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm mt-4"
+                />
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nota Fiscal</TableHead>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Cód. Produto</TableHead>
-                        <TableHead>Descrição do Produto (XML)</TableHead>
-                        <TableHead>Nome Interno do Produto</TableHead> {/* Coluna separada */}
-                        <TableHead>Unidade</TableHead>
-                        <TableHead className="text-right">Quantidade</TableHead>
-                        <TableHead className="text-right">Valor Unitário</TableHead>
-                        <TableHead>Data de Emissão da NF</TableHead>
-                        <TableHead>Data de Registro no Sistema</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('invoice_number')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Nota Fiscal
+                            {sortConfig.key === 'invoice_number' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('x_fant')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Fornecedor
+                            {sortConfig.key === 'x_fant' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('c_prod')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Cód. Produto
+                            {sortConfig.key === 'c_prod' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('descricao_do_produto')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Descrição do Produto (XML)
+                            {sortConfig.key === 'descricao_do_produto' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('display_internal_product_name')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Nome Interno do Produto
+                            {sortConfig.key === 'display_internal_product_name' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('u_com')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Unidade
+                            {sortConfig.key === 'u_com' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('q_com')}
+                            className="px-0 py-0 h-auto justify-end w-full"
+                          >
+                            Quantidade
+                            {sortConfig.key === 'q_com' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('v_un_com')}
+                            className="px-0 py-0 h-auto justify-end w-full"
+                          >
+                            Valor Unitário
+                            {sortConfig.key === 'v_un_com' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('invoice_emission_date')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Data de Emissão da NF
+                            {sortConfig.key === 'invoice_emission_date' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleSort('created_at')}
+                            className="px-0 py-0 h-auto"
+                          >
+                            Data de Registro no Sistema
+                            {sortConfig.key === 'created_at' && (
+                              <ArrowUpDown
+                                className={cn(
+                                  "ml-2 h-4 w-4 transition-transform",
+                                  sortConfig.direction === 'desc' && "rotate-180"
+                                )}
+                              />
+                            )}
+                          </Button>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredDisplayPurchasedItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
-                          <TableCell>{item.x_fant || 'N/A'}</TableCell>
-                          <TableCell>{item.c_prod}</TableCell>
-                          <TableCell>{item.descricao_do_produto}</TableCell>
-                          <TableCell>{item.display_internal_product_name}</TableCell> {/* Usa o nome enriquecido */}
-                          <TableCell>{item.u_com}</TableCell>
-                          <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                          <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                          <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
-                          <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                      {filteredAndSortedDisplayPurchasedItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="h-24 text-center">
+                            Nenhum resultado encontrado.
+                          </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        filteredAndSortedDisplayPurchasedItems.map((item) => (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.invoice_number || 'N/A'}</TableCell>
+                            <TableCell>{item.x_fant || 'N/A'}</TableCell>
+                            <TableCell>{item.c_prod}</TableCell>
+                            <TableCell>{item.descricao_do_produto}</TableCell>
+                            <TableCell>{item.display_internal_product_name}</TableCell>
+                            <TableCell>{item.u_com}</TableCell>
+                            <TableCell className="text-right">{item.q_com.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell>{item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
+                            <TableCell>{format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </div>
