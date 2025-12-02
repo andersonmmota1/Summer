@@ -16,7 +16,8 @@ import VisaoDeNotasFiscais from "./pages/VisaoDeNotasFiscais";
 import CustoProdutos from "./pages/CustoProdutos";
 import VendasPorData from "./pages/VendasPorData"; 
 import ProdutosSemFichaTecnica from "./pages/ProdutosSemFichaTecnica";
-import ProdutosInternosNaoUtilizados from "./pages/ProdutosInternosNaoUtilizados"; // Importar a nova página
+import ProdutosInternosNaoUtilizados from "./pages/ProdutosInternosNaoUtilizados";
+import PrevisaoDeCompras from "./pages/PrevisaoDeCompras"; // Importar a nova página
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
@@ -65,7 +66,8 @@ const App = () => (
                 <Route path="custo-produtos" element={<CustoProdutos />} />
                 <Route path="vendas-por-data" element={<VendasPorData />} />
                 <Route path="produtos-sem-ficha-tecnica" element={<ProdutosSemFichaTecnica />} />
-                <Route path="produtos-internos-nao-utilizados" element={<ProdutosInternosNaoUtilizados />} /> {/* Nova rota */}
+                <Route path="produtos-internos-nao-utilizados" element={<ProdutosInternosNaoUtilizados />} />
+                <Route path="previsao-de-compras" element={<PrevisaoDeCompras />} /> {/* Nova rota */}
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
