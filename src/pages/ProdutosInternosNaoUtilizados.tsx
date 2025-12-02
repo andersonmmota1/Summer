@@ -92,11 +92,19 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
   };
 
   const unusedInternalProducts = useMemo(() => {
-    if (!allInternalProducts || !usedInternalProductsInRecipes) return [];
+    if (!allInternalProducts) return []; // Se não há produtos internos comprados, não há o que filtrar
 
-    const usedProductNames = new Set(usedInternalProductsInRecipes.map(p => p.internal_product_name));
+    // Se não há fichas técnicas, todos os produtos comprados são considerados "não utilizados"
+    if (!usedInternalProductsInRecipes || usedInternalProductsInRecipes.length === 0) {
+      return allInternalProducts;
+    }
 
-    let sortableItems = allInternalProducts.filter(product => !usedProductNames.has(product.internal_product_name));
+    const usedProductNames = new Set(usedInternalProductsInRecipes.map(p => p.internal_product_name.trim()));
+
+    let sortableItems = allInternalProducts.filter(product => {
+      // Filtra produtos que NÃO estão na lista de produtos utilizados em receitas
+      return !usedProductNames.has(product.internal_product_name.trim());
+    });
 
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
@@ -107,8 +115,8 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
         if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
-          if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+          if (aValue.localeCompare(bValue) < 0) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (aValue.localeCompare(bValue) > 0) return sortConfig.direction === 'asc' ? 1 : -1;
           return 0;
         } else if (typeof aValue === 'number' && typeof bValue === 'number') {
           if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -180,6 +188,9 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     );
   }
 
+  const hasInternalProducts = allInternalProducts && allInternalProducts.length > 0;
+  const hasRecipes = usedInternalProductsInRecipes && usedInternalProductsInRecipes.length > 0;
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -191,7 +202,14 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
         Isso pode indicar produtos que não estão sendo utilizados ou que precisam ter suas fichas técnicas atualizadas.
       </p>
 
-      {unusedInternalProducts && unusedInternalProducts.length === 0 ? (
+      {hasInternalProducts && !hasRecipes && (
+        <div className="text-center text-yellow-600 dark:text-yellow-400 py-4 mb-6 border border-yellow-300 dark:border-yellow-700 rounded-md bg-yellow-50 dark:bg-yellow-950">
+          <p className="text-lg font-semibold">Atenção: Nenhuma ficha técnica de produto foi cadastrada.</p>
+          <p className="text-sm mt-1">Para ver os produtos internos *não utilizados*, por favor, carregue as fichas técnicas na página "Carga de Dados" (aba "Ficha Técnica"). Atualmente, todos os produtos comprados são exibidos aqui.</p>
+        </div>
+      )}
+
+      {unusedInternalProducts && unusedInternalProducts.length === 0 && hasInternalProducts && hasRecipes ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">🎉 Todos os produtos internos estão sendo utilizados em fichas técnicas!</p>
           <p className="text-sm mt-2">Não há produtos internos sem utilização.</p>
