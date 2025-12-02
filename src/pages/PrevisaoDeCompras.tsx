@@ -57,6 +57,7 @@ const PrevisaoDeCompras: React.FC = () => {
   const [projectionDays, setProjectionDays] = useState<number>(7);
   const [purchasePrediction, setPurchasePrediction] = useState<PurchasePredictionItem[]>([]);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'internal_product_name', direction: 'asc' });
+  const [loadingPrediction, setLoadingPrediction] = useState(false); // NOVO: Estado para controlar o carregamento da previsão
 
   // NOVO: Estados para a nova lógica de projeção de faturamento
   const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>(''); // Input do usuário como string
@@ -93,7 +94,7 @@ const PrevisaoDeCompras: React.FC = () => {
       const { data, error } = await supabase
         .from('product_recipes')
         .select('sold_product_name, internal_product_name, quantity_needed')
-        .eq('user_id', user.id);
+        .eq('user.id', user.id); // Corrigido para user.id
       if (error) throw error;
       return data || [];
     },
