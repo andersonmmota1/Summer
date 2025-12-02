@@ -126,6 +126,15 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
     return sortableItems;
   }, [allInternalProducts, usedInternalProductsInRecipes, sortConfig]);
 
+  // NOVO: Calcular somatórios
+  const totalValuePurchasedSum = useMemo(() => {
+    return unusedInternalProducts.reduce((sum, item) => sum + item.total_value_purchased, 0);
+  }, [unusedInternalProducts]);
+
+  const totalQuantityConvertedSum = useMemo(() => {
+    return unusedInternalProducts.reduce((sum, item) => sum + item.total_quantity_converted, 0);
+  }, [unusedInternalProducts]);
+
   const handleExportToExcel = () => {
     if (!unusedInternalProducts || unusedInternalProducts.length === 0) {
       showWarning('Não há produtos internos não utilizados para exportar.');
@@ -194,58 +203,89 @@ const ProdutosInternosNaoUtilizados: React.FC = () => {
           <p className="text-sm mt-2">Não há produtos internos sem utilização.</p>
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Produtos Internos Sem Utilização</CardTitle>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Valor Total Comprado (Não Utilizado)</CardTitle>
                 <CardDescription>
-                  Lista de produtos internos que não são componentes de nenhuma ficha técnica.
+                  Somatório do valor de compra de todos os produtos internos não utilizados.
                 </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  {totalValuePurchasedSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quantidade Total Convertida (Não Utilizada)</CardTitle>
+                <CardDescription>
+                  Somatório da quantidade convertida de todos os produtos internos não utilizados.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  {totalQuantityConvertedSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle>Produtos Internos Sem Utilização</CardTitle>
+                  <CardDescription>
+                    Lista de produtos internos que não são componentes de nenhuma ficha técnica.
+                  </CardDescription>
+                </div>
+                <Button onClick={handleExportToExcel} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" /> Exportar para Excel
+                </Button>
               </div>
-              <Button onClick={handleExportToExcel} variant="outline" className="gap-2">
-                <Download className="h-4 w-4" /> Exportar para Excel
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('internal_product_name')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Nome Interno do Produto
-                        {sortConfig.key === 'internal_product_name' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleSort('internal_unit')}
-                        className="px-0 py-0 h-auto"
-                      >
-                        Unidade Interna
-                        {sortConfig.key === 'internal_unit' && (
-                          <ArrowUpDown
-                            className={cn(
-                              "ml-2 h-4 w-4 transition-transform",
-                              sortConfig.direction === 'desc' && "rotate-180"
-                            )}
-                          />
-                        )}
-                      </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('internal_product_name')}
+                          className="px-0 py-0 h-auto"
+                        >
+                          Nome Interno do Produto
+                          {sortConfig.key === 'internal_product_name' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('internal_unit')}
+                          className="px-0 py-0 h-auto"
+                        >
+                          Unidade Interna
+                          {sortConfig.key === 'internal_unit' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
                     </TableHead>
                     <TableHead className="text-right">
                       <Button
