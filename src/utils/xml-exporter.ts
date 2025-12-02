@@ -53,12 +53,13 @@ export const exportPurchasedItemsToXml = (allItems: PurchasedItem[]): string => 
     const invoiceNumber = firstItem.invoice_number || 'SEM_NUMERO';
     const supplierName = firstItem.x_fant || 'FORNECEDOR_DESCONHECIDO';
     const emissionDate = firstItem.invoice_emission_date ? format(parseISO(firstItem.invoice_emission_date), 'yyyy-MM-dd') : 'SEM_DATA';
+    const totalInvoiceValue = firstItem.total_invoice_value || 0; // NOVO: Pega o valor total da nota
 
     xmlString += `  <NFe>\n`;
     xmlString += `    <infNFe Id="${escapeXml(invoiceId)}">\n`;
     xmlString += `      <ide>\n`;
     xmlString += `        <nNF>${escapeXml(invoiceNumber)}</nNF>\n`;
-    xmlString += `        <dhEmi>${escapeXml(emissionDate)}</dhEmi>\n`;
+    xmlString += `        <dhEmi>${escapeXml(emissionDate)}</dhEemi>\n`;
     xmlString += `      </ide>\n`;
     xmlString += `      <emit>\n`;
     xmlString += `        <xFant>${escapeXml(supplierName)}</xFant>\n`;
@@ -76,6 +77,13 @@ export const exportPurchasedItemsToXml = (allItems: PurchasedItem[]): string => 
       xmlString += `        </prod>\n`;
       xmlString += `      </det>\n`;
     });
+
+    // NOVO: Adiciona o total da nota fiscal
+    xmlString += `      <total>\n`;
+    xmlString += `        <ICMSTot>\n`;
+    xmlString += `          <vNF>${escapeXml(totalInvoiceValue)}</vNF>\n`;
+    xmlString += `        </ICMSTot>\n`;
+    xmlString += `      </total>\n`;
 
     xmlString += `    </infNFe>\n`;
     xmlString += `  </NFe>\n`;

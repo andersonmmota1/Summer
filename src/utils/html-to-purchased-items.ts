@@ -24,6 +24,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       let invoiceNumber: string | null = null;
       let invoiceEmissionDate: string | null = null;
       let supplierName: string | null = null;
+      let totalInvoiceValue: number | null = null; // NOVO: Variável para o valor total da nota
 
       // Encontrar elementos de número e emissão iterando sobre os strongs na seção #infos
       const infosSection = doc.querySelector('#infos');
@@ -43,6 +44,25 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       
       const supplierNameElement = doc.querySelector('#u20.txtTopo');
       supplierName = supplierNameElement?.textContent?.trim() || null;
+
+      // NOVO: Tentar extrair o valor total da nota fiscal
+      const totalNfElement = doc.querySelector('#totalNf'); // Exemplo de seletor comum para total da NF
+      if (totalNfElement) {
+        const totalText = totalNfElement.textContent?.replace('R$', '').trim();
+        if (totalText) {
+          totalInvoiceValue = parseBrazilianFloat(totalText);
+        }
+      }
+      // Outros seletores possíveis para o total da nota, caso #totalNf não funcione
+      if (totalInvoiceValue === null) {
+        const totalValueElement = doc.querySelector('.total-value strong'); // Outro seletor comum
+        if (totalValueElement) {
+          const totalText = totalValueElement.textContent?.replace('R$', '').trim();
+          if (totalText) {
+            totalInvoiceValue = parseBrazilianFloat(totalText);
+          }
+        }
+      }
 
 
       // Extrair itens da tabela
@@ -93,6 +113,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
             x_fant: supplierName,
             invoice_emission_date: invoiceEmissionDate,
             is_manual_entry: false, // Considerado como vindo de um documento, não manual
+            total_invoice_value: totalInvoiceValue, // NOVO: Adiciona o valor total da nota
           });
         }
       });
