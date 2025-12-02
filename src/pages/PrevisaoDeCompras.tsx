@@ -94,7 +94,7 @@ const PrevisaoDeCompras: React.FC = () => {
       const { data, error } = await supabase
         .from('product_recipes')
         .select('sold_product_name, internal_product_name, quantity_needed')
-        .eq('user.id', user.id); // Corrigido para user.id
+        .eq('user_id', user.id); // CORRIGIDO: Usando 'user_id'
       if (error) throw error;
       return data || [];
     },
