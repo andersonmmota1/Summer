@@ -33,7 +33,7 @@ interface AggregatedSales {
 
 const Inicio: React.FC = () => {
   const { user } = useSession();
-  // Removido: const { filters } = useFilter();
+  // Removido: const { filters = {} } = useFilter(); // Default para objeto vazio
   // Removido: const { selectedProduct } = filters;
 
   const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
@@ -210,7 +210,7 @@ const Inicio: React.FC = () => {
       )} */}
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"> {/* Layout ajustado para 2 colunas em telas grandes */}
-        <Card className="lg:col-span-2"> {/* Ocupa 2 colunas em telas grandes */}
+        <Card> {/* Removido lg:col-span-2 */}
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
             <CardDescription>
@@ -234,7 +234,7 @@ const Inicio: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2"> {/* Ocupa 2 colunas em telas grandes */}
+        <Card> {/* Removido lg:col-span-2 */}
           <CardHeader>
             <CardTitle>Valor Total Vendido</CardTitle>
             <CardDescription>
