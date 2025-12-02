@@ -5,14 +5,14 @@ import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, parseISO, addMonths } from 'date-fns'; // Importar addMonths
+import { format, parseISO, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { CalendarIcon, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker'; // Mantido para tipagem, mas usaremos Date[]
+import { DateRange } from 'react-day-picker';
 
 interface SoldItemRaw {
   id: string;
@@ -33,7 +33,6 @@ interface SalesByDateAggregated {
   itemCount: number;
 }
 
-// NOVO: Interface para os dados agregados por produto
 interface AggregatedSoldProduct {
   product_name: string;
   total_quantity_sold: number;
@@ -108,7 +107,6 @@ const VendasPorData: React.FC = () => {
     })).sort((a, b) => new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime());
   }, [rawSoldItems]);
 
-  // NOVO: Agregação por produto para a tabela "Produtos Vendidos Detalhados"
   const aggregatedSoldProducts = useMemo(() => {
     if (!rawSoldItems) return [];
 
@@ -133,7 +131,6 @@ const VendasPorData: React.FC = () => {
     setSelectedDates(undefined);
   };
 
-  // Definir o mês padrão para o calendário: mês anterior ao atual
   const defaultCalendarMonth = useMemo(() => addMonths(new Date(), -1), []);
 
   if (isLoading) {
@@ -185,7 +182,7 @@ const VendasPorData: React.FC = () => {
             <Calendar
               initialFocus
               mode="multiple"
-              month={defaultCalendarMonth} {/* ATUALIZADO: Define o mês inicial para o mês anterior */}
+              month={defaultCalendarMonth}
               selected={selectedDates}
               onSelect={setSelectedDates}
               numberOfMonths={2}
@@ -258,7 +255,6 @@ const VendasPorData: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Card: Produtos Vendidos Detalhados (agora agregado por produto) */}
         <Card>
           <CardHeader>
             <CardTitle>Produtos Vendidos Detalhados</CardTitle>
