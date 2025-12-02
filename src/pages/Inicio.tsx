@@ -28,6 +28,7 @@ interface AggregatedSales {
   total_quantity_sold: number;
   total_value_sold: number;
   average_ticket?: number; // Adicionado para o ticket médio
+  itemCount: number; // Adicionado para a quantidade de itens
 }
 
 const Inicio: React.FC = () => {
@@ -129,28 +130,31 @@ const Inicio: React.FC = () => {
   const salesByGroup = useMemo(() => {
     if (!rawSoldItems) return [];
 
-    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
+    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
 
     rawSoldItems.forEach(item => {
       const groupName = item.group_name || 'Sem Grupo';
       const itemTotalValue = item.total_value_sold ?? 0;
 
       if (!aggregatedData[groupName]) {
-        aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0 };
+        aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
       aggregatedData[groupName].total_quantity_sold += item.quantity_sold;
       aggregatedData[groupName].total_value_sold += itemTotalValue;
+      aggregatedData[groupName].itemCount++; // Incrementa a contagem de itens
     });
 
     return Object.keys(aggregatedData).map(groupName => {
       const total_quantity_sold = aggregatedData[groupName].total_quantity_sold;
       const total_value_sold = aggregatedData[groupName].total_value_sold;
+      const itemCount = aggregatedData[groupName].itemCount;
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: groupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
+        itemCount,
       };
     }).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
   }, [rawSoldItems]);
@@ -159,28 +163,31 @@ const Inicio: React.FC = () => {
   const salesBySubgroup = useMemo(() => {
     if (!rawSoldItems) return [];
 
-    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number }> = {};
+    const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
 
     rawSoldItems.forEach(item => {
       const subgroupName = item.subgroup_name || 'Sem Subgrupo';
       const itemTotalValue = item.total_value_sold ?? 0;
 
       if (!aggregatedData[subgroupName]) {
-        aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0 };
+        aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
       aggregatedData[subgroupName].total_quantity_sold += item.quantity_sold;
       aggregatedData[subgroupName].total_value_sold += itemTotalValue;
+      aggregatedData[subgroupName].itemCount++; // Incrementa a contagem de itens
     });
 
     return Object.keys(aggregatedData).map(subgroupName => {
       const total_quantity_sold = aggregatedData[subgroupName].total_quantity_sold;
       const total_value_sold = aggregatedData[subgroupName].total_value_sold;
+      const itemCount = aggregatedData[subgroupName].itemCount;
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: subgroupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
+        itemCount,
       };
     }).sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
   }, [rawSoldItems]);
@@ -202,8 +209,8 @@ const Inicio: React.FC = () => {
         </div>
       )} */}
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"> {/* Layout ajustado para 4 colunas em telas grandes */}
-        <Card>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6"> {/* Layout ajustado para 2 colunas em telas grandes */}
+        <Card className="lg:col-span-2"> {/* Ocupa 2 colunas em telas grandes */}
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
             <CardDescription>
@@ -220,14 +227,14 @@ const Inicio: React.FC = () => {
                 Erro ao carregar total de produtos vendidos: {error?.message}
               </div>
             ) : (
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100"> {/* Alterado de text-3xl para text-2xl */}
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {totalQuantitySoldSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2"> {/* Ocupa 2 colunas em telas grandes */}
           <CardHeader>
             <CardTitle>Valor Total Vendido</CardTitle>
             <CardDescription>
@@ -244,7 +251,7 @@ const Inicio: React.FC = () => {
                 Erro ao carregar valor total vendido: {error?.message}
               </div>
             ) : (
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100"> {/* Alterado de text-3xl para text-2xl */}
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {totalValueSoldSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
             )}
@@ -252,11 +259,11 @@ const Inicio: React.FC = () => {
         </Card>
 
         {/* NOVO CARD: Vendas por Grupo */}
-        <Card>
+        <Card> {/* Não precisa de col-span, pois o grid já é de 2 colunas */}
           <CardHeader>
             <CardTitle>Vendas por Grupo</CardTitle>
             <CardDescription>
-              Valor total vendido e ticket médio por cada grupo de produtos.
+              Valor total vendido, quantidade de itens e ticket médio por grupo.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -274,12 +281,12 @@ const Inicio: React.FC = () => {
                   salesByGroup.map((group, index) => (
                     <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm border-b last:border-b-0 py-1">
                       <span className="font-medium text-gray-800 dark:text-gray-200">{group.name}</span>
-                      <div className="flex flex-col sm:flex-row sm:gap-2 text-right">
+                      <div className="flex flex-col sm:flex-row sm:gap-1 text-right">
                         <span className="text-gray-900 dark:text-gray-100">
                           {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          (Ticket Médio: {group.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                          (Qtd Itens: {group.itemCount}, Ticket Médio: {group.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
                         </span>
                       </div>
                     </div>
@@ -293,11 +300,11 @@ const Inicio: React.FC = () => {
         </Card>
 
         {/* NOVO CARD: Vendas por Subgrupo */}
-        <Card>
+        <Card> {/* Não precisa de col-span, pois o grid já é de 2 colunas */}
           <CardHeader>
             <CardTitle>Vendas por Subgrupo</CardTitle>
             <CardDescription>
-              Valor total vendido e ticket médio por cada subgrupo de produtos.
+              Valor total vendido, quantidade de itens e ticket médio por subgrupo.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -315,12 +322,12 @@ const Inicio: React.FC = () => {
                   salesBySubgroup.map((subgroup, index) => (
                     <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm border-b last:border-b-0 py-1">
                       <span className="font-medium text-gray-800 dark:text-gray-200">{subgroup.name}</span>
-                      <div className="flex flex-col sm:flex-row sm:gap-2 text-right">
+                      <div className="flex flex-col sm:flex-row sm:gap-1 text-right">
                         <span className="text-gray-900 dark:text-gray-100">
                           {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          (Ticket Médio: {subgroup.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                          (Qtd Itens: {subgroup.itemCount}, Ticket Médio: {subgroup.average_ticket?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
                         </span>
                       </div>
                     </div>
