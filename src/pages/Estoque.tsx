@@ -256,7 +256,7 @@ const Estoque: React.FC = () => {
   });
 
   const isLoading = isLoadingStock || isLoadingUsage || isLoadingPurchasedItems || isLoadingConversions || isLoadingPurchasedItemsCount || isLoadingSoldProductTotals || isLoadingUnitConversions;
-  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || errorSoldProductTotals || errorUnitConversions;
+  const isError = isErrorStock || isErrorUsage || isErrorPurchasedItems || isErrorConversions || errorPurchasedItemsCount || isErrorSoldProductTotals || isErrorUnitConversions;
   const error = errorStock || errorUsage || errorPurchasedItems || errorConversions || errorPurchasedItemsCount || errorSoldProductTotals || errorUnitConversions;
 
   useEffect(() => {
@@ -292,8 +292,18 @@ const Estoque: React.FC = () => {
     }));
   };
 
+  // Lógica atualizada para o cálculo do Valor Total do Estoque
   const totalStockValue = useMemo(() => {
-    return stockData?.reduce((sum, item) => sum + item.total_purchased_value, 0) || 0;
+    return stockData?.reduce((sum, item) => {
+      let itemStockValue = 0;
+      // Verifica se a quantidade comprada convertida é maior que zero para evitar divisão por zero
+      // E se o estoque atual não é negativo
+      if (item.current_stock_quantity >= 0 && item.total_purchased_quantity_converted > 0) {
+        const averageUnitCost = item.total_purchased_value / item.total_purchased_quantity_converted;
+        itemStockValue = averageUnitCost * item.current_stock_quantity;
+      }
+      return sum + itemStockValue;
+    }, 0) || 0;
   }, [stockData]);
 
   // Lógica para enriquecer itens comprados com o nome interno correto para exibição
