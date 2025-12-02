@@ -63,7 +63,6 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
   error,
   historicalDaysCount,
 }) => {
-  // Removido: const [projectionDays, setProjectionDays] = useState<number>(7);
   const [projectedRevenueInput, setProjectedRevenueInput] = useState<string>('');
   const [totalHistoricalRevenue, setTotalHistoricalRevenue] = useState<number>(0); // NOVO: Total de faturamento histórico
   const [calculatedRevenueMultiplier, setCalculatedRevenueMultiplier] = useState<number>(1);
@@ -90,7 +89,6 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       showError('Por favor, selecione pelo menos um dia histórico na seção acima para a análise.');
       return;
     }
-    // Removido: if (projectionDays <= 0) { ... }
     if (!rawSoldItems || rawSoldItems.length === 0) {
       showWarning('Nenhum dado de venda encontrado para os dias históricos selecionados. Não é possível gerar a previsão.');
       return;
@@ -262,7 +260,6 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Removido: Dias para Projetar */}
           <div>
             <Label htmlFor="total-historical-revenue-calc" className="mb-2 block">Faturamento Total Histórico</Label>
             <Input
@@ -302,6 +299,10 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
               readOnly
               className="w-full bg-gray-50 dark:bg-gray-700"
             />
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              Calculado como: Faturamento Projetado / Faturamento Total Histórico.
+              Este multiplicador é aplicado às quantidades totais vendidas historicamente de cada produto.
+            </p>
           </div>
         </div>
         <Button onClick={handleGeneratePrediction} disabled={isLoading || loadingPrediction}>
