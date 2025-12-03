@@ -4,47 +4,55 @@ import { useNavigate } from "react-router-dom";
 
 export default function LeitorQRCode() {
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
+
     const startScanner = async () => {
       try {
-        const cameraId = (await Html5Qrcode.getCameras())[0]?.id;
+        // Aguarda lista de câmeras
+        const cameras = await Html5Qrcode.getCameras();
+        const cameraId = cameras?.[0]?.id;
 
         if (!cameraId) {
-          setCameraError("Nenhuma câmera encontrada.");
+          if (isMounted) setCameraError("Nenhuma câmera encontrada.");
           return;
         }
 
-        const html5Qr = new Html5Qrcode("qr-reader");
-        scannerRef.current = html5Qr;
+        // Garantir que o container está LIMPO
+        const container = document.getElementById("qr-reader");
+        if (container) container.innerHTML = "";
 
-        setIsScanning(true);
+        const scanner = new Html5Qrcode("qr-reader");
+        scannerRef.current = scanner;
 
-        await html5Qr.start(
+        await scanner.start(
           cameraId,
           {
             fps: 10,
             qrbox: { width: 250, height: 250 }, // 🔲 QUADRADO DE LEITURA
+            aspectRatio: 1.0,
           },
           (decodedText) => {
-            html5Qr.stop();
+            scanner.stop();
             navigate("/verificar-produto?url=" + encodeURIComponent(decodedText));
           },
-          (errorMessage) => {
-            // Erros de leitura normais — ignorar
-          }
+          () => {} // erros ignorados
         );
       } catch (err: any) {
-        setCameraError("Erro ao acessar a câmera: " + err.message);
+        if (isMounted) {
+          setCameraError("Erro ao acessar a câmera: " + err.message);
+        }
       }
     };
 
     startScanner();
 
     return () => {
+      isMounted = false;
+
       if (scannerRef.current) {
         scannerRef.current.stop().catch(() => {});
       }
