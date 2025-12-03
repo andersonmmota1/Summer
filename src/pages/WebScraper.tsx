@@ -10,12 +10,15 @@ import { useSession } from '@/components/SessionContextProvider';
 import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items'; // Importar a nova função
 import { exportPurchasedItemsToXml } from '@/utils/xml-exporter'; // Importar a função de exportação XML
 import { NFeDetailedItem } from '@/types/nfe'; // Importar a nova interface
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Importar Dialog
+import QrCodeScanner from '@/components/QrCodeScanner'; // Importar o novo componente
 
 const WebScraper: React.FC = () => {
   const { user } = useSession();
   const [targetUrl, setTargetUrl] = useState('');
   const [pageContent, setPageContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false); // Estado para controlar o modal do scanner
 
   const handleFetchContent = async () => {
     if (!targetUrl) {
@@ -102,6 +105,18 @@ const WebScraper: React.FC = () => {
     }
   };
 
+  const handleScanSuccess = (decodedText: string) => {
+    setTargetUrl(decodedText);
+    setIsScannerOpen(false); // Fecha o modal após o sucesso
+    showSuccess('URL lida do QR Code com sucesso!');
+  };
+
+  const handleScanError = (errorMessage: string) => {
+    // Erros de câmera já são tratados dentro do QrCodeScanner,
+    // mas podemos adicionar um tratamento adicional aqui se necessário.
+    console.error('Erro no scanner de QR Code:', errorMessage);
+  };
+
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -117,7 +132,7 @@ const WebScraper: React.FC = () => {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Configurações de Busca</CardTitle>
-          <CardDescription>Insira a URL da página que você deseja acessar.</CardDescription>
+          <CardDescription>Insira a URL da página que você deseja acessar ou escaneie um QR Code.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -131,9 +146,28 @@ const WebScraper: React.FC = () => {
               className="w-full"
             />
           </div>
-          <Button onClick={handleFetchContent} disabled={loading}>
-            {loading ? 'Buscando...' : 'Buscar Conteúdo'}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button onClick={handleFetchContent} disabled={loading} className="flex-1">
+              {loading ? 'Buscando...' : 'Buscar Conteúdo'}
+            </Button>
+            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex-1">
+                  Escanear QR Code
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl p-0">
+                <DialogHeader className="p-4 pb-0">
+                  <DialogTitle>Escanear QR Code</DialogTitle>
+                </DialogHeader>
+                <QrCodeScanner
+                  onScanSuccess={handleScanSuccess}
+                  onScanError={handleScanError}
+                  onClose={() => setIsScannerOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardContent>
       </Card>
 
