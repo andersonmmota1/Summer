@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import * as Html5Qrcode from 'html5-qrcode'; // Import de namespace
+import Html5QrcodeScanner from 'html5-qrcode'; // Alterado para default import
 import { showError, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
@@ -13,23 +13,23 @@ interface QrCodeScannerProps {
 }
 
 const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanError, onClose }) => {
-  const scannerRef = useRef<Html5Qrcode.Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null); // Usar Html5QrcodeScanner diretamente
   const qrCodeRegionId = "qr-code-full-region";
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode.Html5QrcodeScanner(
+      scannerRef.current = new Html5QrcodeScanner( // Usar Html5QrcodeScanner diretamente
         qrCodeRegionId,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5Qrcode.Html5QrcodeScanner.Html5QrcodeSupportedMethod.CameraScan, // CORRIGIDO AQUI
-            Html5Qrcode.Html5QrcodeScanner.Html5QrcodeSupportedMethod.FileDragAndDrop, // E AQUI
-            Html5Qrcode.Html5QrcodeScanner.Html5QrcodeSupportedMethod.Usb // E AQUI
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.CameraScan, // Acessar via a classe importada
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
