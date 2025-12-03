@@ -15,8 +15,9 @@ export default function QrCodeReader() {
         { facingMode: "environment" },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+  const side = Math.min(viewfinderWidth, viewfinderHeight) * 0.6;
+  return { width: side, height: side };
         (decodedText) => {
           console.log("QR LIDO:", decodedText);
           setQrData(decodedText);
