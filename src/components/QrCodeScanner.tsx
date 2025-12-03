@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import Html5QrcodeScanner from 'html5-qrcode'; // Alterado para default import
+import { Html5QrcodeScanner } from 'html5-qrcode'; // Alterado de volta para named import
 import { showError, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
