@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedMethod } from 'html5-qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode'; // Removido Html5QrcodeSupportedMethod do import
 import { showError, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
@@ -27,9 +27,9 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeSupportedMethod.CameraScan,
-            Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeSupportedMethod.Usb
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.CameraScan, // Acessando como propriedade estática
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
@@ -48,7 +48,6 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
-      // console.warn(`QR Code error = ${errorMessage}`); // Log warnings, but don't show as error toast unless critical
       if (errorMessage.includes("No camera found") || errorMessage.includes("Permission denied")) {
         setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
         showError("Erro na câmera: " + errorMessage);
@@ -58,7 +57,6 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
       onScanError?.(errorMessage);
     };
 
-    // Start scanning only if not already scanning and no camera error
     if (!isScanning && !cameraError) {
       setIsScanning(true);
       html5QrcodeScanner.render(qrCodeSuccessCallback, qrCodeErrorCallback)
@@ -71,7 +69,7 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
     }
 
     return () => {
-      if (html5QrcodeScanner.isScanning) { // Correção aqui
+      if (html5QrcodeScanner.isScanning) {
         html5QrcodeScanner.clear().catch(error => {
           console.error("Failed to clear html5QrcodeScanner on unmount", error);
         });
