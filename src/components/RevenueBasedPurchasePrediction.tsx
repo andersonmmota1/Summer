@@ -37,6 +37,7 @@ interface PurchasePredictionItem {
   projected_demand_quantity: number;
   current_stock_quantity: number;
   purchase_quantity_needed: number;
+  total_historical_consumption_quantity: number; // NOVO: Quantidade total consumida historicamente
 }
 
 interface SortConfig {
@@ -95,6 +96,29 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     }
     setCalculatedRevenueMultiplier(multiplier);
   }, [projectedRevenueInput, totalHistoricalRevenue]);
+
+  // NOVO: Calcular a quantidade total consumida de produtos internos no período histórico
+  const totalHistoricalInternalProductConsumption = useMemo(() => {
+    if (!rawSoldItems || !productRecipes) return {};
+
+    const totalHistoricalQuantitySoldPerProduct: Record<string, number> = {};
+    rawSoldItems.forEach(item => {
+      totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.quantity_sold;
+    });
+
+    const historicalInternalDemand: Record<string, number> = {};
+    Object.keys(totalHistoricalQuantitySoldPerProduct).forEach(soldProductName => {
+      const historicalQuantity = totalHistoricalQuantitySoldPerProduct[soldProductName];
+      const relevantRecipes = productRecipes.filter(recipe => recipe.sold_product_name === soldProductName);
+
+      relevantRecipes.forEach(recipe => {
+        const internalProductName = recipe.internal_product_name;
+        const quantityNeeded = recipe.quantity_needed;
+        historicalInternalDemand[internalProductName] = (historicalInternalDemand[internalProductName] || 0) + (historicalQuantity * quantityNeeded);
+      });
+    });
+    return historicalInternalDemand;
+  }, [rawSoldItems, productRecipes]);
 
 
   const handleGeneratePrediction = async () => {
@@ -159,6 +183,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
 
         const currentStockQuantity = stockInfo?.current_stock_quantity || 0;
         const internalUnit = stockInfo?.internal_unit || 'unidade';
+        const historicalConsumption = totalHistoricalInternalProductConsumption[internalProductName] || 0; // NOVO: Obter consumo histórico
 
         const purchaseQuantityNeeded = Math.max(0, projectedDemand - currentStockQuantity);
 
@@ -168,6 +193,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
           projected_demand_quantity: projectedDemand,
           current_stock_quantity: currentStockQuantity,
           purchase_quantity_needed: purchaseQuantityNeeded,
+          total_historical_consumption_quantity: historicalConsumption, // NOVO: Adicionar ao item
         });
       });
 
@@ -229,6 +255,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const headers = [
       'Nome Interno do Produto',
       'Unidade Interna',
+      'Total Consumido (Histórico)', // NOVO: Cabeçalho para exportação
       'Demanda Projetada',
       'Estoque Atual',
       'Quantidade Necessária para Compra',
@@ -237,6 +264,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const formattedData = purchasePrediction.map(item => ({
       'Nome Interno do Produto': item.internal_product_name,
       'Unidade Interna': item.internal_unit,
+      'Total Consumido (Histórico)': item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), // NOVO: Valor para exportação
       'Demanda Projetada': item.projected_demand_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Estoque Atual': item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Quantidade Necessária para Compra': item.purchase_quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -393,6 +421,23 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
                       <TableHead className="text-right">
                         <Button
                           variant="ghost"
+                          onClick={() => handleSort('total_historical_consumption_quantity')}
+                          className="px-0 py-0 h-auto justify-end w-full"
+                        >
+                          Total Consumido (Histórico)
+                          {sortConfig.key === 'total_historical_consumption_quantity' && (
+                            <ArrowUpDown
+                              className={cn(
+                                "ml-2 h-4 w-4 transition-transform",
+                                sortConfig.direction === 'desc' && "rotate-180"
+                              )}
+                            />
+                          )}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <Button
+                          variant="ghost"
                           onClick={() => handleSort('projected_demand_quantity')}
                           className="px-0 py-0 h-auto justify-end w-full"
                         >
@@ -448,6 +493,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.internal_product_name}</TableCell>
                         <TableCell>{item.internal_unit}</TableCell>
+                        <TableCell className="text-right">{item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell> {/* NOVO: Célula para consumo histórico */}
                         <TableCell className="text-right">{item.projected_demand_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-bold text-primary">{item.purchase_quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
