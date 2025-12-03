@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode'; // Removido Html5QrcodeSupportedMethod do import
+import Html5QrcodeScanner from 'html5-qrcode'; // Alterado para default import
 import { showError, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
@@ -27,7 +27,7 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeScanner.Html5QrcodeSupportedMethod.CameraScan, // Acessando como propriedade estática
+            Html5QrcodeScanner.Html5QrcodeSupportedMethod.CameraScan,
             Html5QrcodeScanner.Html5QrcodeSupportedMethod.FileDragAndDrop,
             Html5QrcodeScanner.Html5QrcodeSupportedMethod.Usb
           ]
