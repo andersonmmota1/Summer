@@ -29,32 +29,40 @@ const QrCodeReader: React.FC = () => {
 
     const html5QrcodeScanner = scannerRef.current;
 
-    const qrCodeSuccessCallback = (decodedText: string) => {
-      console.log(`QR Code success = ${decodedText}`);
-      showSuccess('URL lida do QR Code com sucesso!');
-      html5QrcodeScanner.clear().catch(error => {
-        console.error("Failed to clear html5QrcodeScanner", error);
-      });
+    const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
+      console.log(`QR Code success = ${decodedText}`, decodedResult);
+      showSuccess("URL lida do QR Code com sucesso!");
+
+      html5QrcodeScanner.clear().catch(error =>
+        console.error("Failed to clear html5QrcodeScanner", error)
+      );
+
       setIsScanning(false);
 
-      navigate('/web-scraper', { state: { scannedUrl: decodedText } });
+      navigate("/web-scraper", { state: { scannedUrl: decodedText } });
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
-      if (errorMessage.includes("No camera found") || errorMessage.includes("Permission denied")) {
-        setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
+      if (
+        errorMessage.includes("No camera found") ||
+        errorMessage.includes("Permission denied")
+      ) {
+        setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
         showError("Erro na câmera: " + errorMessage);
+
         html5QrcodeScanner.clear().catch(error =>
           console.error("Failed to clear scanner on camera error", error)
         );
+
         setIsScanning(false);
       } else {
-        console.warn("Erro durante a leitura do QR Code:", errorMessage);
+        console.warn("Erro durante a leitura:", errorMessage);
       }
     };
 
     if (!isScanning && !cameraError) {
       setIsScanning(true);
+
       html5QrcodeScanner
         .render(qrCodeSuccessCallback, qrCodeErrorCallback)
         .catch(err => {
@@ -67,9 +75,9 @@ const QrCodeReader: React.FC = () => {
 
     return () => {
       if (html5QrcodeScanner.isScanning) {
-        html5QrcodeScanner.clear().catch(error => {
-          console.error("Failed to clear html5QrcodeScanner on unmount", error);
-        });
+        html5QrcodeScanner.clear().catch(error =>
+          console.error("Failed to clear html5QrcodeScanner on unmount", error)
+        );
       }
     };
   }, [navigate, isScanning, cameraError]);
@@ -89,7 +97,7 @@ const QrCodeReader: React.FC = () => {
           <CameraOff className="h-12 w-12" />
           <p className="font-bold">{cameraError}</p>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Certifique-se de que sua câmera está conectada e que você concedeu permissão ao navegador.
+            Verifique permissões e conexão da câmera.
           </p>
         </div>
       ) : (
@@ -104,12 +112,12 @@ const QrCodeReader: React.FC = () => {
           <div
             id={qrCodeRegionId}
             className="w-full max-w-md aspect-video bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden"
-          />
+          ></div>
         </>
       )}
 
       <Button
-        onClick={() => navigate('/web-scraper')}
+        onClick={() => navigate("/web-scraper")}
         variant="outline"
         className="mt-6"
       >
