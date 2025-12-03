@@ -1,19 +1,14 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode'; // Importa a classe Html5QrcodeScanner diretamente
-import * as Html5QrcodeModule from 'html5-qrcode'; // Importa o módulo inteiro como namespace
-import { showError, showWarning } from '@/utils/toast';
+import { Html5QrcodeScanner, Html5QrcodeSupportedMethod } from 'html5-qrcode';
+import { showError, showSuccess } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-interface QrCodeScannerProps {
-  onScanSuccess: (decodedText: string) => void;
-  onScanError?: (errorMessage: string) => void;
-  onClose: () => void;
-}
-
-const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanError, onClose }) => {
+const QrCodeReader: React.FC = () => {
+  const navigate = useNavigate();
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const qrCodeRegionId = "qr-code-full-region";
   const [isScanning, setIsScanning] = useState(false);
@@ -28,9 +23,9 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.CameraScan, // Acessa a propriedade estática via namespace
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.Usb
+            Html5QrcodeSupportedMethod.CameraScan,
+            Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
@@ -41,11 +36,13 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
 
     const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
       console.log(`QR Code success = ${decodedText}`, decodedResult);
-      onScanSuccess(decodedText);
+      showSuccess('URL lida do QR Code com sucesso!');
       html5QrcodeScanner.clear().catch(error => {
         console.error("Failed to clear html5QrcodeScanner", error);
       });
       setIsScanning(false);
+      // Navega de volta para WebScraper, passando a URL escaneada como estado
+      navigate('/web-scraper', { state: { scannedUrl: decodedText } });
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
@@ -54,8 +51,10 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
         showError("Erro na câmera: " + errorMessage);
         html5QrcodeScanner.clear().catch(error => console.error("Failed to clear scanner on camera error", error));
         setIsScanning(false);
+      } else {
+        // Apenas loga outros erros sem parar o scanner, a menos que seja um erro crítico
+        console.warn("Erro durante a leitura do QR Code:", errorMessage);
       }
-      onScanError?.(errorMessage);
     };
 
     if (!isScanning && !cameraError) {
@@ -76,12 +75,14 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
         });
       }
     };
-  }, [onScanSuccess, onScanError, isScanning, cameraError]);
+  }, [navigate, isScanning, cameraError]);
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 p-4">
-      <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Escanear QR Code</h3>
-      <p className="text-gray-700 dark:text-gray-300 text-center">
+    <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
+      <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        Leitor de QR Code
+      </h2>
+      <p className="text-gray-700 dark:text-gray-300 text-center mb-6">
         Aponte a câmera para o QR code que contém a URL.
       </p>
       {cameraError ? (
@@ -105,11 +106,11 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
           </div>
         </>
       )}
-      <Button onClick={onClose} variant="outline" className="mt-4">
-        Fechar Scanner
+      <Button onClick={() => navigate('/web-scraper')} variant="outline" className="mt-6">
+        Voltar para Web Scraper
       </Button>
     </div>
   );
 };
 
-export default QrCodeScanner;
+export default QrCodeReader;

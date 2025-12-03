@@ -25,7 +25,8 @@ const DashboardShell: React.FC = () => {
     { name: 'Produtos Sem Ficha Técnica', path: '/produtos-sem-ficha-tecnica' },
     { name: 'Produtos Internos Não Utilizados', path: '/produtos-internos-nao-utilizados' },
     { name: 'Previsão de Compras', path: '/previsao-de-compras' },
-    { name: 'Web Scraper (Experimental)', path: '/web-scraper' }, // Novo item de navegação
+    { name: 'Web Scraper (Experimental)', path: '/web-scraper' },
+    { name: 'Leitor de QR Code', path: '/qr-code-reader' }, // Novo item de navegação
   ];
 
   const handleLogout = async () => {

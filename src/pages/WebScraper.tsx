@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { showSuccess, showError, showLoading, dismissToast, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
@@ -7,18 +7,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useSession } from '@/components/SessionContextProvider';
-import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items'; // Importar a nova função
-import { exportPurchasedItemsToXml } from '@/utils/xml-exporter'; // Importar a função de exportação XML
-import { NFeDetailedItem } from '@/types/nfe'; // Importar a nova interface
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // Importar Dialog
-import QrCodeScanner from '@/components/QrCodeScanner'; // Importar o novo componente
+import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items';
+import { exportPurchasedItemsToXml } from '@/utils/xml-exporter';
+import { NFeDetailedItem } from '@/types/nfe';
+import { useNavigate, useLocation } from 'react-router-dom'; // Importar useNavigate e useLocation
 
 const WebScraper: React.FC = () => {
   const { user } = useSession();
+  const navigate = useNavigate();
+  const location = useLocation(); // Para ler o estado da navegação
   const [targetUrl, setTargetUrl] = useState('');
   const [pageContent, setPageContent] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false); // Estado para controlar o modal do scanner
+
+  // Efeito para verificar se há uma URL escaneada no estado da localização
+  useEffect(() => {
+    if (location.state && location.state.scannedUrl) {
+      setTargetUrl(location.state.scannedUrl);
+      // Limpa o estado para que a URL não seja preenchida novamente em futuras visitas
+      navigate(location.pathname, { replace: true, state: {} }); 
+    }
+  }, [location, navigate]);
 
   const handleFetchContent = async () => {
     if (!targetUrl) {
@@ -67,7 +76,6 @@ const WebScraper: React.FC = () => {
 
     const loadingToastId = showLoading('Extraindo dados e gerando XML...');
     try {
-      // extractPurchasedItemsFromHtml agora retorna NFeDetailedItem[]
       const detailedNFeItems: NFeDetailedItem[] = await extractPurchasedItemsFromHtml(pageContent, user.id);
       
       if (detailedNFeItems.length === 0) {
@@ -75,17 +83,14 @@ const WebScraper: React.FC = () => {
         return;
       }
 
-      // exportPurchasedItemsToXml agora aceita NFeDetailedItem[]
       const xmlContent = exportPurchasedItemsToXml(detailedNFeItems);
       const blob = new Blob([xmlContent], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
-      // Usar a chave de acesso (Id) do primeiro item como nome do arquivo
-      let filename = 'nfe_extraida_do_scraper.xml'; // Fallback
+      let filename = 'nfe_extraida_do_scraper.xml';
       if (detailedNFeItems.length > 0 && detailedNFeItems[0].Id) {
-        // Sanitizar o Id para ser um nome de arquivo válido
         const sanitizedId = detailedNFeItems[0].Id.replace(/[^a-zA-Z0-9-]/g, '_');
         filename = `${sanitizedId}.xml`;
       }
@@ -103,18 +108,6 @@ const WebScraper: React.FC = () => {
     } finally {
       dismissToast(loadingToastId);
     }
-  };
-
-  const handleScanSuccess = (decodedText: string) => {
-    setTargetUrl(decodedText);
-    setIsScannerOpen(false); // Fecha o modal após o sucesso
-    showSuccess('URL lida do QR Code com sucesso!');
-  };
-
-  const handleScanError = (errorMessage: string) => {
-    // Erros de câmera já são tratados dentro do QrCodeScanner,
-    // mas podemos adicionar um tratamento adicional aqui se necessário.
-    console.error('Erro no scanner de QR Code:', errorMessage);
   };
 
   return (
@@ -150,23 +143,9 @@ const WebScraper: React.FC = () => {
             <Button onClick={handleFetchContent} disabled={loading} className="flex-1">
               {loading ? 'Buscando...' : 'Buscar Conteúdo'}
             </Button>
-            <Dialog open={isScannerOpen} onOpenChange={setIsScannerOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="flex-1">
-                  Escanear QR Code
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl p-0">
-                <DialogHeader className="p-4 pb-0">
-                  <DialogTitle>Escanear QR Code</DialogTitle>
-                </DialogHeader>
-                <QrCodeScanner
-                  onScanSuccess={handleScanSuccess}
-                  onScanError={handleScanError}
-                  onClose={() => setIsScannerOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            <Button variant="outline" className="flex-1" onClick={() => navigate('/qr-code-reader')}>
+              Escanear QR Code
+            </Button>
           </div>
         </CardContent>
       </Card>

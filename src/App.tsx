@@ -18,7 +18,8 @@ import VendasPorData from "./pages/VendasPorData";
 import ProdutosSemFichaTecnica from "./pages/ProdutosSemFichaTecnica";
 import ProdutosInternosNaoUtilizados from "./pages/ProdutosInternosNaoUtilizados";
 import PrevisaoDeCompras from "./pages/PrevisaoDeCompras";
-import WebScraper from "./pages/WebScraper"; // Importar a nova página
+import WebScraper from "./pages/WebScraper";
+import QrCodeReader from "./pages/QrCodeReader"; // Importar a nova página QrCodeReader
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { SessionContextProvider, useSession } from "./components/SessionContextProvider";
@@ -69,7 +70,8 @@ const App = () => (
                 <Route path="produtos-sem-ficha-tecnica" element={<ProdutosSemFichaTecnica />} />
                 <Route path="produtos-internos-nao-utilizados" element={<ProdutosInternosNaoUtilizados />} />
                 <Route path="previsao-de-compras" element={<PrevisaoDeCompras />} />
-                <Route path="web-scraper" element={<WebScraper />} /> {/* Nova rota */}
+                <Route path="web-scraper" element={<WebScraper />} />
+                <Route path="qr-code-reader" element={<QrCodeReader />} /> {/* Nova rota para o leitor de QR Code */}
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
