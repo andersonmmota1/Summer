@@ -23,10 +23,9 @@ const QrCodeReader: React.FC = () => {
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeSupportedMethod.CameraScan,
-            Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeSupportedMethod.Usb
-          ]
+            Html5QrcodeSupportedMethod.SCAN,
+          Html5QrcodeSupportedMethod.FILE
+        ]
         },
         false // verbose
       );
