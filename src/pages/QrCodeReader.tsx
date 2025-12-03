@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedMethod } from 'html5-qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode'; // Importa a classe Html5QrcodeScanner diretamente
+import * as Html5QrcodeModule from 'html5-qrcode'; // Importa o módulo inteiro como namespace
 import { showError, showSuccess, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Importar Input para exibir a URL
-import { Label } from '@/components/ui/label'; // Importar Label
-import { Loader2, CameraOff, Copy } from 'lucide-react'; // Importar ícone Copy
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2, CameraOff, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const QrCodeReader: React.FC = () => {
@@ -15,7 +16,7 @@ const QrCodeReader: React.FC = () => {
   const qrCodeRegionId = "qr-code-full-region";
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [scannedUrl, setScannedUrl] = useState<string | null>(null); // Estado para armazenar a URL lida
+  const [scannedUrl, setScannedUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!scannerRef.current) {
@@ -26,9 +27,9 @@ const QrCodeReader: React.FC = () => {
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeSupportedMethod.CameraScan,
-            Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeSupportedMethod.Usb
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.CameraScan, // Acessa a propriedade estática via namespace
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
@@ -40,12 +41,11 @@ const QrCodeReader: React.FC = () => {
     const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
       console.log(`QR Code success = ${decodedText}`, decodedResult);
       showSuccess('URL lida do QR Code com sucesso!');
-      setScannedUrl(decodedText); // Armazena a URL lida
+      setScannedUrl(decodedText);
       html5QrcodeScanner.clear().catch(error => {
         console.error("Failed to clear html5QrcodeScanner", error);
       });
       setIsScanning(false);
-      // Não navega automaticamente, permite ao usuário copiar ou voltar
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
@@ -59,8 +59,7 @@ const QrCodeReader: React.FC = () => {
       }
     };
 
-    // Inicia o scanner apenas se não estiver escaneando e não houver erro de câmera
-    if (!isScanning && !cameraError && !scannedUrl) { // Adicionado !scannedUrl para não reiniciar após uma leitura
+    if (!isScanning && !cameraError && !scannedUrl) {
       setIsScanning(true);
       html5QrcodeScanner.render(qrCodeSuccessCallback, qrCodeErrorCallback)
         .catch(err => {
@@ -78,7 +77,7 @@ const QrCodeReader: React.FC = () => {
         });
       }
     };
-  }, [navigate, isScanning, cameraError, scannedUrl]); // Adicionado scannedUrl como dependência
+  }, [navigate, isScanning, cameraError, scannedUrl]);
 
   const handleCopyToClipboard = async () => {
     if (scannedUrl) {
@@ -93,14 +92,13 @@ const QrCodeReader: React.FC = () => {
   };
 
   const handleGoToWebScraper = () => {
-    // Navega para WebScraper, passando a URL escaneada como estado
     navigate('/web-scraper', { state: { scannedUrl: scannedUrl } });
   };
 
   const handleRestartScan = () => {
-    setScannedUrl(null); // Limpa a URL lida para permitir um novo scan
-    setCameraError(null); // Limpa qualquer erro de câmera anterior
-    setIsScanning(false); // Força o useEffect a reiniciar o scanner
+    setScannedUrl(null);
+    setCameraError(null);
+    setIsScanning(false);
   };
 
   return (
@@ -124,7 +122,7 @@ const QrCodeReader: React.FC = () => {
         </div>
       ) : (
         <>
-          {!isScanning && !scannedUrl && ( // Mostra o loader apenas se não estiver escaneando e não houver URL lida
+          {!isScanning && !scannedUrl && (
             <div className="flex flex-col items-center space-y-2 text-gray-600 dark:text-gray-400">
               <Loader2 className="h-8 w-8 animate-spin" />
               <p>Iniciando câmera...</p>
@@ -165,7 +163,7 @@ const QrCodeReader: React.FC = () => {
         </div>
       )}
 
-      {!scannedUrl && !cameraError && ( // Botão de voltar se não houver URL lida e sem erro de câmera
+      {!scannedUrl && !cameraError && (
         <Button onClick={() => navigate('/web-scraper')} variant="outline" className="mt-6">
           Voltar para Web Scraper
         </Button>
