@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { showError, showSuccess } from '@/utils/toast';
-import { Button } from '@/components/ui/button';
-import { Loader2, CameraOff } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { showError, showSuccess } from "@/utils/toast";
+import { Button } from "@/components/ui/button";
+import { Loader2, CameraOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const QrCodeReader: React.FC = () => {
   const navigate = useNavigate();
@@ -27,60 +27,60 @@ const QrCodeReader: React.FC = () => {
       );
     }
 
-    const html5QrcodeScanner = scannerRef.current;
+    const scanner = scannerRef.current;
 
-    const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
-      console.log(`QR Code success = ${decodedText}`, decodedResult);
-      showSuccess("URL lida do QR Code com sucesso!");
+    const qrCodeSuccess = (decodedText: string) => {
+      showSuccess("URL lida com sucesso!");
+      safeClear(scanner);
 
-      html5QrcodeScanner.clear().catch(error =>
-        console.error("Failed to clear html5QrcodeScanner", error)
-      );
-
-      setIsScanning(false);
-
-      navigate("/web-scraper", { state: { scannedUrl: decodedText } });
+      navigate("/web-scraper", {
+        state: { scannedUrl: decodedText }
+      });
     };
 
-    const qrCodeErrorCallback = (errorMessage: string) => {
+    const qrCodeError = (error: string) => {
       if (
-        errorMessage.includes("No camera found") ||
-        errorMessage.includes("Permission denied")
+        error.includes("No camera found") ||
+        error.includes("Permission denied")
       ) {
-        setCameraError("Não foi possível acessar a câmera. Verifique as permissões.");
-        showError("Erro na câmera: " + errorMessage);
-
-        html5QrcodeScanner.clear().catch(error =>
-          console.error("Failed to clear scanner on camera error", error)
+        setCameraError(
+          "Não foi possível acessar a câmera. Verifique as permissões."
         );
-
-        setIsScanning(false);
-      } else {
-        console.warn("Erro durante a leitura:", errorMessage);
+        showError("Erro ao acessar a câmera.");
+        safeClear(scanner);
       }
     };
 
     if (!isScanning && !cameraError) {
       setIsScanning(true);
 
-      html5QrcodeScanner
-        .render(qrCodeSuccessCallback, qrCodeErrorCallback)
-        .catch(err => {
-          console.error("Failed to start scanner:", err);
-          setCameraError("Erro ao iniciar o scanner: " + err.message);
-          showError("Erro ao iniciar o scanner: " + err.message);
+      scanner
+        .render(qrCodeSuccess, qrCodeError)
+        .catch((err: any) => {
+          console.error("Erro ao iniciar o scanner:", err);
+          setCameraError("Erro ao iniciar o scanner.");
+          showError("Erro ao iniciar o scanner.");
           setIsScanning(false);
         });
     }
 
     return () => {
-      if (html5QrcodeScanner.isScanning) {
-        html5QrcodeScanner.clear().catch(error =>
-          console.error("Failed to clear html5QrcodeScanner on unmount", error)
-        );
-      }
+      safeClear(scanner);
     };
   }, [navigate, isScanning, cameraError]);
+
+  /** Função segura para limpar sem gerar erros */
+  function safeClear(scanner: Html5QrcodeScanner | null) {
+    if (!scanner) return;
+
+    try {
+      if ((scanner as any).isScanning) {
+        scanner.clear();
+      }
+    } catch (e) {
+      console.warn("Erro ao limpar scanner:", e);
+    }
+  }
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
@@ -96,9 +96,6 @@ const QrCodeReader: React.FC = () => {
         <div className="text-center text-red-600 dark:text-red-400 flex flex-col items-center space-y-2">
           <CameraOff className="h-12 w-12" />
           <p className="font-bold">{cameraError}</p>
-          <p className="text-sm text-gray-700 dark:text-gray-300">
-            Verifique permissões e conexão da câmera.
-          </p>
         </div>
       ) : (
         <>
