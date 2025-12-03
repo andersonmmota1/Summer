@@ -1,79 +1,47 @@
-"use client";
-
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
-import { showError, showSuccess } from "@/utils/toast";
-import { Button } from "@/components/ui/button";
-import { Loader2, CameraOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const QrCodeReader: React.FC = () => {
+export default function LeitorQRCode() {
   const navigate = useNavigate();
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
-  const qrCodeRegionId = "qr-code-full-region";
   const [isScanning, setIsScanning] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState("");
 
   useEffect(() => {
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5QrcodeScanner(
-        qrCodeRegionId,
-        {
-          fps: 10,
-          qrbox: {
-            width: 250,
-            height: 250,
-          }, // <- AQUI O QUADRADO DE LEITURA
-          disableFlip: false,
-        },
-        false
-      );
-    }
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    });
 
-    const html5QrcodeScanner = scannerRef.current;
+    const qrCodeSuccessCallback = (decodedText: string) => {
+      if (decodedText.startsWith("http")) {
+        navigate(decodedText);
+      } else {
+        alert("QR Code inválido");
+      }
 
-    const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
-      console.log(`QR Code success = ${decodedText}`, decodedResult);
-      showSuccess("URL lida do QR Code com sucesso!");
-
-      html5QrcodeScanner
-        .clear()
-        .catch((error) => console.error("Failed to clear scanner", error));
-
+      html5QrcodeScanner.clear().catch(() => {});
       setIsScanning(false);
-
-      navigate("/web-scraper", { state: { scannedUrl: decodedText } });
     };
 
-    const qrCodeErrorCallback = (errorMessage: string) => {
-      if (
-        errorMessage.includes("No camera found") ||
-        errorMessage.includes("Permission denied")
-      ) {
-        setCameraError(
-          "Não foi possível acessar a câmera. Verifique as permissões do navegador."
-        );
-        showError("Erro na câmera: " + errorMessage);
+    const qrCodeErrorCallback = () => {};
 
-        html5QrcodeScanner.clear().catch(() => {});
-        setIsScanning(false);
-      }
+    const startScanner = () => {
+      html5QrcodeScanner
+        .render(qrCodeSuccessCallback, qrCodeErrorCallback)
+        .catch((err) => {
+          setCameraError("Erro ao iniciar o scanner: " + err.message);
+          alert("Erro ao iniciar o scanner: " + err.message);
+        });
     };
 
     if (!isScanning && !cameraError) {
       setIsScanning(true);
-
-      html5QrcodeScanner.render(qrCodeSuccessCallback, qrCodeErrorCallback).catch((err) => {
-        setCameraError("Erro ao iniciar o scanner: " + err.message);
-        showError("Erro ao iniciar o scanner: " + err.message);
-        setIsScanning(false);
-      });
+      startScanner();
     }
 
     return () => {
-      if (html5QrcodeScanner?.clear) {
-        html5QrcodeScanner.clear().catch(() => {});
-      }
+      html5QrcodeScanner.clear().catch(() => {});
     };
   }, [navigate, isScanning, cameraError]);
 
@@ -88,31 +56,25 @@ const QrCodeReader: React.FC = () => {
       </p>
 
       {cameraError ? (
-        <div className="text-center text-red-600 dark:text-red-400 flex flex-col items-center space-y-2">
-          <CameraOff className="h-12 w-12" />
-          <p className="font-bold">{cameraError}</p>
-        </div>
+        <div className="text-red-500 font-semibold">{cameraError}</div>
       ) : (
-        <>
-          {!isScanning && (
-            <div className="flex flex-col items-center space-y-2 text-gray-600 dark:text-gray-400">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <p>Iniciando câmera...</p>
-            </div>
-          )}
+        <div className="relative">
+          {/* Container obrigatório do Html5Qrcode */}
+          <div id="reader" style={{ width: 300, height: 300 }}></div>
 
+          {/* Overlay do quadrado da área de leitura */}
           <div
-            id={qrCodeRegionId}
-            className="w-full max-w-md aspect-video bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden"
-          />
-        </>
+            className="absolute inset-0 pointer-events-none border-4 border-green-500 rounded-md"
+            style={{
+              width: 250,
+              height: 250,
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)"
+            }}
+          ></div>
+        </div>
       )}
-
-      <Button onClick={() => navigate("/web-scraper")} variant="outline" className="mt-6">
-        Voltar para Web Scraper
-      </Button>
     </div>
   );
-};
-
-export default QrCodeReader;
+}
