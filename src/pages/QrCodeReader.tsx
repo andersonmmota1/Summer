@@ -1,77 +1,95 @@
-import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+"use client";
 
-export default function QrCodeReader() {
-  const [result, setResult] = useState<string | null>(null);
-  const qrRef = useRef<Html5Qrcode | null>(null);
+import React, { useEffect, useRef, useState } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { showError, showSuccess } from "@/utils/toast";
+import { Button } from "@/components/ui/button";
+import { Loader2, CameraOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+const QrCodeReader: React.FC = () => {
+  const navigate = useNavigate();
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const qrCodeRegionId = "qr-code-full-region";
+
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode("reader");
-    qrRef.current = html5QrCode;
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5QrcodeScanner(
+        qrCodeRegionId,
+        {
+          fps: 10,
+          qrbox: 300,
+        },
+        false
+      );
+    }
 
-    // Solicita a câmera
-    Html5Qrcode.getCameras()
-      .then(cameras => {
-        if (cameras && cameras.length > 0) {
-          const camId = cameras[0].id;
+    const scanner = scannerRef.current;
 
-          html5QrCode.start(
-            camId,
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-            },
-            decodedText => {
-              setResult(decodedText);
-              html5QrCode.stop(); // Para após ler
-            },
-            error => {
-              // erros de leitura ignorados
-            }
-          );
-        }
-      })
-      .catch(err => console.error("Erro ao acessar câmera:", err));
+    const onSuccess = (decodedText: string) => {
+      console.log("QR LIDO:", decodedText);
+
+      showSuccess("QR Code lido!");
+      scanner.clear();
+      setIsScanning(false);
+
+      navigate("/web-scraper", { state: { scannedUrl: decodedText } });
+    };
+
+    const onError = (error: string) => {
+      console.warn("Tentando ler:", error);
+    };
+
+    if (!isScanning && !cameraError) {
+      setIsScanning(true);
+
+      scanner
+        .render(onSuccess, onError)
+        .catch((err: any) => {
+          console.error("Erro ao iniciar scanner:", err);
+          setCameraError("Erro ao iniciar a câmera.");
+          showError("Erro ao iniciar a câmera.");
+        });
+    }
 
     return () => {
-      html5QrCode.stop().catch(() => {});
+      scanner?.clear().catch(() => {});
     };
-  }, []);
-
-  // Upload para ler QR do arquivo
-  const handleFile = (e: any) => {
-    const file = e.target.files?.[0];
-    if (!file || !qrRef.current) return;
-
-    qrRef.current
-      .scanFile(file, true)
-      .then(decoded => setResult(decoded))
-      .catch(err => console.error("Erro ao ler arquivo:", err));
-  };
+  }, [navigate, isScanning, cameraError]);
 
   return (
-    <div>
-      <h1>Leitor de QR Code</h1>
+    <div className="p-6 flex flex-col items-center min-h-[calc(100vh-120px)]">
+      <h2 className="text-3xl font-semibold mb-4">Leitor de QR Code</h2>
 
-      <div
-        id="reader"
-        style={{
-          width: "300px",
-          height: "300px",
-          marginBottom: "20px",
-          background: "#00000020",
-        }}
-      />
-
-      <input type="file" accept="image/*" onChange={handleFile} />
-
-      {result && (
-        <div style={{ marginTop: "20px", padding: "10px", background: "#eee" }}>
-          <strong>Resultado:</strong>
-          <br />
-          {result}
+      {cameraError ? (
+        <div className="text-red-600 flex flex-col items-center">
+          <CameraOff className="h-12 w-12" />
+          <p className="font-bold">{cameraError}</p>
         </div>
+      ) : (
+        <>
+          {!isScanning && (
+            <div className="flex flex-col items-center space-y-2 text-gray-600">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p>Iniciando câmera...</p>
+            </div>
+          )}
+
+          <div
+            id={qrCodeRegionId}
+            className="w-full max-w-md aspect-video bg-gray-200 rounded-md"
+          ></div>
+        </>
       )}
+
+      <Button onClick={() => navigate("/web-scraper")} variant="outline" className="mt-6">
+        Voltar
+      </Button>
     </div>
   );
-}
+};
+
+export default QrCodeReader;
