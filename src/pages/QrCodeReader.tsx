@@ -1,69 +1,74 @@
-import { useEffect, useState } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { useEffect, useRef, useState } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import { useNavigate } from "react-router-dom";
 
 export default function LeitorQRCode() {
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [cameraError, setCameraError] = useState("");
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
-
-    const startScanner = () => {
+    const startScanner = async () => {
       try {
-        scanner = new Html5QrcodeScanner(
-          "reader",
-          {
-            fps: 12,
-            qrbox: { width: 300, height: 300 }, // 🔥 QUADRADO DE LEITURA
-            aspectRatio: 1.0
-          },
-          false
-        );
+        const cameraId = (await Html5Qrcode.getCameras())[0]?.id;
 
-        const onSuccess = (decodedText: string) => {
-          console.log("QR LIDO:", decodedText);
+        if (!cameraId) {
+          setCameraError("Nenhuma câmera encontrada.");
+          return;
+        }
 
-          scanner?.clear(); // ❗ sem .catch()
-          navigate(decodedText);
-        };
+        const html5Qr = new Html5Qrcode("qr-reader");
+        scannerRef.current = html5Qr;
 
-        const onError = () => {};
-
-        scanner.render(onSuccess, onError);
         setIsScanning(true);
+
+        await html5Qr.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }, // 🔲 QUADRADO DE LEITURA
+          },
+          (decodedText) => {
+            html5Qr.stop();
+            navigate("/verificar-produto?url=" + encodeURIComponent(decodedText));
+          },
+          (errorMessage) => {
+            // Erros de leitura normais — ignorar
+          }
+        );
       } catch (err: any) {
-        console.error(err);
-        setCameraError("Erro ao iniciar a câmera: " + err.message);
+        setCameraError("Erro ao acessar a câmera: " + err.message);
       }
     };
 
-    if (!isScanning && !cameraError) {
-      startScanner();
-    }
+    startScanner();
 
     return () => {
-      try {
-        scanner?.clear(); // ❗ remover .catch()
-      } catch {}
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
     };
-  }, [navigate, isScanning, cameraError]);
+  }, [navigate]);
 
   return (
-    <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
-      <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Leitor de QR Code
-      </h2>
+    <div className="p-6 flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
+      <h2 className="text-3xl font-semibold mb-4">Leitor de QR Code</h2>
 
-      <p className="text-gray-700 dark:text-gray-300 text-center mb-6">
-        Aponte a câmera para o QR code que contém a URL.
-      </p>
+      {cameraError && (
+        <p className="text-red-600 font-semibold">{cameraError}</p>
+      )}
 
-      {cameraError ? (
-        <p className="text-red-500">{cameraError}</p>
-      ) : (
-        <div id="reader" className="w-full max-w-sm" />
+      {!cameraError && (
+        <div
+          id="qr-reader"
+          style={{
+            width: "300px",
+            height: "300px",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        />
       )}
     </div>
   );
