@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedMethod } from 'html5-qrcode'; // Importa ambos como named exports
+import { Html5QrcodeScanner } from 'html5-qrcode'; // Importa a classe Html5QrcodeScanner diretamente
+import * as Html5QrcodeModule from 'html5-qrcode'; // Importa o módulo inteiro como namespace
 import { showError, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
@@ -27,9 +28,9 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeSupportedMethod.CameraScan, // Usa a exportação nomeada diretamente
-            Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeSupportedMethod.Usb
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.CameraScan, // Acessa a propriedade estática via namespace
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5QrcodeModule.Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
