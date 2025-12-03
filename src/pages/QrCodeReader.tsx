@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode'; // Importa a classe Html5QrcodeScanner diretamente
-import * as Html5QrcodeModule from 'html5-qrcode'; // Importa o módulo inteiro como namespace
+import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode'; // Importa Html5Qrcode para acessar o enum
 import { showError, showSuccess, showWarning } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,9 +26,9 @@ const QrCodeReader: React.FC = () => {
           qrbox: { width: 250, height: 250 },
           disableFlip: false,
           supportedScanMethods: [
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.CameraScan, // Acessa a propriedade estática via namespace
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.FileDragAndDrop,
-            Html5QrcodeModule.Html5QrcodeSupportedMethod.Usb
+            Html5Qrcode.Html5QrcodeSupportedMethod.CameraScan, // Acessa via Html5Qrcode
+            Html5Qrcode.Html5QrcodeSupportedMethod.FileDragAndDrop,
+            Html5Qrcode.Html5QrcodeSupportedMethod.Usb
           ]
         },
         false // verbose
