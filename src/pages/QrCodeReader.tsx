@@ -1,51 +1,118 @@
-import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+"use client";
 
-export default function QrCodeReader() {
-  const divId = "reader";
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const [qrData, setQrData] = useState<string>("");
+import React, { useEffect, useRef, useState } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { showError, showSuccess } from "@/utils/toast";
+import { Button } from "@/components/ui/button";
+import { Loader2, CameraOff } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+const QrCodeReader: React.FC = () => {
+  const navigate = useNavigate();
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const qrCodeRegionId = "qr-code-full-region";
+  const [isScanning, setIsScanning] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode(divId);
-    html5QrCodeRef.current = html5QrCode;
-
-    html5QrCode
-      .start(
-        { facingMode: "environment" },
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5QrcodeScanner(
+        qrCodeRegionId,
         {
           fps: 10,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-  const side = Math.min(viewfinderWidth, viewfinderHeight) * 0.6;
-  return { width: side, height: side };
-        (decodedText) => {
-          console.log("QR LIDO:", decodedText);
-          setQrData(decodedText);
+          qrbox: {
+            width: 250,
+            height: 250,
+          }, // <- AQUI O QUADRADO DE LEITURA
+          disableFlip: false,
+        },
+        false
+      );
+    }
 
-          // Se quiser parar automaticamente após ler:
-          html5QrCode.stop().catch((err) => console.error(err));
-        }
-      )
-      .catch((err) => console.error("Erro ao iniciar câmera:", err));
+    const html5QrcodeScanner = scannerRef.current;
 
-    return () => {
-      if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(() => {});
+    const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
+      console.log(`QR Code success = ${decodedText}`, decodedResult);
+      showSuccess("URL lida do QR Code com sucesso!");
+
+      html5QrcodeScanner
+        .clear()
+        .catch((error) => console.error("Failed to clear scanner", error));
+
+      setIsScanning(false);
+
+      navigate("/web-scraper", { state: { scannedUrl: decodedText } });
+    };
+
+    const qrCodeErrorCallback = (errorMessage: string) => {
+      if (
+        errorMessage.includes("No camera found") ||
+        errorMessage.includes("Permission denied")
+      ) {
+        setCameraError(
+          "Não foi possível acessar a câmera. Verifique as permissões do navegador."
+        );
+        showError("Erro na câmera: " + errorMessage);
+
+        html5QrcodeScanner.clear().catch(() => {});
+        setIsScanning(false);
       }
     };
-  }, []);
+
+    if (!isScanning && !cameraError) {
+      setIsScanning(true);
+
+      html5QrcodeScanner.render(qrCodeSuccessCallback, qrCodeErrorCallback).catch((err) => {
+        setCameraError("Erro ao iniciar o scanner: " + err.message);
+        showError("Erro ao iniciar o scanner: " + err.message);
+        setIsScanning(false);
+      });
+    }
+
+    return () => {
+      if (html5QrcodeScanner?.clear) {
+        html5QrcodeScanner.clear().catch(() => {});
+      }
+    };
+  }, [navigate, isScanning, cameraError]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-bold mb-4">Leitor de QR Code</h1>
+    <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col items-center justify-center min-h-[calc(100vh-120px)]">
+      <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        Leitor de QR Code
+      </h2>
 
-      <div id={divId} style={{ width: "300px" }} />
+      <p className="text-gray-700 dark:text-gray-300 text-center mb-6">
+        Aponte a câmera para o QR code que contém a URL.
+      </p>
 
-      {qrData && (
-        <div className="mt-4 p-3 bg-green-200 rounded">
-          <strong>QR lido:</strong> {qrData}
+      {cameraError ? (
+        <div className="text-center text-red-600 dark:text-red-400 flex flex-col items-center space-y-2">
+          <CameraOff className="h-12 w-12" />
+          <p className="font-bold">{cameraError}</p>
         </div>
+      ) : (
+        <>
+          {!isScanning && (
+            <div className="flex flex-col items-center space-y-2 text-gray-600 dark:text-gray-400">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p>Iniciando câmera...</p>
+            </div>
+          )}
+
+          <div
+            id={qrCodeRegionId}
+            className="w-full max-w-md aspect-video bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden"
+          />
+        </>
       )}
+
+      <Button onClick={() => navigate("/web-scraper")} variant="outline" className="mt-6">
+        Voltar para Web Scraper
+      </Button>
     </div>
   );
-}
+};
+
+export default QrCodeReader;
