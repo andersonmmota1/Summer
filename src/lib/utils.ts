@@ -8,11 +8,12 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Converte uma string ou número para um float, tratando o padrão numérico brasileiro (vírgula como separador decimal)
- * e também o padrão internacional (ponto como separador decimal) de forma mais robusta.
+ * de forma mais robusta.
  *
- * Se a string contiver uma vírgula, ela será tratada como separador decimal (padrão brasileiro).
- * Se não contiver vírgula, mas contiver um ponto, o ponto será tratado como separador decimal (padrão internacional).
- * Caso contrário, parseFloat padrão será aplicado.
+ * A lógica agora é:
+ * 1. Remover todos os pontos (considerados separadores de milhar no padrão brasileiro).
+ * 2. Substituir todas as vírgulas (consideradas separadores decimais no padrão brasileiro) por pontos.
+ * 3. Aplicar parseFloat.
  *
  * Retorna 0 para valores nulos, indefinidos ou strings vazias.
  */
@@ -25,16 +26,13 @@ export function parseBrazilianFloat(value: string | number | null | undefined): 
     if (trimmedValue === '') {
       return 0; // Trata string vazia como zero
     }
-    // Se a string contém vírgula, assume-se formato brasileiro
-    if (trimmedValue.includes(',')) {
-      // Remove pontos de milhar e substitui a vírgula por ponto para o parseFloat
-      const cleanedValue = trimmedValue.replace(/\./g, '').replace(',', '.');
-      return parseFloat(cleanedValue);
-    } else {
-      // Se não contém vírgula, assume-se formato internacional ou inteiro.
-      // parseFloat lida com "1000.50" como 1000.50 e "1000" como 1000.
-      return parseFloat(trimmedValue);
-    }
+    // Remove todos os pontos (separadores de milhar)
+    let cleanedValue = trimmedValue.replace(/\./g, '');
+    // Substitui a vírgula (separador decimal) por ponto
+    cleanedValue = cleanedValue.replace(/,/g, '.');
+    
+    const parsed = parseFloat(cleanedValue);
+    return isNaN(parsed) ? 0 : parsed; // Retorna 0 se o resultado for NaN
   }
   // Se o valor for null, undefined ou outro tipo não string/não número, retorna 0
   return 0;

@@ -73,27 +73,43 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
 
   // Recalcular o total de faturamento histórico sempre que rawSoldItems ou historicalDaysCount mudar
   useEffect(() => {
+    console.log('--- useEffect: rawSoldItems or historicalDaysCount changed ---');
     if (rawSoldItems && rawSoldItems.length > 0) {
       const totalRev = rawSoldItems.reduce((sum, item) => sum + (item.total_value_sold ?? 0), 0);
       setTotalHistoricalRevenue(totalRev);
+      console.log('Calculated totalHistoricalRevenue:', totalRev);
     } else {
       setTotalHistoricalRevenue(0);
+      console.log('totalHistoricalRevenue set to 0 (no rawSoldItems)');
     }
     // Resetar a previsão quando os dados históricos mudam
     setPurchasePrediction([]);
     setProjectedRevenueInput(''); // Limpa o input de faturamento projetado
     setCalculatedRevenueMultiplier(1); // Reseta o multiplicador
+    console.log('Prediction and inputs reset.');
   }, [rawSoldItems, historicalDaysCount]);
 
   // NOVO: Efeito para calcular o multiplicador em tempo real
   useEffect(() => {
+    console.log('--- useEffect: projectedRevenueInput or totalHistoricalRevenue changed ---');
+    console.log('Current projectedRevenueInput (state):', projectedRevenueInput);
     const parsedProjectedRevenue = parseBrazilianFloat(projectedRevenueInput);
+    console.log('Parsed projectedRevenue:', parsedProjectedRevenue);
+    console.log('Current totalHistoricalRevenue (state):', totalHistoricalRevenue);
+
     let multiplier = 1;
     if (parsedProjectedRevenue > 0 && totalHistoricalRevenue > 0) {
       multiplier = parsedProjectedRevenue / totalHistoricalRevenue;
     } else if (parsedProjectedRevenue === 0 && projectedRevenueInput !== '') {
-      multiplier = 0; // Se o input é 0, o multiplicador é 0
+      // Se o input é 0 (mas não vazio), o multiplicador é 0
+      multiplier = 0;
+    } else if (totalHistoricalRevenue === 0 && parsedProjectedRevenue > 0) {
+      // Se não há histórico de faturamento, mas há faturamento projetado, não podemos calcular um multiplicador significativo.
+      // Poderíamos definir como 0 ou avisar o usuário. Por enquanto, vamos definir como 0 para evitar Infinity.
+      multiplier = 0;
+      showWarning('Não há faturamento histórico para calcular o multiplicador. A demanda projetada será 0.');
     }
+    console.log('Calculated multiplier:', multiplier);
     setCalculatedRevenueMultiplier(multiplier);
   }, [projectedRevenueInput, totalHistoricalRevenue]);
 
@@ -117,6 +133,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
         historicalInternalDemand[internalProductName] = (historicalInternalDemand[internalProductName] || 0) + (historicalQuantity * quantityNeeded);
       });
     });
+    console.log('totalHistoricalInternalProductConsumption:', historicalInternalDemand);
     return historicalInternalDemand;
   }, [rawSoldItems, productRecipes]);
 
@@ -134,18 +151,25 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
       showWarning('Nenhuma ficha técnica de produto encontrada. Não é possível desmembrar produtos vendidos em matérias-primas.');
       return;
     }
+    if (totalHistoricalRevenue === 0 && parseBrazilianFloat(projectedRevenueInput) > 0) {
+      showError('Não é possível gerar previsão baseada em faturamento sem faturamento histórico. Por favor, verifique os dias históricos selecionados.');
+      return;
+    }
 
     setLoadingPrediction(true);
     const loadingToastId = showLoading('Gerando previsão de compras baseada em faturamento...');
 
     try {
       const revenueMultiplier = calculatedRevenueMultiplier;
+      console.log('Multiplier used for prediction:', revenueMultiplier);
 
       // --- Demanda Projetada de Produtos Internos (Diretamente do consumo histórico * multiplicador) ---
       const projectedInternalProductDemand: Record<string, number> = {};
       Object.keys(totalHistoricalInternalProductConsumption).forEach(internalProductName => {
         const historicalConsumption = totalHistoricalInternalProductConsumption[internalProductName];
+        // A demanda projetada é a quantidade histórica total multiplicada pelo fator de faturamento
         projectedInternalProductDemand[internalProductName] = historicalConsumption * revenueMultiplier;
+        console.log(`Internal Product: ${internalProductName}, Historical Consumption: ${historicalConsumption}, Projected Demand: ${projectedInternalProductDemand[internalProductName]}`);
       });
 
       const finalPrediction: PurchasePredictionItem[] = [];
@@ -285,15 +309,22 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
               value={projectedRevenueInput}
               onChange={(e) => {
                 const value = e.target.value;
+                console.log('Input onChange - raw value:', value);
                 // Permite apenas números, vírgulas e pontos para formatação
                 if (/^[0-9.,]*$/.test(value)) {
                   setProjectedRevenueInput(value);
+                  console.log('Input onChange - setting projectedRevenueInput to:', value);
                 }
               }}
               onBlur={(e) => {
+                console.log('Input onBlur - raw value:', e.target.value);
                 const parsed = parseBrazilianFloat(e.target.value);
+                console.log('Input onBlur - parsed value:', parsed);
                 // Formata o número de volta para string com vírgula como separador decimal
-                setProjectedRevenueInput(parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ','));
+                const formatted = parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
+                console.log('Input onBlur - formatted value for display:', formatted);
+                setProjectedRevenueInput(formatted);
+                console.log('Input onBlur - setting projectedRevenueInput to:', formatted);
               }}
               placeholder="0,00"
               className="w-full"
