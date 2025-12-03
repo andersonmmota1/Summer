@@ -139,39 +139,13 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const loadingToastId = showLoading('Gerando previsão de compras baseada em faturamento...');
 
     try {
-      // --- Lógica de Quantidade Total Vendida por Produto no Período Histórico ---
-      const totalHistoricalQuantitySoldPerProduct: Record<string, number> = {};
-      rawSoldItems.forEach(item => {
-        totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.quantity_sold;
-      });
-
-      // O calculatedRevenueMultiplier já está atualizado pelo useEffect
       const revenueMultiplier = calculatedRevenueMultiplier;
 
-      // --- Demanda Projetada de Produtos Vendidos (COM MULTIPLICADOR) ---
-      const projectedSoldProductDemand: Record<string, number> = {};
-      Object.keys(totalHistoricalQuantitySoldPerProduct).forEach(productName => {
-        // A demanda projetada é a quantidade histórica total multiplicada pelo fator de faturamento
-        projectedSoldProductDemand[productName] = totalHistoricalQuantitySoldPerProduct[productName] * revenueMultiplier;
-      });
-
-      // --- Demanda Projetada de Produtos Internos ---
+      // --- Demanda Projetada de Produtos Internos (Diretamente do consumo histórico * multiplicador) ---
       const projectedInternalProductDemand: Record<string, number> = {};
-
-      Object.keys(projectedSoldProductDemand).forEach(soldProductName => {
-        const projectedQuantity = projectedSoldProductDemand[soldProductName];
-        const relevantRecipes = productRecipes.filter(recipe => recipe.sold_product_name === soldProductName);
-
-        if (relevantRecipes.length === 0) {
-          console.warn(`Produto vendido "${soldProductName}" não possui ficha técnica. Ignorando na previsão de matéria-prima.`);
-          return;
-        }
-
-        relevantRecipes.forEach(recipe => {
-          const internalProductName = recipe.internal_product_name;
-          const quantityNeeded = recipe.quantity_needed;
-          projectedInternalProductDemand[internalProductName] = (projectedInternalProductDemand[internalProductName] || 0) + (projectedQuantity * quantityNeeded);
-        });
+      Object.keys(totalHistoricalInternalProductConsumption).forEach(internalProductName => {
+        const historicalConsumption = totalHistoricalInternalProductConsumption[internalProductName];
+        projectedInternalProductDemand[internalProductName] = historicalConsumption * revenueMultiplier;
       });
 
       const finalPrediction: PurchasePredictionItem[] = [];
@@ -183,7 +157,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
 
         const currentStockQuantity = stockInfo?.current_stock_quantity || 0;
         const internalUnit = stockInfo?.internal_unit || 'unidade';
-        const historicalConsumption = totalHistoricalInternalProductConsumption[internalProductName] || 0; // NOVO: Obter consumo histórico
+        const historicalConsumption = totalHistoricalInternalProductConsumption[internalProductName] || 0; // Obter consumo histórico
 
         const purchaseQuantityNeeded = Math.max(0, projectedDemand - currentStockQuantity);
 
@@ -193,7 +167,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
           projected_demand_quantity: projectedDemand,
           current_stock_quantity: currentStockQuantity,
           purchase_quantity_needed: purchaseQuantityNeeded,
-          total_historical_consumption_quantity: historicalConsumption, // NOVO: Adicionar ao item
+          total_historical_consumption_quantity: historicalConsumption,
         });
       });
 
@@ -255,7 +229,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const headers = [
       'Nome Interno do Produto',
       'Unidade Interna',
-      'Total Consumido (Histórico)', // NOVO: Cabeçalho para exportação
+      'Total Consumido (Histórico)',
       'Demanda Projetada',
       'Estoque Atual',
       'Quantidade Necessária para Compra',
@@ -264,7 +238,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
     const formattedData = purchasePrediction.map(item => ({
       'Nome Interno do Produto': item.internal_product_name,
       'Unidade Interna': item.internal_unit,
-      'Total Consumido (Histórico)': item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), // NOVO: Valor para exportação
+      'Total Consumido (Histórico)': item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Demanda Projetada': item.projected_demand_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Estoque Atual': item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       'Quantidade Necessária para Compra': item.purchase_quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -493,7 +467,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.internal_product_name}</TableCell>
                         <TableCell>{item.internal_unit}</TableCell>
-                        <TableCell className="text-right">{item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell> {/* NOVO: Célula para consumo histórico */}
+                        <TableCell className="text-right">{item.total_historical_consumption_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.projected_demand_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right">{item.current_stock_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-bold text-primary">{item.purchase_quantity_needed.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
