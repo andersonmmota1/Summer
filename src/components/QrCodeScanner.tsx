@@ -71,8 +71,7 @@ const QrCodeScanner: React.FC<QrCodeScannerProps> = ({ onScanSuccess, onScanErro
     }
 
     return () => {
-      if (html5QrcodeScanner.is
-        Scanning) {
+      if (html5QrcodeScanner.isScanning) { // Correção aqui
         html5QrcodeScanner.clear().catch(error => {
           console.error("Failed to clear html5QrcodeScanner on unmount", error);
         });
