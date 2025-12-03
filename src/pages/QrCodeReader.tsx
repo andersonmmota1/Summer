@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedMethod } from 'html5-qrcode';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { showError, showSuccess } from '@/utils/toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, CameraOff } from 'lucide-react';
@@ -21,11 +21,7 @@ const QrCodeReader: React.FC = () => {
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
-          disableFlip: false,
-          supportedScanMethods: [
-            Html5QrcodeSupportedMethod.SCAN,
-            Html5QrcodeSupportedMethod.FILE
-          ]
+          disableFlip: false
         },
         false // verbose
       );
@@ -33,23 +29,19 @@ const QrCodeReader: React.FC = () => {
 
     const html5QrcodeScanner = scannerRef.current;
 
-    const qrCodeSuccessCallback = (decodedText: string, decodedResult: any) => {
-      console.log(`QR Code success = ${decodedText}`, decodedResult);
+    const qrCodeSuccessCallback = (decodedText: string) => {
+      console.log(`QR Code success = ${decodedText}`);
       showSuccess('URL lida do QR Code com sucesso!');
       html5QrcodeScanner.clear().catch(error => {
         console.error("Failed to clear html5QrcodeScanner", error);
       });
       setIsScanning(false);
 
-      // Navega de volta para WebScraper, passando a URL escaneada como estado
       navigate('/web-scraper', { state: { scannedUrl: decodedText } });
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
-      if (
-        errorMessage.includes("No camera found") ||
-        errorMessage.includes("Permission denied")
-      ) {
+      if (errorMessage.includes("No camera found") || errorMessage.includes("Permission denied")) {
         setCameraError("Não foi possível acessar a câmera. Verifique as permissões do navegador.");
         showError("Erro na câmera: " + errorMessage);
         html5QrcodeScanner.clear().catch(error =>
@@ -112,9 +104,7 @@ const QrCodeReader: React.FC = () => {
           <div
             id={qrCodeRegionId}
             className="w-full max-w-md aspect-video bg-gray-200 dark:bg-gray-700 rounded-md overflow-hidden"
-          >
-            {/* Scanner será inserido aqui */}
-          </div>
+          />
         </>
       )}
 
