@@ -51,6 +51,17 @@ export const readXmlFile = (file: File): Promise<any[]> => {
           showWarning('Não foi possível encontrar o Nome Fantasia (xFant) nem o Nome (xNome) do Fornecedor (dentro de <emit>).');
         }
 
+        // Tentar extrair os totais da nota fiscal (vProdTotal, vNFTotal, vTotTribTotal)
+        const vProdTotalElement = xmlDoc.querySelector('total > ICMSTot > vProd');
+        const vProdTotal = vProdTotalElement?.textContent ? parseFloat(vProdTotalElement.textContent) : null;
+
+        const vNFTotalElement = xmlDoc.querySelector('total > ICMSTot > vNF');
+        const vNFTotal = vNFTotalElement?.textContent ? parseFloat(vNFTotalElement.textContent) : null;
+
+        const vTotTribTotalElement = xmlDoc.querySelector('total > ICMSTot > vTotTrib');
+        const vTotTribTotal = vTotTribTotalElement?.textContent ? parseFloat(vTotTribTotalElement.textContent) : null;
+
+
         let itemElements: NodeListOf<Element>;
 
         // Prioridade 1: Tentar encontrar elementos <det> (comum em NFe)
@@ -63,23 +74,30 @@ export const readXmlFile = (file: File): Promise<any[]> => {
             const prodElement = itemElement.querySelector('prod');
             if (prodElement) {
               const cProd = prodElement.querySelector('cProd')?.textContent || '';
-              const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || ''; // Renomeado aqui
+              const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || '';
               const uCom = prodElement.querySelector('uCom')?.textContent || '';
               const qCom = prodElement.querySelector('qCom')?.textContent || '';
               const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
+              const vProd = prodElement.querySelector('vProd')?.textContent || ''; // Valor total do produto (item)
+              const vTotTribItem = itemElement.querySelector('imposto > vTotTrib')?.textContent || ''; // Valor total de tributos do item
 
               if (cProd && descricaoDoProduto) {
                 items.push({
                   'ns1:cProd': cProd,
-                  'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
+                  'descricao_do_produto': descricaoDoProduto,
                   'ns1:uCom': uCom,
-                  'ns1:qCom': parseBrazilianFloat(qCom), // Usando parseBrazilianFloat
-                  'ns1:vUnCom': parseBrazilianFloat(vUnCom), // Usando parseBrazilianFloat
+                  'ns1:qCom': parseFloat(qCom), // Usando parseFloat para XML
+                  'ns1:vUnCom': parseFloat(vUnCom), // Usando parseFloat para XML
+                  'vProd': parseFloat(vProd), // Usando parseFloat para XML
+                  'vTotTribItem': parseFloat(vTotTribItem), // Usando parseFloat para XML
                   'invoice_id': invoiceId, // Chave de acesso
                   'invoice_number': invoiceNumber, // Número sequencial da nota
                   'item_sequence_number': itemSequenceNumber,
                   'x_fant': supplierName, // Usando o nome do fornecedor determinado
                   'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
+                  'vNFTotal': vNFTotal, // Agora um número
+                  'vProdTotal': vProdTotal, // Agora um número
+                  'vTotTribTotal': vTotTribTotal, // Agora um número
                 });
               }
             }
@@ -90,23 +108,30 @@ export const readXmlFile = (file: File): Promise<any[]> => {
           const prodElements = xmlDoc.querySelectorAll('prod');
           prodElements.forEach(prodElement => {
             const cProd = prodElement.querySelector('cProd')?.textContent || '';
-            const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || ''; // Renomeado aqui
+            const descricaoDoProduto = prodElement.querySelector('xProd')?.textContent || '';
             const uCom = prodElement.querySelector('uCom')?.textContent || '';
             const qCom = prodElement.querySelector('qCom')?.textContent || '';
             const vUnCom = prodElement.querySelector('vUnCom')?.textContent || '';
+            const vProd = prodElement.querySelector('vProd')?.textContent || ''; // Valor total do produto (item)
+            const vTotTribItem = prodElement.querySelector('imposto > vTotTrib')?.textContent || ''; // Valor total de tributos do item (se existir aqui)
 
             if (cProd && descricaoDoProduto) {
               items.push({
                 'ns1:cProd': cProd,
-                'descricao_do_produto': descricaoDoProduto, // Usando o novo nome
+                'descricao_do_produto': descricaoDoProduto,
                 'ns1:uCom': uCom,
-                'ns1:qCom': parseBrazilianFloat(qCom), // Usando parseBrazilianFloat
-                'ns1:vUnCom': parseBrazilianFloat(vUnCom), // Usando parseBrazilianFloat
+                'ns1:qCom': parseFloat(qCom), // Usando parseFloat para XML
+                'ns1:vUnCom': parseFloat(vUnCom), // Usando parseFloat para XML
+                'vProd': parseFloat(vProd), // Usando parseFloat para XML
+                'vTotTribItem': parseFloat(vTotTribItem), // Usando parseFloat para XML
                 'invoice_id': invoiceId, // Chave de acesso
                 'invoice_number': invoiceNumber, // Número sequencial da nota
                 'item_sequence_number': null,
                 'x_fant': supplierName, // Usando o nome do fornecedor determinado
                 'invoice_emission_date': dhEmi, // Adicionado: Data de Emissão da NF
+                'vNFTotal': vNFTotal, // Agora um número
+                'vProdTotal': vProdTotal, // Agora um número
+                'vTotTribTotal': vTotTribTotal, // Agora um número
               });
             }
           });
