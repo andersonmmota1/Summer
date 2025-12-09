@@ -21,7 +21,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       const infNFeId = doc.querySelector('.chave')?.textContent?.replace(/\s/g, '') || null;
 
       let nNF: string | null = null;
-      let dhEmi: string | null = null;
+      let dhEmi: string | null = null; // Inicializa dhEmi como null
       let xNomeEmit: string | null = null;
       let emitCNPJ: string | null = null;
       let vNFTotal: number | null = null;
@@ -34,7 +34,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       let xNomeDest: string | null = null;
       let x_fant: string | null = null; // Adicionado para armazenar o nome fantasia
 
-      // Seção #infos (geralmente contém número, emissão)
+      // Tentativa 1: Lógica existente dentro da seção #infos
       const infosSection = doc.querySelector('#infos');
       if (infosSection) {
         const strongElements = infosSection.querySelectorAll('strong');
@@ -49,6 +49,42 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
           }
         });
       }
+
+      // Tentativa 2: Procurar por classes comuns de data de emissão
+      if (!dhEmi) {
+        const dateElement = doc.querySelector('.dataEmissao, .dataHoraEmissao, .data');
+        if (dateElement) {
+          const rawDateString = dateElement.textContent?.split('-')[0]?.trim();
+          if (rawDateString) {
+            dhEmi = parseBrazilianDate(rawDateString);
+          }
+        }
+      }
+
+      // Tentativa 3: Procurar por texto "Data de Emissão" ou "Emissão" em todo o corpo do documento
+      if (!dhEmi) {
+        const bodyText = doc.body.textContent;
+        if (bodyText) {
+          // Regex para "Data de Emissão: DD/MM/YYYY" ou "Emissão: DD/MM/YYYY"
+          const emissionDateRegex = /(?:Data de Emissão|Emissão):\s*(\d{2}\/\d{2}\/\d{4})/;
+          const match = bodyText.match(emissionDateRegex);
+          if (match && match[1]) {
+            dhEmi = parseBrazilianDate(match[1]);
+          }
+        }
+      }
+
+      // Tentativa 4: Procurar por um span/div específico que possa conter a data diretamente
+      if (!dhEmi) {
+        const specificDateElement = doc.querySelector('span.data, div.data, span.data-emissao, div.data-emissao');
+        if (specificDateElement) {
+          const rawDateString = specificDateElement.textContent?.split('-')[0]?.trim();
+          if (rawDateString) {
+            dhEmi = parseBrazilianDate(rawDateString);
+          }
+        }
+      }
+
 
       // Emitente - Lógica de extração mais robusta para xNomeEmit
       const emitSection = doc.querySelector('#u20'); // Seletor comum para o bloco do emitente
@@ -197,7 +233,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
             // Campos da NFeDetailedItem
             Id: infNFeId,
             nNF: nNF,
-            dhEmi: dhEmi,
+            dhEmi: dhEmi, // Usando o dhEmi encontrado pelas tentativas
             xNomeEmit: xNomeEmit,
             emitCNPJ: emitCNPJ,
             vNFTotal: vNFTotal,
