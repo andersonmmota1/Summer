@@ -50,18 +50,48 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         });
       }
 
-      // Emitente
+      // Emitente - Lógica de extração mais robusta para xNomeEmit
       const emitSection = doc.querySelector('#u20'); // Seletor comum para o bloco do emitente
       if (emitSection) {
         xNomeEmit = emitSection.querySelector('.txtTopo')?.textContent?.trim() || null;
+        // Fallback se .txtTopo não for encontrado ou estiver vazio dentro de #u20
+        if (!xNomeEmit) {
+          xNomeEmit = emitSection.querySelector('div.txtTitulo')?.textContent?.trim() || null; // Outro seletor comum
+        }
+        if (!xNomeEmit) {
+          // Tenta encontrar uma tag strong que possa conter o nome
+          xNomeEmit = emitSection.querySelector('strong')?.textContent?.trim() || null;
+        }
+        // Se ainda não encontrado, tenta encontrar o primeiro nó de texto não vazio na seção
+        if (!xNomeEmit) {
+            const textNodes = Array.from(emitSection.childNodes).filter(node => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+            if (textNodes.length > 0) {
+                xNomeEmit = textNodes[0].textContent?.trim() || null;
+            }
+        }
+
         const cnpjEmitElement = emitSection.querySelector('.txtCNPJ');
         if (cnpjEmitElement) {
           emitCNPJ = cnpjEmitElement.textContent?.replace('CNPJ:', '').trim() || null;
         }
-        // Usar xNomeEmit como x_fant, pois em HTML simplificado de NFC-e,
-        // o nome fantasia pode não ser distinguível do nome completo.
-        x_fant = xNomeEmit; 
+        x_fant = xNomeEmit; // Usar xNomeEmit como x_fant
       }
+      // Fallback adicional se #u20 não for encontrado ou não contiver o nome
+      if (!xNomeEmit) {
+        xNomeEmit = doc.querySelector('.nomeEmitente')?.textContent?.trim() || null; // Seletor genérico
+      }
+      if (!xNomeEmit) {
+        xNomeEmit = doc.querySelector('.razaoSocial')?.textContent?.trim() || null; // Outro seletor genérico
+      }
+      // Último recurso: procurar uma tag strong que possa conter o nome da empresa na área do cabeçalho
+      if (!xNomeEmit) {
+        const headerArea = doc.querySelector('body > div:first-child'); // Assumindo que o cabeçalho está na primeira div principal
+        if (headerArea) {
+          xNomeEmit = headerArea.querySelector('strong')?.textContent?.trim() || null;
+        }
+      }
+      x_fant = x_fant || xNomeEmit; // Garante que x_fant seja preenchido se xNomeEmit foi encontrado por um fallback
+
 
       // Totais
       const totalNfElement = doc.querySelector('#totalNf'); // Valor total da nota
@@ -118,7 +148,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         xNomeDest = xNomeDestElement?.textContent?.trim() || null;
         const cnpjDestElement = destSection.querySelector('.txtCNPJ');
         if (cnpjDestElement) {
-          destCNPJ = cnpjDestElement.textContent?.replace('CNPJ:', '').trim() || null;
+          destCNPJ = cnpjEmitElement.textContent?.replace('CNPJ:', '').trim() || null;
         }
       }
 
