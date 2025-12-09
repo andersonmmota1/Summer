@@ -32,6 +32,7 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
       let vPag: number | null = null;
       let destCNPJ: string | null = null;
       let xNomeDest: string | null = null;
+      let x_fant: string | null = null; // Adicionado para armazenar o nome fantasia
 
       // Seção #infos (geralmente contém número, emissão)
       const infosSection = doc.querySelector('#infos');
@@ -57,9 +58,9 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
         if (cnpjEmitElement) {
           emitCNPJ = cnpjEmitElement.textContent?.replace('CNPJ:', '').trim() || null;
         }
-        // Outros campos do emitente (endereço, IE, CRT) são mais complexos de raspar de forma genérica do HTML
-        // e podem não estar presentes ou ter seletores muito variados.
-        // Por enquanto, focamos nos mais comuns.
+        // Usar xNomeEmit como x_fant, pois em HTML simplificado de NFC-e,
+        // o nome fantasia pode não ser distinguível do nome completo.
+        x_fant = xNomeEmit; 
       }
 
       // Totais
@@ -190,7 +191,9 @@ export const extractPurchasedItemsFromHtml = (htmlContent: string, userId: strin
             // Campos adicionais para uso interno
             user_id: userId,
             created_at: new Date().toISOString(),
+            internal_product_name: null, // Será mapeado posteriormente
             is_manual_entry: false,
+            x_fant: x_fant, // Atribuindo o nome fantasia extraído
           });
         }
       });

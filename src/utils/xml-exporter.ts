@@ -80,6 +80,9 @@ export const exportPurchasedItemsToXml = (allItems: NFeDetailedItem[]): string =
     xmlString += `      <emit>\n`;
     xmlString += `        <CNPJ>${escapeXml(firstItem.emitCNPJ)}</CNPJ>\n`;
     xmlString += `        <xNome>${escapeXml(firstItem.xNomeEmit)}</xNome>\n`;
+    if (firstItem.x_fant) { // Adiciona xFant se estiver disponível
+      xmlString += `        <xFant>${escapeXml(firstItem.x_fant)}</xFant>\n`;
+    }
     xmlString += `        <enderEmit>\n`;
     xmlString += `          <xLgr>${escapeXml(firstItem.xLgrEmit)}</xLgr>\n`;
     xmlString += `          <nro>${escapeXml(firstItem.nroEmit)}</nro>\n`;
@@ -126,6 +129,7 @@ export const exportPurchasedItemsToXml = (allItems: NFeDetailedItem[]): string =
     xmlString += `        <detPag>\n`;
     xmlString += `          <tPag>${escapeXml(firstItem.tPag)}</tPag>\n`;
     xmlString += `          <vPag>${escapeXml(firstItem.vPag)}</vPag>\n`;
+    H
     xmlString += `        </detPag>\n`;
     xmlString += `      </pag>\n`;
 
