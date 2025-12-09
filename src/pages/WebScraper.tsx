@@ -10,21 +10,33 @@ import { useSession } from '@/components/SessionContextProvider';
 import { extractPurchasedItemsFromHtml } from '@/utils/html-to-purchased-items';
 import { exportPurchasedItemsToXml } from '@/utils/xml-exporter';
 import { NFeDetailedItem } from '@/types/nfe';
-import { useNavigate, useLocation } from 'react-router-dom'; // Importar useNavigate e useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { format, parseISO, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const WebScraper: React.FC = () => {
   const { user } = useSession();
   const navigate = useNavigate();
-  const location = useLocation(); // Para ler o estado da navegação
+  const location = useLocation();
   const [targetUrl, setTargetUrl] = useState('');
   const [pageContent, setPageContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const [extractedItemsPreview, setExtractedItemsPreview] = useState<NFeDetailedItem[]>([]); // NOVO: Estado para a pré-visualização
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false); // NOVO: Estado para controlar o modal de pré-visualização
 
-  // Efeito para verificar se há uma URL escaneada no estado da localização
   useEffect(() => {
     if (location.state && location.state.scannedUrl) {
       setTargetUrl(location.state.scannedUrl);
-      // Limpa o estado para que a URL não seja preenchida novamente em futuras visitas
       navigate(location.pathname, { replace: true, state: {} }); 
     }
   }, [location, navigate]);
@@ -36,6 +48,8 @@ const WebScraper: React.FC = () => {
     }
 
     setLoading(true);
+    setPageContent(''); // Limpa o conteúdo anterior
+    setExtractedItemsPreview([]); // Limpa a pré-visualização anterior
     const loadingToastId = showLoading('Buscando conteúdo da URL...');
 
     try {
@@ -64,34 +78,62 @@ const WebScraper: React.FC = () => {
     }
   };
 
-  const handleExtractAndDownloadXml = async () => {
+  const handleExtractDataForPreview = async () => {
     if (!pageContent) {
       showError('Nenhum conteúdo de página para extrair. Por favor, busque uma URL primeiro.');
       return;
     }
     if (!user?.id) {
-      showError('Usuário não autenticado. Não é possível extrair e baixar XML.');
+      showError('Usuário não autenticado. Não é possível extrair dados.');
       return;
     }
 
-    const loadingToastId = showLoading('Extraindo dados e gerando XML...');
+    setLoading(true);
+    const loadingToastId = showLoading('Extraindo dados para pré-visualização...');
+
     try {
       const detailedNFeItems: NFeDetailedItem[] = await extractPurchasedItemsFromHtml(pageContent, user.id);
       
       if (detailedNFeItems.length === 0) {
-        showWarning('Nenhum item de produto válido foi extraído do conteúdo HTML. O arquivo XML não será gerado.');
-        return;
+        showWarning('Nenhum item de produto válido foi extraído do conteúdo HTML.');
+        setExtractedItemsPreview([]);
+      } else {
+        setExtractedItemsPreview(detailedNFeItems);
+        showSuccess(`Dados de ${detailedNFeItems.length} itens extraídos com sucesso para pré-visualização!`);
       }
+      setIsPreviewDialogOpen(true); // Abre o modal de pré-visualização
 
-      const xmlContent = exportPurchasedItemsToXml(detailedNFeItems);
+    } catch (error: any) {
+      console.error('Erro ao extrair dados para pré-visualização:', error);
+      showError(`Erro ao extrair dados: ${error.message}`);
+      setExtractedItemsPreview([]);
+    } finally {
+      dismissToast(loadingToastId);
+      setLoading(false);
+    }
+  };
+
+  const handleExtractAndDownloadXml = async () => {
+    if (!extractedItemsPreview || extractedItemsPreview.length === 0) {
+      showError('Nenhum item extraído para gerar XML. Por favor, extraia os dados primeiro.');
+      return;
+    }
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível baixar XML.');
+      return;
+    }
+
+    const loadingToastId = showLoading('Gerando e baixando XML...');
+    try {
+      const xmlContent = exportPurchasedItemsToXml(extractedItemsPreview);
       const blob = new Blob([xmlContent], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
       let filename = 'nfe_extraida_do_scraper.xml';
-      if (detailedNFeItems.length > 0 && detailedNFeItems[0].Id) {
-        const sanitizedId = detailedNFeItems[0].Id.replace(/[^a-zA-Z0-9-]/g, '_');
+      if (extractedItemsPreview.length > 0 && extractedItemsPreview[0].Id) {
+        const sanitizedId = extractedItemsPreview[0].Id.replace(/[^a-zA-Z0-9-]/g, '_');
         filename = `${sanitizedId}.xml`;
       }
       
@@ -100,7 +142,7 @@ const WebScraper: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccess(`Dados de ${detailedNFeItems.length} itens extraídos e baixados como XML com sucesso!`);
+      showSuccess(`Dados de ${extractedItemsPreview.length} itens baixados como XML com sucesso!`);
 
     } catch (error: any) {
       console.error('Erro ao extrair e baixar XML:', error);
@@ -158,9 +200,14 @@ const WebScraper: React.FC = () => {
                 <CardTitle>Conteúdo da Página</CardTitle>
                 <CardDescription>O HTML bruto retornado pela URL.</CardDescription>
               </div>
-              <Button onClick={handleExtractAndDownloadXml} disabled={loading || !pageContent} variant="outline">
-                Extrair e Baixar como XML de Itens Comprados
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleExtractDataForPreview} disabled={loading || !pageContent} variant="secondary">
+                  Pré-visualizar Dados Extraídos
+                </Button>
+                <Button onClick={handleExtractAndDownloadXml} disabled={loading || extractedItemsPreview.length === 0} variant="outline">
+                  Baixar como XML de Itens Comprados
+                </Button>
+              </div>
             </div>
             <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
               **Aviso**: A extração de dados para XML é otimizada para o formato HTML de NFC-e.
@@ -176,6 +223,60 @@ const WebScraper: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* NOVO: Modal de Pré-visualização dos Dados Extraídos */}
+      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Pré-visualização dos Itens Comprados Extraídos</DialogTitle>
+            <DialogDescription>
+              Dados extraídos do conteúdo HTML, prontos para serem convertidos em XML.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow pr-4">
+            {extractedItemsPreview.length === 0 ? (
+              <p className="text-center text-gray-600 dark:text-gray-400 py-8">
+                Nenhum item extraído para pré-visualização.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nº Item</TableHead>
+                    <TableHead>Cód. Prod.</TableHead>
+                    <TableHead>Descrição Prod.</TableHead>
+                    <TableHead>Fornecedor</TableHead>
+                    <TableHead>Qtd.</TableHead>
+                    <TableHead>Unid.</TableHead>
+                    <TableHead className="text-right">Vl. Unit.</TableHead>
+                    <TableHead className="text-right">Vl. Total Item</TableHead>
+                    <TableHead>Nº NF</TableHead>
+                    <TableHead>Data Emissão</TableHead>
+                    <TableHead>Chave NF</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {extractedItemsPreview.map((item, index) => (
+                    <TableRow key={item.Id || index}>
+                      <TableCell>{item.nItem || 'N/A'}</TableCell>
+                      <TableCell>{item.cProd || 'N/A'}</TableCell>
+                      <TableCell>{item.xProd || 'N/A'}</TableCell>
+                      <TableCell>{item.x_fant || item.xNomeEmit || 'N/A'}</TableCell>
+                      <TableCell>{item.qCom?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}</TableCell>
+                      <TableCell>{item.uCom || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{item.vUnCom?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</TableCell>
+                      <TableCell className="text-right">{item.vProd?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'R$ 0,00'}</TableCell>
+                      <TableCell>{item.nNF || 'N/A'}</TableCell>
+                      <TableCell>{item.dhEmi ? format(parseISO(item.dhEmi), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
+                      <TableCell className="text-xs">{item.Id || 'N/A'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
