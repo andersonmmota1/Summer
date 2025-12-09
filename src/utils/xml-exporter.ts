@@ -129,7 +129,6 @@ export const exportPurchasedItemsToXml = (allItems: NFeDetailedItem[]): string =
     xmlString += `        <detPag>\n`;
     xmlString += `          <tPag>${escapeXml(firstItem.tPag)}</tPag>\n`;
     xmlString += `          <vPag>${escapeXml(firstItem.vPag)}</vPag>\n`;
-    H
     xmlString += `        </detPag>\n`;
     xmlString += `      </pag>\n`;
 
