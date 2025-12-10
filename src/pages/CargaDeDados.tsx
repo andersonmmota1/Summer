@@ -745,13 +745,39 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      const formattedData = data.map((row: any) => ({
-        user_id: user.id,
-        supplier_product_code: String(row['Código Fornecedor']),
-        supplier_name: String(row['Nome Fornecedor']),
-        supplier_product_name: String(row['Descrição Produto Fornecedor']),
-        internal_product_name: String(row['Nome Interno do Produto']),
-      }));
+      // Deduplicar os dados antes de formatar e enviar
+      const uniqueConversions = new Map<string, any>();
+      data.forEach((row: any, index: number) => {
+        const supplierProductCode = String(row['Código Fornecedor']).trim();
+        const supplierName = String(row['Nome Fornecedor']).trim();
+        
+        if (!supplierProductCode || !supplierName) {
+          showWarning(`Linha ${index + 2} do arquivo de Conversão de Nomes ignorada: 'Código Fornecedor' ou 'Nome Fornecedor' está vazio.`);
+          return;
+        }
+
+        const key = `${user.id}-${supplierProductCode}-${supplierName}`; // Chave de unicidade
+        if (uniqueConversions.has(key)) {
+          showWarning(`Linha ${index + 2} do arquivo de Conversão de Nomes: Duplicata para Código Fornecedor "${supplierProductCode}" e Nome Fornecedor "${supplierName}" encontrada e ignorada.`);
+        } else {
+          uniqueConversions.set(key, {
+            user_id: user.id,
+            supplier_product_code: supplierProductCode,
+            supplier_name: supplierName,
+            supplier_product_name: String(row['Descrição Produto Fornecedor']),
+            internal_product_name: String(row['Nome Interno do Produto']),
+          });
+        }
+      });
+
+      const formattedData = Array.from(uniqueConversions.values());
+
+      if (formattedData.length === 0) {
+        showWarning('Nenhuma conversão de nome de produto válida foi encontrada no arquivo após a deduplicação.');
+        dismissToast(loadingToastId);
+        setSelectedProductNameConversionExcelFile(null);
+        return;
+      }
 
       const { error } = await supabase
         .from('product_name_conversions')
