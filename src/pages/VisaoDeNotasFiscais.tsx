@@ -1,12 +1,25 @@
 import React from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { showSuccess, showError } from '@/utils/toast';
+import { showSuccess, showError, showLoading, dismissToast } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useQuery } from '@tanstack/react-query';
-import { useSession } from '@/components/SessionContextProvider'; // Importar useSession
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSession } from '@/components/SessionContextProvider';
+import { Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface InvoiceSummary {
   invoice_id: string;
@@ -17,19 +30,19 @@ interface InvoiceSummary {
 }
 
 const VisaoDeNotasFiscais: React.FC = () => {
-  const { user } = useSession(); // Obter o usuário da sessão
+  const { user } = useSession();
+  const queryClient = useQueryClient();
 
   const fetchInvoiceSummary = async (): Promise<InvoiceSummary[]> => {
     if (!user?.id) {
-      // Se não houver usuário logado, não há dados para buscar
       return [];
     }
 
     let query = supabase
       .from('invoice_summary')
-      .select('*');
+      .select('*')
+      .eq('user_id', user.id); // Adicionado filtro por user_id
 
-    // Removido o filtro por selectedSupplier
     query = query.order('invoice_date', { ascending: false });
 
     const { data, error } = await query;
@@ -44,9 +57,9 @@ const VisaoDeNotasFiscais: React.FC = () => {
   };
 
   const { data: invoices, isLoading, isError, error } = useQuery<InvoiceSummary[], Error>({
-    queryKey: ['invoice_summary', user?.id], // Removido selectedSupplier da chave da query
+    queryKey: ['invoice_summary', user?.id],
     queryFn: fetchInvoiceSummary,
-    enabled: !!user?.id, // A query só será executada se houver um user.id
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
     onSuccess: () => {
       // showSuccess('Resumo das notas fiscais carregado com sucesso!');
@@ -56,6 +69,47 @@ const VisaoDeNotasFiscais: React.FC = () => {
       showError(`Erro ao carregar notas fiscais: ${err.message}`);
     },
   });
+
+  const handleDeleteInvoice = async (invoiceId: string, invoiceNumberDisplay: string) => {
+    if (!user?.id) {
+      showError('Usuário não autenticado. Não é possível excluir notas fiscais.');
+      return;
+    }
+
+    const loadingToastId = showLoading(`Excluindo nota fiscal ${invoiceNumberDisplay}...`);
+    try {
+      // Excluir todos os itens da tabela 'purchased_items' que pertencem a esta invoice_id
+      const { error } = await supabase
+        .from('purchased_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('invoice_id', invoiceId);
+
+      if (error) {
+        throw error;
+      }
+
+      showSuccess(`Nota fiscal ${invoiceNumberDisplay} e todos os seus itens foram excluídos com sucesso!`);
+      // Invalida as queries relevantes para que os dados sejam recarregados
+      queryClient.invalidateQueries({ queryKey: ['invoice_summary', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['purchased_items', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['all_purchased_items', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['converted_units_summary', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['current_stock_summary', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['internal_product_average_cost', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['purchased_items_count', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unique_c_prods', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unique_descricoes', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unique_u_coms', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['unique_x_fants', user?.id] });
+    } catch (err: any) {
+      console.error('Erro ao excluir nota fiscal:', err);
+      showError(`Erro ao excluir nota fiscal ${invoiceNumberDisplay}: ${err.message}`);
+    } finally {
+      dismissToast(loadingToastId);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -83,8 +137,6 @@ const VisaoDeNotasFiscais: React.FC = () => {
         Visualize um resumo das notas fiscais carregadas, incluindo o fornecedor, data de emissão e valor total.
       </p>
 
-      {/* Removido o display do filtro de fornecedor */}
-
       {invoices && invoices.length === 0 ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhuma nota fiscal encontrada.</p>
@@ -107,6 +159,7 @@ const VisaoDeNotasFiscais: React.FC = () => {
                     <TableHead>Fornecedor</TableHead>
                     <TableHead>Data de Emissão</TableHead>
                     <TableHead className="text-right">Total da Nota</TableHead>
+                    <TableHead className="text-center">Ações</TableHead> {/* Nova coluna para ações */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -114,8 +167,37 @@ const VisaoDeNotasFiscais: React.FC = () => {
                     <TableRow key={invoice.invoice_id || index}>
                       <TableCell className="font-medium">{invoice.invoice_number_display || 'N/A'}</TableCell>
                       <TableCell>{invoice.supplier_name || 'N/A'}</TableCell>
-                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell> {/* Formatado sem hora */}
+                      <TableCell>{format(new Date(invoice.invoice_date), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                       <TableCell className="text-right">{invoice.total_invoice_value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                      <TableCell className="text-center">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="h-8 w-8 p-0">
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Excluir Nota Fiscal</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Isso removerá permanentemente a nota fiscal
+                                <strong> {invoice.invoice_number_display}</strong> do fornecedor <strong>{invoice.supplier_name}</strong>
+                                e todos os seus itens associados do seu banco de dados.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteInvoice(invoice.invoice_id, invoice.invoice_number_display)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Sim, Excluir Nota Fiscal
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
