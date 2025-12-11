@@ -40,6 +40,14 @@ interface SortConfig {
   direction: 'asc' | 'desc' | null;
 }
 
+// Interface para dados agregados de grupo/subgrupo
+interface AggregatedSalesData {
+  name: string;
+  total_quantity_sold: number;
+  total_value_sold: number;
+  average_ticket: number;
+}
+
 const Inicio: React.FC = () => {
   const { user } = useSession();
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -119,6 +127,24 @@ const Inicio: React.FC = () => {
   const isError = isErrorSoldItems || isErrorProductCosts;
   const error = errorSoldItems || errorProductCosts;
 
+  // Função auxiliar para formatar valores com segurança
+  const formatCurrency = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value) || !isFinite(value)) return 'R$ 0,00';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  // Função auxiliar para formatar quantidades com segurança
+  const formatQuantity = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value) || !isFinite(value)) return '0,00';
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Função auxiliar para formatar porcentagem com segurança
+  const formatPercentage = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value) || !isFinite(value)) return '0,00%';
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  };
+
   const salesByGroup = useMemo(() => {
     if (!rawSoldItems) return [];
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
@@ -135,7 +161,8 @@ const Inicio: React.FC = () => {
         aggregatedData[groupName].itemCount++;
       }
     });
-    return Object.keys(aggregatedData).map(groupName => {
+
+    const result: AggregatedSalesData[] = Object.keys(aggregatedData).map(groupName => {
       const total_quantity_sold = aggregatedData[groupName].total_quantity_sold;
       const total_value_sold = aggregatedData[groupName].total_value_sold;
       const itemCount = aggregatedData[groupName].itemCount;
@@ -149,6 +176,8 @@ const Inicio: React.FC = () => {
     })
     .filter(group => group.total_quantity_sold > 0 || group.total_value_sold > 0)
     .sort((a, b) => b.total_value_sold - a.total_value_sold);
+
+    return result;
   }, [rawSoldItems]);
 
   const salesBySubgroup = useMemo(() => {
@@ -167,7 +196,8 @@ const Inicio: React.FC = () => {
         aggregatedData[subgroupName].itemCount++;
       }
     });
-    return Object.keys(aggregatedData).map(subgroupName => {
+
+    const result: AggregatedSalesData[] = Object.keys(aggregatedData).map(subgroupName => {
       const total_quantity_sold = aggregatedData[subgroupName].total_quantity_sold;
       const total_value_sold = aggregatedData[subgroupName].total_value_sold;
       const itemCount = aggregatedData[subgroupName].itemCount;
@@ -181,6 +211,8 @@ const Inicio: React.FC = () => {
     })
     .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0)
     .sort((a, b) => b.total_value_sold - a.total_value_sold);
+
+    return result;
   }, [rawSoldItems]);
 
   const totalQuantitySoldSum = useMemo(() => {
@@ -272,23 +304,6 @@ const Inicio: React.FC = () => {
     return sortableItems;
   }, [productCostAnalysis, searchTerm, sortConfig]);
 
-  // Função auxiliar para formatar valores com segurança
-  const formatCurrency = (value: number | null | undefined): string => {
-    if (value == null || isNaN(value)) return 'R$ 0,00';
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
-
-  // Função auxiliar para formatar quantidades com segurança
-  const formatQuantity = (value: number | null | undefined): string => {
-    if (value == null || isNaN(value)) return '0,00';
-    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  // Função auxiliar para formatar porcentagem com segurança
-  const formatPercentage = (value: number | null | undefined): string => {
-    if (value == null || isNaN(value)) return '0,00%';
-    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
-  };
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -317,7 +332,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : (
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {totalQuantitySoldSum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} unidades
+                {formatQuantity(totalQuantitySoldSum)} unidades
               </p>
             )}
           </CardContent>
@@ -340,7 +355,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : (
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {totalValueSoldSum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {formatCurrency(totalValueSoldSum)}
               </p>
             )}
           </CardContent>
@@ -378,13 +393,13 @@ const Inicio: React.FC = () => {
                         <TableRow key={index}>
                           <TableCell className="font-medium text-xs">{group.name}</TableCell>
                           <TableCell className="text-right text-xs">
-                            {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {formatCurrency(group.total_value_sold)}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {group.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatQuantity(group.total_quantity_sold)}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {group.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {formatCurrency(group.average_ticket)}
                           </TableCell>
                         </TableRow>
                       ))
@@ -434,13 +449,13 @@ const Inicio: React.FC = () => {
                         <TableRow key={index}>
                           <TableCell className="font-medium text-xs">{subgroup.name}</TableCell>
                           <TableCell className="text-right text-xs">
-                            {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {formatCurrency(subgroup.total_value_sold)}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {subgroup.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatQuantity(subgroup.total_quantity_sold)}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {subgroup.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            {formatCurrency(subgroup.average_ticket)}
                           </TableCell>
                         </TableRow>
                       ))
