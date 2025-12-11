@@ -4,20 +4,20 @@ import { useSession } from '@/components/SessionContextProvider';
 import { useQuery } from '@tanstack/react-query';
 import { showSuccess, showError } from '@/utils/toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'; // Importar componentes de tabela
-import { Button } from '@/components/ui/button'; // Importar Button para ordenação
-import { Input } from '@/components/ui/input'; // Importar Input para busca
-import { ArrowUpDown } from 'lucide-react'; // Importar ícone de ordenação
-import { cn } from '@/lib/utils'; // Importar cn para classes condicionais
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ArrowUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SoldItemRaw {
   sale_date: string;
   product_name: string;
   quantity_sold: number;
   total_value_sold: number | null;
-  group_name: string | null; // Adicionado
-  subgroup_name: string | null; // Adicionado
-  additional_code: string | null; // Adicionado
+  group_name: string | null;
+  subgroup_name: string | null;
+  additional_code: string | null;
 }
 
 interface SoldProductCost {
@@ -43,13 +43,12 @@ interface SortConfig {
 const Inicio: React.FC = () => {
   const { user } = useSession();
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'total_revenue', direction: 'desc' }); // Default sort by total revenue
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'total_revenue', direction: 'desc' });
 
   const fetchAllSoldItemsRaw = async (): Promise<SoldItemRaw[]> => {
     if (!user?.id) {
       return [];
     }
-
     let allData: SoldItemRaw[] = [];
     let offset = 0;
     const limit = 1000;
@@ -58,7 +57,7 @@ const Inicio: React.FC = () => {
     while (hasMore) {
       let query = supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, subgroup_name, additional_code') // Selecionar novos campos
+        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, subgroup_name, additional_code')
         .eq('user_id', user.id);
 
       const { data, error } = await query
@@ -67,7 +66,7 @@ const Inicio: React.FC = () => {
 
       if (error) {
         console.error('Inicio: Erro ao carregar todos os itens vendidos (paginação):', error);
-        showError(`Erro ao carregar dados: ${error instanceof Error ? error.message : String(error)}`); // CORRIGIDO
+        showError(`Erro ao carregar dados: ${error instanceof Error ? error.message : String(error)}`);
         throw error;
       }
 
@@ -79,7 +78,6 @@ const Inicio: React.FC = () => {
         hasMore = false;
       }
     }
-    
     console.log('Inicio: Raw data from Supabase (all items for user, paginated):', allData);
     return allData;
   };
@@ -94,11 +92,10 @@ const Inicio: React.FC = () => {
     },
     onError: (err) => {
       console.error('Inicio: Erro no React Query ao carregar dados brutos de vendas:', err);
-      showError(`Erro ao carregar dados brutos de vendas: ${err instanceof Error ? err.message : String(err)}`); // CORRIGIDO
+      showError(`Erro ao carregar dados brutos de vendas: ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 
-  // NOVO: Query para buscar os custos dos produtos vendidos
   const { data: soldProductCosts, isLoading: isLoadingProductCosts, isError: isErrorProductCosts, error: errorProductCosts } = useQuery<SoldProductCost[], Error>({
     queryKey: ['sold_product_cost_inicio', user?.id],
     queryFn: async () => {
@@ -114,7 +111,7 @@ const Inicio: React.FC = () => {
     staleTime: 1000 * 60 * 5,
     onError: (err) => {
       console.error('Inicio: Erro no React Query ao carregar custos de produtos:', err);
-      showError(`Erro ao carregar custos de produtos: ${err instanceof Error ? err.message : String(err)}`); // CORRIGIDO
+      showError(`Erro ao carregar custos de produtos: ${err instanceof Error ? err.message : String(err)}`);
     },
   });
 
@@ -122,88 +119,70 @@ const Inicio: React.FC = () => {
   const isError = isErrorSoldItems || isErrorProductCosts;
   const error = errorSoldItems || errorProductCosts;
 
-  // NOVO: Agregação de vendas por Grupo
   const salesByGroup = useMemo(() => {
     if (!rawSoldItems) return [];
-
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
-
     rawSoldItems.forEach(item => {
       const groupName = item.group_name || 'Sem Grupo';
       const itemTotalValue = item.total_value_sold ?? 0;
-      const itemQuantity = item.quantity_sold ?? 0; // Garante que a quantidade seja 0 se nula/indefinida
-
+      const itemQuantity = item.quantity_sold ?? 0;
       if (!aggregatedData[groupName]) {
         aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
-
-      // Apenas soma a quantidade e o valor se o item tiver um total_value_sold maior que 0
       if (itemTotalValue > 0) {
         aggregatedData[groupName].total_quantity_sold += itemQuantity;
         aggregatedData[groupName].total_value_sold += itemTotalValue;
-        aggregatedData[groupName].itemCount++; // Incrementa itemCount apenas para itens que geram receita
+        aggregatedData[groupName].itemCount++;
       }
     });
-
     return Object.keys(aggregatedData).map(groupName => {
       const total_quantity_sold = aggregatedData[groupName].total_quantity_sold;
       const total_value_sold = aggregatedData[groupName].total_value_sold;
-      const itemCount = aggregatedData[groupName].itemCount; // Usado para ticket médio
+      const itemCount = aggregatedData[groupName].itemCount;
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: groupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
-        // Removido: itemCount, // Não será exibido diretamente
       };
     })
-    .filter(group => group.total_quantity_sold > 0 || group.total_value_sold > 0) // Filtra grupos com quantidade e valor zero
-    .sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+    .filter(group => group.total_quantity_sold > 0 || group.total_value_sold > 0)
+    .sort((a, b) => b.total_value_sold - a.total_value_sold);
   }, [rawSoldItems]);
 
-  // NOVO: Agregação de vendas por Subgrupo
   const salesBySubgroup = useMemo(() => {
     if (!rawSoldItems) return [];
-
     const aggregatedData: Record<string, { total_quantity_sold: number; total_value_sold: number; itemCount: number }> = {};
-
     rawSoldItems.forEach(item => {
       const subgroupName = item.subgroup_name || 'Sem Subgrupo';
       const itemTotalValue = item.total_value_sold ?? 0;
-      const itemQuantity = item.quantity_sold ?? 0; // Garante que a quantidade seja 0 se nula/indefinida
-
+      const itemQuantity = item.quantity_sold ?? 0;
       if (!aggregatedData[subgroupName]) {
         aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
-
-      // Apenas soma a quantidade e o valor se o item tiver um total_value_sold maior que 0
       if (itemTotalValue > 0) {
         aggregatedData[subgroupName].total_quantity_sold += itemQuantity;
         aggregatedData[subgroupName].total_value_sold += itemTotalValue;
-        aggregatedData[subgroupName].itemCount++; // Incrementa itemCount apenas para itens que geram receita
+        aggregatedData[subgroupName].itemCount++;
       }
     });
-
     return Object.keys(aggregatedData).map(subgroupName => {
       const total_quantity_sold = aggregatedData[subgroupName].total_quantity_sold;
       const total_value_sold = aggregatedData[subgroupName].total_value_sold;
-      const itemCount = aggregatedData[subgroupName].itemCount; // Usado para ticket médio
+      const itemCount = aggregatedData[subgroupName].itemCount;
       const average_ticket = total_quantity_sold > 0 ? total_value_sold / total_quantity_sold : 0;
       return {
         name: subgroupName,
         total_quantity_sold,
         total_value_sold,
         average_ticket,
-        // Removido: itemCount, // Não será exibido diretamente
       };
     })
-    .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0) // Filtra subgrupos com quantidade e valor zero
-    .sort((a, b) => b.total_value_sold - a.total_value_sold); // Ordena por valor total vendido
+    .filter(subgroup => subgroup.total_quantity_sold > 0 || subgroup.total_value_sold > 0)
+    .sort((a, b) => b.total_value_sold - a.total_value_sold);
   }, [rawSoldItems]);
 
-  // ATUALIZADO: Calcular totalQuantitySoldSum e totalValueSoldSum com base nos dados agregados e filtrados por grupo
-  // Isso garante que os totais globais reflitam apenas os grupos/subgrupos com vendas reais.
   const totalQuantitySoldSum = useMemo(() => {
     return salesByGroup.reduce((sum, group) => sum + group.total_quantity_sold, 0);
   }, [salesByGroup]);
@@ -212,10 +191,8 @@ const Inicio: React.FC = () => {
     return salesByGroup.reduce((sum, group) => sum + group.total_value_sold, 0);
   }, [salesByGroup]);
 
-  // NOVO: Análise de Custo e Margem
   const productCostAnalysis = useMemo(() => {
     if (!rawSoldItems || !soldProductCosts) return [];
-
     const costsMap = new Map<string, number>();
     soldProductCosts.forEach(cost => {
       costsMap.set(cost.sold_product_name, cost.estimated_cost_of_sold_product);
@@ -232,11 +209,10 @@ const Inicio: React.FC = () => {
     const analysis: ProductCostAnalysis[] = [];
     aggregatedSales.forEach((sales, productName) => {
       const estimatedUnitCost = costsMap.get(productName);
-      if (estimatedUnitCost !== undefined) { // Only include products with a registered cost
+      if (estimatedUnitCost !== undefined) {
         const totalEstimatedCost = sales.total_quantity_sold * estimatedUnitCost;
         const margin = sales.total_value_sold - totalEstimatedCost;
         const margin_percentage = sales.total_value_sold > 0 ? (margin / sales.total_value_sold) * 100 : 0;
-
         analysis.push({
           sold_product_name: productName,
           total_quantity_sold: sales.total_quantity_sold,
@@ -248,7 +224,6 @@ const Inicio: React.FC = () => {
         });
       }
     });
-
     return analysis;
   }, [rawSoldItems, soldProductCosts]);
 
@@ -262,7 +237,6 @@ const Inicio: React.FC = () => {
 
   const filteredAndSortedCostAnalysis = useMemo(() => {
     let sortableItems = [...productCostAnalysis];
-
     if (searchTerm) {
       const lowerCaseSearchTerm = searchTerm.toLowerCase();
       sortableItems = sortableItems.filter(item =>
@@ -275,7 +249,6 @@ const Inicio: React.FC = () => {
         String(item.margin_percentage).toLowerCase().includes(lowerCaseSearchTerm)
       );
     }
-
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
         const aValue = a[sortConfig.key!];
@@ -299,6 +272,23 @@ const Inicio: React.FC = () => {
     return sortableItems;
   }, [productCostAnalysis, searchTerm, sortConfig]);
 
+  // Função auxiliar para formatar valores com segurança
+  const formatCurrency = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value)) return 'R$ 0,00';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
+  // Função auxiliar para formatar quantidades com segurança
+  const formatQuantity = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value)) return '0,00';
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Função auxiliar para formatar porcentagem com segurança
+  const formatPercentage = (value: number | null | undefined): string => {
+    if (value == null || isNaN(value)) return '0,00%';
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  };
 
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -308,8 +298,7 @@ const Inicio: React.FC = () => {
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Use a navegação acima para explorar as diferentes seções da gestão do seu restaurante.
       </p>
-
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"> {/* Layout ajustado para 2 colunas em telas grandes */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Total de Produtos Vendidos</CardTitle>
@@ -333,7 +322,6 @@ const Inicio: React.FC = () => {
             )}
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <CardTitle>Valor Total Vendido</CardTitle>
@@ -357,8 +345,6 @@ const Inicio: React.FC = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* NOVO CARD: Vendas por Grupo (agora como tabela) */}
         <Card>
           <CardHeader>
             <CardTitle>Vendas por Grupo</CardTitle>
@@ -376,13 +362,13 @@ const Inicio: React.FC = () => {
                 Erro ao carregar vendas por grupo: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
-              <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
+              <div className="overflow-x-auto max-h-60">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Grupo</TableHead>
                       <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
-                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead> {/* Cabeçalho mantido */}
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
                       <TableHead className="text-right text-xs">Ticket Médio</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -395,7 +381,7 @@ const Inicio: React.FC = () => {
                             {group.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {group.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {/* AGORA EXIBE total_quantity_sold */}
+                            {group.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
                             {group.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -415,8 +401,6 @@ const Inicio: React.FC = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* NOVO CARD: Vendas por Subgrupo (agora como tabela) */}
         <Card>
           <CardHeader>
             <CardTitle>Vendas por Subgrupo</CardTitle>
@@ -434,13 +418,13 @@ const Inicio: React.FC = () => {
                 Erro ao carregar vendas por subgrupo: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
-              <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
+              <div className="overflow-x-auto max-h-60">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Subgrupo</TableHead>
                       <TableHead className="text-right text-xs">Valor Total Vendido</TableHead>
-                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead> {/* Cabeçalho mantido */}
+                      <TableHead className="text-right text-xs">Qtd. Itens</TableHead>
                       <TableHead className="text-right text-xs">Ticket Médio</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -453,7 +437,7 @@ const Inicio: React.FC = () => {
                             {subgroup.total_value_sold.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
-                            {subgroup.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {/* AGORA EXIBE total_quantity_sold */}
+                            {subgroup.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-right text-xs">
                             {subgroup.average_ticket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -473,9 +457,7 @@ const Inicio: React.FC = () => {
             )}
           </CardContent>
         </Card>
-
-        {/* NOVO CARD: Análise de Custo e Margem por Produto Vendido */}
-        <Card className="lg:col-span-2"> {/* Ocupa duas colunas em telas grandes */}
+        <Card className="lg:col-span-2">
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
@@ -505,8 +487,7 @@ const Inicio: React.FC = () => {
               <div className="text-center text-gray-600 dark:text-gray-400 py-8">
                 <p className="text-lg">Nenhum produto com custo cadastrado e vendas encontradas.</p>
                 <p className="text-sm mt-2">
-                  Certifique-se de ter carregado dados de vendas e fichas técnicas, e que os produtos internos
-                  tenham um custo médio calculado (visível na página de Estoque).
+                  Certifique-se de ter carregado dados de vendas e fichas técnicas, e que os produtos internos tenham um custo médio calculado (visível na página de Estoque).
                 </p>
               </div>
             ) : (
@@ -639,12 +620,12 @@ const Inicio: React.FC = () => {
                     {filteredAndSortedCostAnalysis.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">{item.sold_product_name}</TableCell>
-                        <TableCell className="text-right">{item.total_quantity_sold.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{item.estimated_unit_cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.total_estimated_cost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.total_revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.margin.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                        <TableCell className="text-right">{item.margin_percentage.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</TableCell>
+                        <TableCell className="text-right">{formatQuantity(item.total_quantity_sold)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.estimated_unit_cost)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.total_estimated_cost)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.total_revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.margin)}</TableCell>
+                        <TableCell className="text-right">{formatPercentage(item.margin_percentage)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
