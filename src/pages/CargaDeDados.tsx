@@ -535,7 +535,21 @@ const CargaDeDados: React.FC = () => {
         for (let i = 0; i <= 23; i++) {
           currentItem[`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
-        currentItem.total_quantity_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
+        // --- CORREÇÃO: Leitura da coluna Total de forma robusta ---
+        // Encontra a chave real da coluna 'Total' no objeto row
+        const totalQuantityKey = Object.keys(row).find(key => key.trim().toLowerCase() === 'total');
+        if (totalQuantityKey) {
+          currentItem.total_quantity_sold = parseBrazilianFloat(row[totalQuantityKey]);
+        } else {
+          console.warn(`Coluna 'Total' não encontrada na linha ${rowIndex + 2} do arquivo de quantidade.`);
+          // Opcional: Calcular o total manualmente se a coluna não existir
+          // let calculatedTotal = 0;
+          // for (let i = 0; i <= 23; i++) {
+          //   calculatedTotal += currentItem[`quantity_${i}` as keyof CombinedHourlySoldItem] as number;
+          // }
+          // currentItem.total_quantity_sold = calculatedTotal;
+        }
+        // ---
         console.log(`Linha ${rowIndex + 2} - Item agregado (quantidade):`, currentItem);
       });
 
@@ -620,7 +634,21 @@ const CargaDeDados: React.FC = () => {
         for (let i = 0; i <= 23; i++) {
           combinedItem[`value_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
-        combinedItem.total_value_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
+        // --- CORREÇÃO: Leitura da coluna Total de forma robusta ---
+        // Encontra a chave real da coluna 'Total' no objeto row
+        const totalValueKey = Object.keys(row).find(key => key.trim().toLowerCase() === 'total');
+        if (totalValueKey) {
+          combinedItem.total_value_sold = parseBrazilianFloat(row[totalValueKey]);
+        } else {
+          console.warn(`Coluna 'Total' não encontrada na linha ${rowIndex + 2} do arquivo de valor.`);
+          // Opcional: Calcular o total manualmente se a coluna não existir
+          // let calculatedTotal = 0;
+          // for (let i = 0; i <= 23; i++) {
+          //   calculatedTotal += combinedItem[`value_${i}` as keyof CombinedHourlySoldItem] as number;
+          // }
+          // combinedItem.total_value_sold = calculatedTotal;
+        }
+        // ---
         console.log(`Linha ${rowIndex + 2} - Item agregado (valor):`, combinedItem);
       });
 
