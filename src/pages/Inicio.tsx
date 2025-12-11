@@ -67,7 +67,7 @@ const Inicio: React.FC = () => {
 
       if (error) {
         console.error('Inicio: Erro ao carregar todos os itens vendidos (paginação):', error);
-        showError(`Erro ao carregar dados: ${error.message}`);
+        showError(`Erro ao carregar dados: ${error instanceof Error ? error.message : String(error)}`); // CORRIGIDO
         throw error;
       }
 
@@ -94,7 +94,7 @@ const Inicio: React.FC = () => {
     },
     onError: (err) => {
       console.error('Inicio: Erro no React Query ao carregar dados brutos de vendas:', err);
-      showError(`Erro ao carregar dados brutos de vendas: ${err.message}`);
+      showError(`Erro ao carregar dados brutos de vendas: ${err instanceof Error ? err.message : String(err)}`); // CORRIGIDO
     },
   });
 
@@ -114,7 +114,7 @@ const Inicio: React.FC = () => {
     staleTime: 1000 * 60 * 5,
     onError: (err) => {
       console.error('Inicio: Erro no React Query ao carregar custos de produtos:', err);
-      showError(`Erro ao carregar custos de produtos: ${err.message}`);
+      showError(`Erro ao carregar custos de produtos: ${err instanceof Error ? err.message : String(err)}`); // CORRIGIDO
     },
   });
 
@@ -324,7 +324,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : isError ? (
               <div className="text-center text-red-600 dark:text-red-400 py-4">
-                Erro ao carregar total de produtos vendidos: {error?.message}
+                Erro ao carregar total de produtos vendidos: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -348,7 +348,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : isError ? (
               <div className="text-center text-red-600 dark:text-red-400 py-4">
-                Erro ao carregar valor total vendido: {error?.message}
+                Erro ao carregar valor total vendido: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -373,7 +373,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : isError ? (
               <div className="text-center text-red-600 dark:text-red-400 py-4">
-                Erro ao carregar vendas por grupo: {error?.message}
+                Erro ao carregar vendas por grupo: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
               <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
@@ -431,7 +431,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : isError ? (
               <div className="text-center text-red-600 dark:text-red-400 py-4">
-                Erro ao carregar vendas por subgrupo: {error?.message}
+                Erro ao carregar vendas por subgrupo: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : (
               <div className="overflow-x-auto max-h-60"> {/* Adicionado max-h e overflow para rolagem */}
@@ -499,7 +499,7 @@ const Inicio: React.FC = () => {
               </div>
             ) : isError ? (
               <div className="text-center text-red-600 dark:text-red-400 py-4">
-                Erro ao carregar análise de custo e margem: {error?.message}
+                Erro ao carregar análise de custo e margem: {error instanceof Error ? error.message : String(error)}
               </div>
             ) : filteredAndSortedCostAnalysis.length === 0 ? (
               <div className="text-center text-gray-600 dark:text-gray-400 py-8">

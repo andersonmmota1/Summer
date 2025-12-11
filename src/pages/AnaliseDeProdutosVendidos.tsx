@@ -74,7 +74,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
       showSuccess('Dados detalhados de produtos vendidos carregados com sucesso!');
     } catch (error: any) {
       console.error('Erro ao carregar dados detalhados de produtos vendidos:', error);
-      showError(`Erro ao carregar dados: ${error.message}`);
+      showError(`Erro ao carregar dados: ${error instanceof Error ? error.message : String(error)}`); // CORRIGIDO
     } finally {
       dismissToast(loadingToastId);
       setLoading(false);

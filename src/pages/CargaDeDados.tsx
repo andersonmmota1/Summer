@@ -256,7 +256,7 @@ const CargaDeDados: React.FC = () => {
       const { data, error } = await supabase
         .from('purchased_items')
         .select('descricao_do_produto', { distinct: true })
-        .eq('user.id', user.id);
+        .eq('user_id', user.id); // CORRIGIDO: user.id para user_id
       if (error) throw error;
       // Filtrar null/undefined, remover espaços e garantir unicidade com Set
       const uniqueValues = Array.from(new Set(
