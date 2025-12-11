@@ -8,25 +8,8 @@ import { showSuccess, showError, showLoading, dismissToast, showWarning } from '
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger, } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -35,7 +18,6 @@ import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseBrazilianFloat, parseBrazilianDate, cn } from '@/lib/utils';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
-
 // Form imports
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,7 +28,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 // Interface para os itens comprados diretamente do Supabase (mantida caso seja usada em outro lugar, mas não para preview aqui)
-export interface PurchasedItem { // Exportar a interface para uso no xml-exporter
+export interface PurchasedItem {
+  // Exportar a interface para uso no xml-exporter
   id: string;
   user_id: string;
   c_prod: string;
@@ -156,9 +139,8 @@ interface CombinedHourlySoldItem {
   value_22: number;
   value_23: number;
   total_quantity_sold: number; // NOVO: Total de quantidade vendida do Excel
-  total_value_sold: number;   // NOVO: Total de valor vendido do Excel
+  total_value_sold: number; // NOVO: Total de valor vendido do Excel
 }
-
 
 // Define o schema para o formulário de entrada manual
 const manualEntrySchema = z.object({
@@ -185,24 +167,19 @@ const manualEntrySchema = z.object({
 
 type ManualEntryFormValues = z.infer<typeof manualEntrySchema>;
 
-
 const CargaDeDados: React.FC = () => {
   const { user } = useSession();
   const queryClient = useQueryClient();
-  const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]);
-  // ATUALIZADO: Agora dois arquivos para produtos vendidos
+  const [selectedXmlFiles, setSelectedXmlFiles] = useState<File[]>([]); // ATUALIZADO: Agora dois arquivos para produtos vendidos
   const [selectedSoldItemsQuantityExcelFile, setSelectedSoldItemsQuantityExcelFile] = useState<File | null>(null);
   const [selectedSoldItemsValueExcelFile, setSelectedSoldItemsValueExcelFile] = useState<File | null>(null);
-
   const [selectedProductRecipeExcelFile, setSelectedProductRecipeExcelFile] = useState<File | null>(null);
   const [selectedProductNameConversionExcelFile, setSelectedProductNameConversionExcelFile] = useState<File | null>(null);
   const [selectedUnitConversionExcelFile, setSelectedUnitConversionExcelFile] = useState<File | null>(null);
-
   // NOVO: Estados para a pré-visualização dos dados de produtos vendidos (separados por tipo)
   const [loadedSoldItemsQuantityPreview, setLoadedSoldItemsQuantityPreview] = useState<Record<string, any[] | null>>({});
   const [loadedSoldItemsValuePreview, setLoadedSoldItemsValuePreview] = useState<Record<string, any[] | null>>({});
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
-
   // ATUALIZADO: Novos cabeçalhos para produtos vendidos (agora para ambos os arquivos)
   const soldItemsTemplateHeaders = ['Data', 'Grupo', 'SubGrupo', 'Codigo', 'Produto', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', 'Total'];
   const productRecipeTemplateHeaders = ['Produto Vendido', 'Nome Interno', 'Quantidade Necessária'];
@@ -377,25 +354,20 @@ const CargaDeDados: React.FC = () => {
       showError('Usuário não autenticado. Não é possível carregar itens comprados.');
       return;
     }
-
     const loadingToastId = showLoading(`Carregando ${selectedXmlFiles.length} arquivo(s) XML...`);
     let totalItemsLoaded = 0;
     let hasError = false;
-
     for (const file of selectedXmlFiles) {
       try {
         const data = await readXmlFile(file);
-
         if (!data || data.length === 0) {
           showError(`O arquivo XML "${file.name}" está vazio ou não contém dados válidos.`);
           hasError = true;
           continue;
         }
-
         const formattedData = data.map((row: any) => {
           const rawInvoiceEmissionDate = row.invoice_emission_date; // This is dhEmi from XML
           let parsedEmissionDate: string | null = null;
-
           if (rawInvoiceEmissionDate) {
             const dateObj = parseISO(rawInvoiceEmissionDate);
             if (isValid(dateObj)) {
@@ -409,14 +381,13 @@ const CargaDeDados: React.FC = () => {
               console.warn(`Data de emissão inválida encontrada no XML: "${rawInvoiceEmissionDate}". Definindo como NULL.`);
             }
           }
-
           return {
             user_id: user.id,
             c_prod: String(row['ns1:cProd']),
             descricao_do_produto: String(row['descricao_do_produto']),
             u_com: String(row['ns1:uCom']),
-            q_com: parseBrazilianFloat(row['ns1:qCom']),
-            v_un_com: parseBrazilianFloat(row['ns1:vUnCom']),
+            q_com: parseBrazilianFloat(row['ns1:qCom']), // Usando parseFloat para XML
+            v_un_com: parseBrazilianFloat(row['ns1:vUnCom']), // Usando parseFloat para XML
             invoice_id: row.invoice_id,
             invoice_number: row.invoice_number,
             item_sequence_number: row.item_sequence_number,
@@ -426,17 +397,17 @@ const CargaDeDados: React.FC = () => {
             // total_invoice_value: row.total_invoice_value || null, // REMOVIDO: Este campo não existe na tabela purchased_items
           };
         });
-
         const { error } = await supabase
           .from('purchased_items')
-          .upsert(formattedData, { onConflict: 'user_id, invoice_id, item_sequence_number', ignoreDuplicates: true });
-
+          .upsert(formattedData, {
+            onConflict: 'user_id, invoice_id, item_sequence_number',
+            ignoreDuplicates: true
+          });
         if (error) {
           showError(`Erro ao carregar dados do XML "${file.name}": ${error.message}`);
           hasError = true;
           continue;
         }
-
         totalItemsLoaded += formattedData.length;
         showSuccess(`Dados de ${formattedData.length} itens de "${file.name}" carregados com sucesso!`);
       } catch (error: any) {
@@ -444,9 +415,7 @@ const CargaDeDados: React.FC = () => {
         hasError = true;
       }
     }
-
     dismissToast(loadingToastId);
-
     if (!hasError) {
       showSuccess(`Carga de ${selectedXmlFiles.length} arquivo(s) XML concluída. Total de ${totalItemsLoaded} itens carregados.`);
       queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
@@ -487,18 +456,20 @@ const CargaDeDados: React.FC = () => {
 
     try {
       // --- Process Quantity File ---
+      console.log("Iniciando leitura do arquivo de quantidade:", selectedSoldItemsQuantityExcelFile.name);
       const quantityData: HourlySoldItemData[] = await readExcelFile(selectedSoldItemsQuantityExcelFile);
+      console.log("Dados lidos do arquivo de quantidade:", quantityData);
       setLoadedSoldItemsQuantityPreview({ [selectedSoldItemsQuantityExcelFile.name]: quantityData });
 
       quantityData.forEach((row, rowIndex) => {
         const saleDateString = parseBrazilianDate(row['Data']);
+        console.log(`Linha ${rowIndex + 2} - Data lida:`, row['Data'], " - Data parseada:", saleDateString);
         if (!saleDateString) {
           showWarning(`Arquivo de Quantidade, Linha ${rowIndex + 2}: Data inválida ou vazia "${row['Data']}". Esta linha será ignorada.`);
           hasOverallError = true;
           return;
         }
         datesToProcess.add(saleDateString);
-
         const key = `${saleDateString}|${row['Grupo'] || ''}|${row['SubGrupo'] || ''}|${row['Codigo'] || ''}|${row['Produto'] || ''}`;
         if (!combinedDataMap.has(key)) {
           combinedDataMap.set(key, {
@@ -508,16 +479,56 @@ const CargaDeDados: React.FC = () => {
             subgroup_name: row['SubGrupo'] || null,
             additional_code: row['Codigo'] || null,
             product_name: row['Produto'] || '',
-            quantity_0: 0, quantity_1: 0, quantity_2: 0, quantity_3: 0, quantity_4: 0, quantity_5: 0,
-            quantity_6: 0, quantity_7: 0, quantity_8: 0, quantity_9: 0, quantity_10: 0, quantity_11: 0,
-            quantity_12: 0, quantity_13: 0, quantity_14: 0, quantity_15: 0, quantity_16: 0, quantity_17: 0,
-            quantity_18: 0, quantity_19: 0, quantity_20: 0, quantity_21: 0, quantity_22: 0, quantity_23: 0,
-            value_0: 0, value_1: 0, value_2: 0, value_3: 0, value_4: 0, value_5: 0,
-            value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
-            value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
-            value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+            quantity_0: 0,
+            quantity_1: 0,
+            quantity_2: 0,
+            quantity_3: 0,
+            quantity_4: 0,
+            quantity_5: 0,
+            quantity_6: 0,
+            quantity_7: 0,
+            quantity_8: 0,
+            quantity_9: 0,
+            quantity_10: 0,
+            quantity_11: 0,
+            quantity_12: 0,
+            quantity_13: 0,
+            quantity_14: 0,
+            quantity_15: 0,
+            quantity_16: 0,
+            quantity_17: 0,
+            quantity_18: 0,
+            quantity_19: 0,
+            quantity_20: 0,
+            quantity_21: 0,
+            quantity_22: 0,
+            quantity_23: 0,
+            value_0: 0,
+            value_1: 0,
+            value_2: 0,
+            value_3: 0,
+            value_4: 0,
+            value_5: 0,
+            value_6: 0,
+            value_7: 0,
+            value_8: 0,
+            value_9: 0,
+            value_10: 0,
+            value_11: 0,
+            value_12: 0,
+            value_13: 0,
+            value_14: 0,
+            value_15: 0,
+            value_16: 0,
+            value_17: 0,
+            value_18: 0,
+            value_19: 0,
+            value_20: 0,
+            value_21: 0,
+            value_22: 0,
+            value_23: 0,
             total_quantity_sold: 0, // Inicializa o novo campo
-            total_value_sold: 0,     // Inicializa o novo campo
+            total_value_sold: 0, // Inicializa o novo campo
           });
         }
         const currentItem = combinedDataMap.get(key)!;
@@ -525,21 +536,24 @@ const CargaDeDados: React.FC = () => {
           currentItem[`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
         currentItem.total_quantity_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
+        console.log(`Linha ${rowIndex + 2} - Item agregado (quantidade):`, currentItem);
       });
 
       // --- Process Value File ---
+      console.log("Iniciando leitura do arquivo de valor:", selectedSoldItemsValueExcelFile.name);
       const valueData: HourlySoldItemData[] = await readExcelFile(selectedSoldItemsValueExcelFile);
+      console.log("Dados lidos do arquivo de valor:", valueData);
       setLoadedSoldItemsValuePreview({ [selectedSoldItemsValueExcelFile.name]: valueData });
 
       valueData.forEach((row, rowIndex) => {
         const saleDateString = parseBrazilianDate(row['Data']);
+        console.log(`Linha ${rowIndex + 2} - Data lida:`, row['Data'], " - Data parseada:", saleDateString);
         if (!saleDateString) {
           showWarning(`Arquivo de Valor, Linha ${rowIndex + 2}: Data inválida ou vazia "${row['Data']}". Esta linha será ignorada.`);
           hasOverallError = true;
           return;
         }
         datesToProcess.add(saleDateString);
-
         const key = `${saleDateString}|${row['Grupo'] || ''}|${row['SubGrupo'] || ''}|${row['Codigo'] || ''}|${row['Produto'] || ''}`;
         if (!combinedDataMap.has(key)) {
           // If a product exists in value file but not quantity, initialize it
@@ -550,16 +564,56 @@ const CargaDeDados: React.FC = () => {
             subgroup_name: row['SubGrupo'] || null,
             additional_code: row['Codigo'] || null,
             product_name: row['Produto'] || '',
-            quantity_0: 0, quantity_1: 0, quantity_2: 0, quantity_3: 0, quantity_4: 0, quantity_5: 0,
-            quantity_6: 0, quantity_7: 0, quantity_8: 0, quantity_9: 0, quantity_10: 0, quantity_11: 0,
-            quantity_12: 0, quantity_13: 0, quantity_14: 0, quantity_15: 0, quantity_16: 0, quantity_17: 0,
-            quantity_18: 0, quantity_19: 0, quantity_20: 0, quantity_21: 0, quantity_22: 0, quantity_23: 0,
-            value_0: 0, value_1: 0, value_2: 0, value_3: 0, value_4: 0, value_5: 0,
-            value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
-            value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
-            value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+            quantity_0: 0,
+            quantity_1: 0,
+            quantity_2: 0,
+            quantity_3: 0,
+            quantity_4: 0,
+            quantity_5: 0,
+            quantity_6: 0,
+            quantity_7: 0,
+            quantity_8: 0,
+            quantity_9: 0,
+            quantity_10: 0,
+            quantity_11: 0,
+            quantity_12: 0,
+            quantity_13: 0,
+            quantity_14: 0,
+            quantity_15: 0,
+            quantity_16: 0,
+            quantity_17: 0,
+            quantity_18: 0,
+            quantity_19: 0,
+            quantity_20: 0,
+            quantity_21: 0,
+            quantity_22: 0,
+            quantity_23: 0,
+            value_0: 0,
+            value_1: 0,
+            value_2: 0,
+            value_3: 0,
+            value_4: 0,
+            value_5: 0,
+            value_6: 0,
+            value_7: 0,
+            value_8: 0,
+            value_9: 0,
+            value_10: 0,
+            value_11: 0,
+            value_12: 0,
+            value_13: 0,
+            value_14: 0,
+            value_15: 0,
+            value_16: 0,
+            value_17: 0,
+            value_18: 0,
+            value_19: 0,
+            value_20: 0,
+            value_21: 0,
+            value_22: 0,
+            value_23: 0,
             total_quantity_sold: 0, // Inicializa o novo campo
-            total_value_sold: 0,     // Inicializa o novo campo
+            total_value_sold: 0, // Inicializa o novo campo
           });
         }
         const combinedItem = combinedDataMap.get(key)!;
@@ -567,10 +621,11 @@ const CargaDeDados: React.FC = () => {
           combinedItem[`value_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
         combinedItem.total_value_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
+        console.log(`Linha ${rowIndex + 2} - Item agregado (valor):`, combinedItem);
       });
 
       const finalDataToInsert = Array.from(combinedDataMap.values());
-
+      console.log("Dados finais a serem inseridos:", finalDataToInsert);
       if (finalDataToInsert.length === 0) {
         dismissToast(loadingToastId);
         showWarning('Nenhum dado válido para produtos vendidos foi encontrado nos arquivos selecionados após a validação.');
@@ -581,6 +636,7 @@ const CargaDeDados: React.FC = () => {
 
       // --- Deletion Logic for sold_daily_hourly_data ---
       for (const dateString of datesToProcess) {
+        console.log("Verificando/excluindo dados existentes para a data:", dateString);
         const { count, error: countError } = await supabase
           .from('sold_daily_hourly_data')
           .select('id', { count: 'exact' })
@@ -592,14 +648,12 @@ const CargaDeDados: React.FC = () => {
           hasOverallError = true;
           continue;
         }
-
         if (count && count > 0) {
           const { error: deleteError } = await supabase
             .from('sold_daily_hourly_data')
             .delete()
             .eq('user_id', user.id)
             .eq('sale_date', dateString);
-
           if (deleteError) {
             showError(`Erro ao limpar produtos vendidos para a data ${dateString}: ${deleteError.message}`);
             hasOverallError = true;
@@ -610,11 +664,13 @@ const CargaDeDados: React.FC = () => {
       }
 
       // --- Insertion Logic for sold_daily_hourly_data ---
+      console.log("Inserindo novos dados...");
       const { error: insertError } = await supabase
         .from('sold_daily_hourly_data')
         .insert(finalDataToInsert);
 
       if (insertError) {
+        console.error("Erro ao inserir dados:", insertError);
         showError(`Erro ao carregar dados de produtos vendidos para o Supabase: ${insertError.message}`);
         hasOverallError = true;
       } else {
@@ -622,6 +678,7 @@ const CargaDeDados: React.FC = () => {
       }
 
     } catch (error: any) {
+      console.error('Erro geral ao carregar dados de produtos vendidos:', error);
       showError(`Erro geral ao carregar dados de produtos vendidos: ${error.message || 'Verifique o console para mais detalhes.'}`);
       hasOverallError = true;
     } finally {
@@ -658,30 +715,24 @@ const CargaDeDados: React.FC = () => {
       showError('Usuário não autenticado. Não é possível carregar fichas técnicas.');
       return;
     }
-
     const loadingToastId = showLoading('Carregando ficha técnica de produtos...');
     let hasError = false;
-
     try {
       const data: any[] = await readExcelFile(selectedProductRecipeExcelFile);
-
       if (!data || data.length === 0) {
         showError(`O arquivo Excel "${selectedProductRecipeExcelFile.name}" está vazio ou não contém dados válidos.`);
         dismissToast(loadingToastId);
         return;
       }
-
       // Deduplicar os dados antes de formatar e enviar
       const uniqueRecipes = new Map<string, any>();
       data.forEach((row: any, index: number) => {
         const soldProductName = String(row['Produto Vendido']).trim();
         const internalProductName = String(row['Nome Interno']).trim();
-        
         if (!soldProductName || !internalProductName) {
           showWarning(`Linha ${index + 2} do arquivo de Ficha Técnica ignorada: 'Produto Vendido' ou 'Nome Interno' está vazio.`);
           return;
         }
-
         const key = `${soldProductName}-${internalProductName}`; // Chave de unicidade
         if (uniqueRecipes.has(key)) {
           showWarning(`Linha ${index + 2} do arquivo de Ficha Técnica: Duplicata para Produto Vendido "${soldProductName}" e Nome Interno "${internalProductName}" encontrada e ignorada.`);
@@ -694,24 +745,22 @@ const CargaDeDados: React.FC = () => {
           });
         }
       });
-
       const formattedData = Array.from(uniqueRecipes.values());
-
       if (formattedData.length === 0) {
         showWarning('Nenhuma ficha técnica válida foi encontrada no arquivo após a deduplicação.');
         dismissToast(loadingToastId);
         setSelectedProductRecipeExcelFile(null);
         return;
       }
-
       const { error } = await supabase
         .from('product_recipes')
-        .upsert(formattedData, { onConflict: 'user_id, sold_product_name, internal_product_name', ignoreDuplicates: false }); // Atualiza se houver conflito
-
+        .upsert(formattedData, {
+          onConflict: 'user_id, sold_product_name, internal_product_name',
+          ignoreDuplicates: false
+        }); // Atualiza se houver conflito
       if (error) {
         throw new Error(error.message);
       }
-
       showSuccess(`Dados de ${formattedData.length} fichas técnicas carregados com sucesso!`);
     } catch (error: any) {
       showError(`Erro ao carregar ficha técnica: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -741,30 +790,24 @@ const CargaDeDados: React.FC = () => {
       showError('Usuário não autenticado. Não é possível carregar conversões de nomes de produtos.');
       return;
     }
-
     const loadingToastId = showLoading('Carregando conversões de nomes de produtos...');
     let hasError = false;
-
     try {
       const data: any[] = await readExcelFile(selectedProductNameConversionExcelFile);
-
       if (!data || data.length === 0) {
         showError(`O arquivo Excel "${selectedProductNameConversionExcelFile.name}" está vazio ou não contém dados válidos.`);
         dismissToast(loadingToastId);
         return;
       }
-
       // Deduplicar os dados antes de formatar e enviar
       const uniqueConversions = new Map<string, any>();
       data.forEach((row: any, index: number) => {
         const supplierProductCode = String(row['Código Fornecedor']).trim();
         const supplierName = String(row['Nome Fornecedor']).trim();
-        
         if (!supplierProductCode || !supplierName) {
           showWarning(`Linha ${index + 2} do arquivo de Conversão de Nomes ignorada: 'Código Fornecedor' ou 'Nome Fornecedor' está vazio.`);
           return;
         }
-
         const key = `${user.id}-${supplierProductCode}-${supplierName}`; // Chave de unicidade
         if (uniqueConversions.has(key)) {
           showWarning(`Linha ${index + 2} do arquivo de Conversão de Nomes: Duplicata para Código Fornecedor "${supplierProductCode}" e Nome Fornecedor "${supplierName}" encontrada e ignorada.`);
@@ -778,24 +821,22 @@ const CargaDeDados: React.FC = () => {
           });
         }
       });
-
       const formattedData = Array.from(uniqueConversions.values());
-
       if (formattedData.length === 0) {
         showWarning('Nenhuma conversão de nome de produto válida foi encontrada no arquivo após a deduplicação.');
         dismissToast(loadingToastId);
         setSelectedProductNameConversionExcelFile(null);
         return;
       }
-
       const { error } = await supabase
         .from('product_name_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name', ignoreDuplicates: false });
-
+        .upsert(formattedData, {
+          onConflict: 'user_id, supplier_product_code, supplier_name',
+          ignoreDuplicates: false
+        });
       if (error) {
         throw new Error(error.message);
       }
-
       showSuccess(`Dados de ${formattedData.length} conversões de nomes de produtos carregados com sucesso!`);
     } catch (error: any) {
       showError(`Erro ao carregar conversões de nomes de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -826,19 +867,15 @@ const CargaDeDados: React.FC = () => {
       showError('Usuário não autenticado. Não é possível carregar conversões de unidades.');
       return;
     }
-
     const loadingToastId = showLoading('Carregando conversões de unidades...');
     let hasError = false;
-
     try {
       const data: any[] = await readExcelFile(selectedUnitConversionExcelFile);
-
       if (!data || data.length === 0) {
         showError(`O arquivo Excel "${selectedUnitConversionExcelFile.name}" está vazio ou não contém dados válidos.`);
         dismissToast(loadingToastId);
         return;
       }
-
       const formattedData = data.map((row: any) => ({
         user_id: user.id,
         supplier_product_code: String(row['Código Fornecedor']),
@@ -848,15 +885,15 @@ const CargaDeDados: React.FC = () => {
         internal_unit: String(row['Unidade Interna']),
         conversion_factor: parseBrazilianFloat(row['Fator de Conversão']),
       }));
-
       const { error } = await supabase
         .from('unit_conversions')
-        .upsert(formattedData, { onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit', ignoreDuplicates: false });
-
+        .upsert(formattedData, {
+          onConflict: 'user_id, supplier_product_code, supplier_name, supplier_unit',
+          ignoreDuplicates: false
+        });
       if (error) {
         throw new Error(error.message);
       }
-
       showSuccess(`Dados de ${formattedData.length} conversões de unidades carregados com sucesso!`);
     } catch (error: any) {
       showError(`Erro ao carregar conversões de unidades: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -934,14 +971,11 @@ const CargaDeDados: React.FC = () => {
         .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry') // Listar explicitamente as colunas, removendo total_invoice_value
         .eq('user_id', user?.id) // Filtrar por user_id
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhum item comprado encontrado para baixar.');
         return;
       }
-
       const headers = [
         'ID do Item',
         'Código Fornecedor',
@@ -958,7 +992,6 @@ const CargaDeDados: React.FC = () => {
         'Data de Registro no Sistema',
         'Entrada Manual',
       ];
-
       const formattedData = data.map(item => ({
         'ID do Item': item.id,
         'Código Fornecedor': item.c_prod,
@@ -975,15 +1008,14 @@ const CargaDeDados: React.FC = () => {
         'Data de Registro no Sistema': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
         'Entrada Manual': item.is_manual_entry ? 'Sim' : 'Não',
       }));
-
       const blob = createExcelFile(formattedData, headers, 'ItensCompradosDetalhado');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'itens_comprados_detalhado.xlsx';
       document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} itens comprados detalhados baixados com sucesso!`);
     } catch (error: any) {
@@ -1002,29 +1034,24 @@ const CargaDeDados: React.FC = () => {
         .select('id, user_id, c_prod, descricao_do_produto, u_com, q_com, v_un_com, created_at, internal_product_name, invoice_id, item_sequence_number, x_fant, invoice_number, invoice_emission_date, is_manual_entry') // Removendo total_invoice_value
         .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhum item comprado encontrado para baixar em XML.');
         return;
       }
-
       // A função exportPurchasedItemsToXml agora não usará raw_xml_data
       const xmlContent = exportPurchasedItemsToXml(data);
       const blob = new Blob([xmlContent], { type: 'application/xml' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-
       // Determinar o nome do arquivo
       let filename = 'itens_comprados_detalhado.xml';
       if (data.length > 0 && data[0].invoice_id) {
         // Usar o invoice_id do primeiro item e sanitizá-lo para o nome do arquivo
-        const sanitizedInvoiceId = data[0].invoice_id.replace(/[^a-zA-Z0-9-]/g, '_'); // Remove caracteres inválidos
+        const sanitizedInvoiceId = data[0].invoice_id.replace(/[^a-zA-Z0-9-]/g, '_');
         filename = `${sanitizedInvoiceId}.xml`;
       }
-      
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -1051,22 +1078,23 @@ const CargaDeDados: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('sale_date', { ascending: false });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhum produto vendido encontrado para baixar.');
         return;
       }
-
       // Definir cabeçalhos detalhados para quantidades e valores horários
       const detailedSoldItemsHeaders = [
-        'Data', 'Grupo', 'SubGrupo', 'Codigo', 'Produto',
+        'Data',
+        'Grupo',
+        'SubGrupo',
+        'Codigo',
+        'Produto',
         ...Array.from({ length: 24 }, (_, i) => `Qtd_${i}`), // Qtd_0, Qtd_1, ... Qtd_23
         ...Array.from({ length: 24 }, (_, i) => `Valor_${i}`), // Valor_0, Valor_1, ... Valor_23
-        'Total Qtd', 'Total Valor'
+        'Total Qtd',
+        'Total Valor'
       ];
-
       const formattedData = data.map(item => {
         const row: Record<string, any> = {
           'Data': format(parseISO(item.sale_date), 'dd/MM/yyyy', { locale: ptBR }),
@@ -1076,9 +1104,8 @@ const CargaDeDados: React.FC = () => {
           'Produto': item.product_name,
         };
         // Usa os novos campos total_quantity_sold e total_value_sold
-        row['Total Qtd'] = item.total_quantity_sold; 
-        row['Total Valor'] = item.total_value_sold; 
-
+        row['Total Qtd'] = item.total_quantity_sold;
+        row['Total Valor'] = item.total_value_sold;
         for (let i = 0; i <= 23; i++) {
           const quantityKey = `quantity_${i}` as keyof CombinedHourlySoldItem;
           const valueKey = `value_${i}` as keyof CombinedHourlySoldItem;
@@ -1087,15 +1114,14 @@ const CargaDeDados: React.FC = () => {
         }
         return row;
       });
-
       const blob = createExcelFile(formattedData, detailedSoldItemsHeaders, 'ProdutosVendidosDetalhado');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'produtos_vendidos_detalhado.xlsx';
       document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} produtos vendidos detalhados baixados com sucesso!`);
     } catch (error: any) {
@@ -1117,14 +1143,11 @@ const CargaDeDados: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('sold_product_name', { ascending: true });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhuma ficha técnica de produto encontrada para baixar.');
         return;
       }
-
       const headers = [
         'ID da Ficha Técnica',
         'Produto Vendido',
@@ -1132,7 +1155,6 @@ const CargaDeDados: React.FC = () => {
         'Quantidade Necessária',
         'Data de Registro',
       ];
-
       const formattedData = data.map(item => ({
         'ID da Ficha Técnica': item.id,
         'Produto Vendido': item.sold_product_name,
@@ -1140,15 +1162,14 @@ const CargaDeDados: React.FC = () => {
         'Quantidade Necessária': item.quantity_needed,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
-
       const blob = createExcelFile(formattedData, headers, 'FichaTecnicaDetalhada');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'ficha_tecnica_detalhada.xlsx';
       document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
       showSuccess(`Dados de ${data.length} fichas técnicas detalhadas baixados com sucesso!`);
     } catch (error: any) {
@@ -1171,14 +1192,11 @@ const CargaDeDados: React.FC = () => {
         .eq('user_id', user.id)
         .order('supplier_name', { ascending: true })
         .order('supplier_product_code', { ascending: true });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhuma conversão de nome de produto encontrada para baixar.');
         return;
       }
-
       const headers = [
         'ID da Conversão',
         'Código Fornecedor',
@@ -1187,7 +1205,6 @@ const CargaDeDados: React.FC = () => {
         'Nome Interno do Produto',
         'Data de Registro',
       ];
-
       const formattedData = data.map(item => ({
         'ID da Conversão': item.id,
         'Código Fornecedor': item.supplier_product_code,
@@ -1196,7 +1213,6 @@ const CargaDeDados: React.FC = () => {
         'Nome Interno do Produto': item.internal_product_name,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
-
       const blob = createExcelFile(formattedData, headers, 'ConversaoNomesProdutosDetalhada');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1228,14 +1244,11 @@ const CargaDeDados: React.FC = () => {
         .order('supplier_name', { ascending: true })
         .order('supplier_product_code', { ascending: true })
         .order('supplier_unit', { ascending: true });
-
       if (error) throw error;
-
       if (!data || data.length === 0) {
         showError('Nenhuma conversão de unidade encontrada para baixar.');
         return;
       }
-
       const headers = [
         'ID da Conversão',
         'Código Fornecedor',
@@ -1246,7 +1259,6 @@ const CargaDeDados: React.FC = () => {
         'Fator de Conversão',
         'Data de Registro',
       ];
-
       const formattedData = data.map(item => ({
         'ID da Conversão': item.id,
         'Código Fornecedor': item.supplier_product_code,
@@ -1257,7 +1269,6 @@ const CargaDeDados: React.FC = () => {
         'Fator de Conversão': item.conversion_factor,
         'Data de Registro': format(new Date(item.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR }),
       }));
-
       const blob = createExcelFile(formattedData, headers, 'ConversaoUnidadesDetalhada');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1282,9 +1293,7 @@ const CargaDeDados: React.FC = () => {
         .from('purchased_items')
         .delete()
         .eq('user_id', user?.id); // Deleta apenas os registros do usuário logado
-
       if (error) throw error;
-
       showSuccess('Todos os itens comprados foram removidos com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
       queryClient.invalidateQueries({ queryKey: ['invoice_summary'] });
@@ -1320,9 +1329,7 @@ const CargaDeDados: React.FC = () => {
         .delete()
         .eq('user_id', user.id)
         .eq('is_manual_entry', true); // Deleta apenas entradas manuais
-
       if (error) throw error;
-
       showSuccess('Todos os itens comprados manualmente foram removidos com sucesso!');
       // Invalida as queries relevantes
       queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
@@ -1358,9 +1365,7 @@ const CargaDeDados: React.FC = () => {
         .from('sold_daily_hourly_data') // Deleta da nova tabela
         .delete()
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       showSuccess('Todos os produtos vendidos foram removidos com sucesso!');
       // Invalidate all relevant queries that might use the new sold_items view
       queryClient.invalidateQueries({ queryKey: ['sold_items'] });
@@ -1390,16 +1395,14 @@ const CargaDeDados: React.FC = () => {
         .from('product_recipes')
         .delete()
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       showSuccess('Todas as fichas técnicas de produtos foram removidas com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['product_recipes'] });
       queryClient.invalidateQueries({ queryKey: ['current_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_cost'] });
       queryClient.invalidateQueries({ queryKey: ['internal_product_usage'] });
       queryClient.invalidateQueries({ queryKey: ['sold_product_recipe_details'] });
-      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] }); // Invalida a query da página Produtos Sem Ficha Técnica
+      queryClient.invalidateQueries({ queryKey: ['products_without_recipes_summary', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['product_recipes_internal_products', user?.id] }); // Invalida para Produtos Internos Não Utilizados
     } catch (error: any) {
       showError(`Erro ao limpar fichas técnicas de produtos: ${error.message || 'Verifique o console para mais detalhes.'}`);
@@ -1419,9 +1422,7 @@ const CargaDeDados: React.FC = () => {
         .from('product_name_conversions')
         .delete()
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       showSuccess('Todas as conversões de nomes de produtos foram removidas com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['product_name_conversions'] });
       queryClient.invalidateQueries({ queryKey: ['unmapped_purchased_products_summary'] });
@@ -1449,9 +1450,7 @@ const CargaDeDados: React.FC = () => {
         .from('unit_conversions')
         .delete()
         .eq('user_id', user.id);
-
       if (error) throw error;
-
       showSuccess('Todas as conversões de unidades foram removidas com sucesso!');
       queryClient.invalidateQueries({ queryKey: ['unit_conversions'] });
       queryClient.invalidateQueries({ queryKey: ['unmapped_unit_conversions_summary'] });
@@ -1477,9 +1476,7 @@ const CargaDeDados: React.FC = () => {
       showError('Usuário não autenticado. Não é possível carregar itens comprados manualmente.');
       return;
     }
-
     const loadingToastId = showLoading('Carregando item comprado manualmente...');
-
     try {
       const formattedData = {
         user_id: user.id,
@@ -1496,15 +1493,12 @@ const CargaDeDados: React.FC = () => {
         is_manual_entry: true, // NOVO: Marca como entrada manual
         // total_invoice_value: null, // REMOVIDO: Entradas manuais não têm valor total da nota automaticamente
       };
-
       const { error } = await supabase
         .from('purchased_items')
         .insert([formattedData]);
-
       if (error) {
         throw new Error(error.message);
       }
-
       showSuccess('Item comprado adicionado manualmente com sucesso!');
       form.reset(); // Limpa o formulário
       queryClient.invalidateQueries({ queryKey: ['purchased_items'] });
@@ -1528,7 +1522,6 @@ const CargaDeDados: React.FC = () => {
     }
   };
 
-
   return (
     <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
       <h2 className="text-3xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
@@ -1537,7 +1530,6 @@ const CargaDeDados: React.FC = () => {
       <p className="text-gray-700 dark:text-gray-300 mb-6">
         Gerencie a importação e exportação de dados para o sistema através de arquivos Excel ou XML.
       </p>
-
       <Tabs defaultValue="xml-purchased" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="xml-purchased">Itens Comprados (XML)</TabsTrigger>
@@ -1546,26 +1538,15 @@ const CargaDeDados: React.FC = () => {
           <TabsTrigger value="excel-product-recipe">Ficha Técnica (Excel)</TabsTrigger>
           <TabsTrigger value="excel-conversions">Conversões (Excel)</TabsTrigger>
         </TabsList>
-
         <TabsContent value="xml-purchased" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Itens Comprados (XML)</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados.
-              O sistema tentará extrair o ID da nota fiscal (chave de acesso) e o número sequencial da nota,
-              além do número do item para evitar duplicações. A data de emissão da NF será armazenada sem a hora.
+              Faça o upload de um ou mais arquivos XML (.xml) contendo os itens comprados. O sistema tentará extrair o ID da nota fiscal (chave de acesso) e o número sequencial da nota, além do número do item para evitar duplicações. A data de emissão da NF será armazenada sem a hora.
             </p>
-
             <div className="flex flex-col space-y-2">
               <Label htmlFor="xml-file-upload">Selecionar arquivos XML</Label>
-              <Input
-                id="xml-file-upload"
-                type="file"
-                accept=".xml"
-                multiple
-                onChange={handleXmlFileChange}
-                className="flex-grow"
-              />
+              <Input id="xml-file-upload" type="file" accept=".xml" multiple onChange={handleXmlFileChange} className="flex-grow" />
               {selectedXmlFiles.length > 0 && (
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {selectedXmlFiles.length} arquivo(s) selecionado(s): {selectedXmlFiles.map(f => f.name).join(', ')}
@@ -1577,15 +1558,12 @@ const CargaDeDados: React.FC = () => {
             </div>
           </div>
         </TabsContent>
-
         <TabsContent value="manual-purchased" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Entrada Manual de Itens Comprados</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Insira manualmente os detalhes de um item comprado. Use as sugestões para preencher campos com valores existentes.
-              Itens adicionados aqui serão marcados como "Entrada Manual" no sistema.
+              Insira manualmente os detalhes de um item comprado. Use as sugestões para preencher campos com valores existentes. Itens adicionados aqui serão marcados como "Entrada Manual" no sistema.
             </p>
-
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmitManualEntry)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1596,11 +1574,7 @@ const CargaDeDados: React.FC = () => {
                       <FormItem>
                         <FormLabel>Nome do Fornecedor</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            list="x_fant-suggestions"
-                            placeholder="Nome do Fornecedor"
-                          />
+                          <Input {...field} list="x_fant-suggestions" placeholder="Nome do Fornecedor" />
                         </FormControl>
                         <datalist id="x_fant-suggestions">
                           {uniqueXFants?.map((name) => (
@@ -1611,7 +1585,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="c_prod"
@@ -1619,11 +1592,7 @@ const CargaDeDados: React.FC = () => {
                       <FormItem>
                         <FormLabel>Código do Produto</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            list="c_prod-suggestions"
-                            placeholder="Código do Produto"
-                          />
+                          <Input {...field} list="c_prod-suggestions" placeholder="Código do Produto" />
                         </FormControl>
                         <datalist id="c_prod-suggestions">
                           {uniqueCProds?.map((code) => (
@@ -1634,7 +1603,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="descricao_do_produto"
@@ -1642,11 +1610,7 @@ const CargaDeDados: React.FC = () => {
                       <FormItem>
                         <FormLabel>Descrição do Produto</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            list="descricao_do_produto-suggestions"
-                            placeholder="Descrição do Produto"
-                          />
+                          <Input {...field} list="descricao_do_produto-suggestions" placeholder="Descrição do Produto" />
                         </FormControl>
                         <datalist id="descricao_do_produto-suggestions">
                           {uniqueDescricoes?.map((desc) => (
@@ -1657,7 +1621,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="u_com"
@@ -1665,11 +1628,7 @@ const CargaDeDados: React.FC = () => {
                       <FormItem>
                         <FormLabel>Unidade de Compra</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            list="u_com-suggestions"
-                            placeholder="Unidade de Compra"
-                          />
+                          <Input {...field} list="u_com-suggestions" placeholder="Unidade de Compra" />
                         </FormControl>
                         <datalist id="u_com-suggestions">
                           {uniqueUComs?.map((unit) => (
@@ -1680,7 +1639,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="q_com"
@@ -1709,7 +1667,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="v_un_com"
@@ -1738,7 +1695,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="invoice_emission_date"
@@ -1778,7 +1734,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="invoice_id"
@@ -1792,7 +1747,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="invoice_number"
@@ -1806,7 +1760,6 @@ const CargaDeDados: React.FC = () => {
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="item_sequence_number"
@@ -1835,26 +1788,16 @@ const CargaDeDados: React.FC = () => {
             </Form>
           </div>
         </TabsContent>
-
         <TabsContent value="excel-sold" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Produtos Vendidos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de **dois arquivos Excel** (.xlsx): um para as **quantidades vendidas por hora** e outro para os **valores vendidos por hora**.
-              Ambos os arquivos devem conter as colunas: <code>Data</code> (DD/MM/YYYY), <code>Grupo</code>, <code>SubGrupo</code>, <code>Codigo</code>, <code>Produto</code>, e as colunas horárias de <code>0</code> a <code>23</code>, além de <code>Total</code>.
-              Para cada data, grupo, subgrupo, código e produto encontrados nos arquivos carregados, os dados existentes no banco de dados para essa combinação serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação**.
+              Faça o upload de **dois arquivos Excel** (.xlsx): um para as **quantidades vendidas por hora** e outro para os **valores vendidos por hora**. Ambos os arquivos devem conter as colunas: <code>Data</code> (DD/MM/YYYY), <code>Grupo</code>, <code>SubGrupo</code>, <code>Codigo</code>, <code>Produto</code>, e as colunas horárias de <code>0</code> a <code>23</code>, além de <code>Total</code>. Para cada data, grupo, subgrupo, código e produto encontrados nos arquivos carregados, os dados existentes no banco de dados para essa combinação serão **removidos** e substituídos pelos dados dos arquivos carregados **nesta operação**.
             </p>
-
             <div className="flex flex-col space-y-4">
               <div>
                 <Label htmlFor="sold-items-quantity-excel-file-upload">Arquivo Excel de Quantidades</Label>
-                <Input
-                  id="sold-items-quantity-excel-file-upload"
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  onChange={handleSoldItemsQuantityExcelFileChange}
-                  className="flex-grow mt-1"
-                />
+                <Input id="sold-items-quantity-excel-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleSoldItemsQuantityExcelFileChange} className="flex-grow mt-1" />
                 {selectedSoldItemsQuantityExcelFile && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Selecionado: {selectedSoldItemsQuantityExcelFile.name}
@@ -1863,25 +1806,15 @@ const CargaDeDados: React.FC = () => {
               </div>
               <div>
                 <Label htmlFor="sold-items-value-excel-file-upload">Arquivo Excel de Valores</Label>
-                <Input
-                  id="sold-items-value-excel-file-upload"
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  onChange={handleSoldItemsValueExcelFileChange}
-                  className="flex-grow mt-1"
-                />
+                <Input id="sold-items-value-excel-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleSoldItemsValueExcelFileChange} className="flex-grow mt-1" />
                 {selectedSoldItemsValueExcelFile && (
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Selecionado: {selectedSoldItemsValueExcelFile.name}
                   </p>
                 )}
               </div>
-
               <div className="flex gap-2">
-                <Button
-                  onClick={handleUploadSoldItemsExcel}
-                  disabled={!selectedSoldItemsQuantityExcelFile || !selectedSoldItemsValueExcelFile}
-                >
+                <Button onClick={handleUploadSoldItemsExcel} disabled={!selectedSoldItemsQuantityExcelFile || !selectedSoldItemsValueExcelFile}>
                   Carregar Produtos Vendidos
                 </Button>
                 <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
@@ -1932,9 +1865,7 @@ const CargaDeDados: React.FC = () => {
                                           <TableRow key={rowIndex}>
                                             {getTableHeaders(data).map((header, colIndex) => (
                                               <TableCell key={colIndex}>
-                                                {typeof row[header] === 'number'
-                                                  ? row[header].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                  : String(row[header])}
+                                                {typeof row[header] === 'number' ? row[header].toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(row[header])}
                                               </TableCell>
                                             ))}
                                           </TableRow>
@@ -1948,7 +1879,6 @@ const CargaDeDados: React.FC = () => {
                               </CardContent>
                             </Card>
                           ))}
-
                           {Object.entries(loadedSoldItemsValuePreview).map(([fileName, data], index) => (
                             <Card key={`val-preview-${index}`} className="mb-6">
                               <CardHeader>
@@ -1970,9 +1900,7 @@ const CargaDeDados: React.FC = () => {
                                           <TableRow key={rowIndex}>
                                             {getTableHeaders(data).map((header, colIndex) => (
                                               <TableCell key={colIndex}>
-                                                {typeof row[header] === 'number'
-                                                  ? row[header].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                                  : String(row[header])}
+                                                {typeof row[header] === 'number' ? row[header].toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : String(row[header])}
                                               </TableCell>
                                             ))}
                                           </TableRow>
@@ -1993,62 +1921,41 @@ const CargaDeDados: React.FC = () => {
                 </Dialog>
               </div>
             </div>
-
             <Button variant="outline" onClick={handleDownloadSoldItemsTemplate}>
               Baixar Template de Produtos Vendidos (Excel)
             </Button>
           </div>
         </TabsContent>
-
         <TabsContent value="excel-product-recipe" className="mt-4">
           <div className="space-y-4">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Ficha Técnica de Produtos (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Faça o upload de um arquivo Excel (.xlsx) contendo a ficha técnica dos seus produtos.
-              O arquivo deve conter as colunas: <code>Produto Vendido</code>, <code>Nome Interno</code> e <code>Quantidade Necessária</code>.
-              Isso define quais produtos internos compõem um produto vendido e em que quantidade.
+              Faça o upload de um arquivo Excel (.xlsx) contendo a ficha técnica dos seus produtos. O arquivo deve conter as colunas: <code>Produto Vendido</code>, <code>Nome Interno</code> e <code>Quantidade Necessária</code>. Isso define quais produtos internos compõem um produto vendido e em que quantidade.
             </p>
-
             <div className="flex items-center space-x-2">
-              <Input
-                id="product-recipe-excel-file-upload"
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                onChange={handleProductRecipeExcelFileChange}
-                className="flex-grow"
-              />
+              <Input id="product-recipe-excel-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleProductRecipeExcelFileChange} className="flex-grow" />
               <Button onClick={handleUploadProductRecipeExcel} disabled={!selectedProductRecipeExcelFile}>
                 Carregar Ficha Técnica
               </Button>
             </div>
-
             <Button variant="outline" onClick={handleDownloadProductRecipeTemplate}>
               Baixar Template de Ficha Técnica (Excel)
             </Button>
           </div>
         </TabsContent>
-
         <TabsContent value="excel-conversions" className="mt-4">
           <div className="space-y-6">
             <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Carga de Conversões (Excel)</h3>
             <p className="text-gray-600 dark:text-gray-400">
               Gerencie as regras de conversão para nomes de produtos e unidades de fornecedores para seus padrões internos.
             </p>
-
             <div className="space-y-4 border p-4 rounded-md">
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Nomes de Produtos</h4>
               <p className="text-gray-600 dark:text-gray-400">
-                Mapeie o código do produto do fornecedor e o nome do fornecedor para um nome de produto interno.
-                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code> e <code>Nome Interno do Produto</code>.
+                Mapeie o código do produto do fornecedor e o nome do fornecedor para um nome de produto interno. O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code> e <code>Nome Interno do Produto</code>.
               </p>
               <div className="flex items-center space-x-2">
-                <Input
-                  id="product-name-conversion-excel-file-upload"
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  onChange={handleProductNameConversionExcelFileChange}
-                  className="flex-grow"
-                />
+                <Input id="product-name-conversion-excel-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleProductNameConversionExcelFileChange} className="flex-grow" />
                 <Button onClick={handleUploadProductNameConversionExcel} disabled={!selectedProductNameConversionExcelFile}>
                   Carregar Conversões de Nomes
                 </Button>
@@ -2057,21 +1964,13 @@ const CargaDeDados: React.FC = () => {
                 Baixar Template de Conversão de Nomes
               </Button>
             </div>
-
             <div className="space-y-4 border p-4 rounded-md">
               <h4 className="text-xl font-medium text-gray-900 dark:text-gray-100">Conversão de Unidades</h4>
               <p className="text-gray-600 dark:text-gray-400">
-                Mapeie a unidade do fornecedor para uma unidade interna, com um fator de conversão.
-                O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code>, <code>Unidade Fornecedor</code>, <code>Unidade Interna</code> e <code>Fator de Conversão</code>.
+                Mapeie a unidade do fornecedor para uma unidade interna, com um fator de conversão. O arquivo deve conter as colunas: <code>Código Fornecedor</code>, <code>Nome Fornecedor</code>, <code>Descrição Produto Fornecedor</code>, <code>Unidade Fornecedor</code>, <code>Unidade Interna</code> e <code>Fator de Conversão</code>.
               </p>
               <div className="flex items-center space-x-2">
-                <Input
-                  id="unit-conversion-excel-file-upload"
-                  type="file"
-                  accept=".xlsx, .xls, .csv"
-                  onChange={handleUnitConversionExcelFileChange}
-                  className="flex-grow"
-                />
+                <Input id="unit-conversion-excel-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleUnitConversionExcelFileChange} className="flex-grow" />
                 <Button onClick={handleUploadUnitConversionExcel} disabled={!selectedUnitConversionExcelFile}>
                   Carregar Conversões de Unidades
                 </Button>
@@ -2083,7 +1982,6 @@ const CargaDeDados: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
-
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Exportar Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
@@ -2093,7 +1991,8 @@ const CargaDeDados: React.FC = () => {
           <Button onClick={handleDownloadAllPurchasedItems}>
             Baixar Itens Comprados (Excel)
           </Button>
-          <Button onClick={handleDownloadAllPurchasedItemsXml}> {/* NOVO BOTÃO */}
+          <Button onClick={handleDownloadAllPurchasedItemsXml}>
+            {/* NOVO BOTÃO */}
             Baixar Itens Comprados (XML)
           </Button>
           <Button onClick={handleDownloadAllSoldItems}>
@@ -2110,7 +2009,6 @@ const CargaDeDados: React.FC = () => {
           </Button>
         </div>
       </div>
-
       <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
         <h3 className="text-2xl font-medium text-gray-900 dark:text-gray-100">Limpeza de Dados</h3>
         <p className="text-gray-600 dark:text-gray-400">
@@ -2136,7 +2034,6 @@ const CargaDeDados: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-
           {/* NOVO: Botão para limpar apenas entradas manuais */}
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -2157,7 +2054,6 @@ const CargaDeDados: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">Limpar Todos os Produtos Vendidos</Button>
@@ -2177,7 +2073,6 @@ const CargaDeDados: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">Limpar Todas as Fichas Técnicas</Button>
@@ -2197,7 +2092,6 @@ const CargaDeDados: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">Limpar Conversões de Nomes</Button>
@@ -2217,7 +2111,6 @@ const CargaDeDados: React.FC = () => {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive">Limpar Conversões de Unidades</Button>
