@@ -71,14 +71,30 @@ interface UnitConversion {
   supplier_product_description: string | null;
 }
 
-interface DisplayPurchasedItem extends PurchasedItem {
+// Interface para o item comprado AGREGADO e enriquecido
+interface AggregatedAndEnrichedPurchasedItem {
+  // Chave de agregação
+  user_id: string;
+  c_prod: string;
+  x_fant: string | null;
+  descricao_do_produto: string;
+  u_com: string;
+  invoice_id: string | null;
+  item_sequence_number: number | null;
+  // Campos agregados
+  ids: string[]; // IDs das linhas originais
+  total_q_com: number; // Soma das quantidades
+  average_v_un_com: number; // Média dos valores unitários
+  earliest_invoice_emission_date: string | null; // Data mais antiga
+  latest_created_at: string; // Data de criação mais recente
+  // Campos enriquecidos
   display_internal_product_name: string;
-  converted_quantity: number; // Novo campo para quantidade convertida
-  internal_unit_display: string; // Novo campo para unidade interna
+  converted_quantity: number;
+  internal_unit_display: string;
 }
 
 interface SortConfigPurchasedItems {
-  key: keyof DisplayPurchasedItem | null;
+  key: keyof AggregatedAndEnrichedPurchasedItem | null;
   direction: 'asc' | 'desc' | null;
 }
 
@@ -91,7 +107,7 @@ const Estoque: React.FC = () => {
   const { user } = useSession();
   const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'invoice_emission_date', direction: 'desc' });
+  const [sortConfigPurchasedItems, setSortConfigPurchasedItems] = useState<SortConfigPurchasedItems>({ key: 'earliest_invoice_emission_date', direction: 'desc' });
   const [sortConfigStock, setSortConfigStock] = useState<SortConfigStock>({ key: 'internal_product_name', direction: 'asc' });
 
   // Query para buscar o resumo do estoque atual
@@ -297,16 +313,75 @@ const Estoque: React.FC = () => {
     }, 0) || 0;
   }, [stockData]);
 
-  // Lógica para enriquecer itens comprados com o nome interno correto para exibição
-  const enrichedPurchasedItems = useMemo(() => {
+  // Lógica CORRIGIDA para agregar e enriquecer itens comprados
+  const aggregatedAndEnrichedPurchasedItems = useMemo(() => {
     if (!purchasedItems || !productNameConversions || !unitConversions) return [];
 
-    let items = purchasedItems.map(item => {
-      // 1. Determinar o nome interno de exibição
-      let displayInternalName = item.descricao_do_produto || 'Não Mapeado'; // Default para descrição original
-      if (item.internal_product_name) {
-        displayInternalName = item.internal_product_name;
+    // 1. Agregar itens comprados
+    const aggregationMap = new Map<string, AggregatedAndEnrichedPurchasedItem>();
+
+    purchasedItems.forEach(item => {
+      // Criar uma chave única para agregação
+      // Inclui invoice_id e item_sequence_number para diferenciar itens da mesma nota
+      const key = `${item.user_id}|${item.c_prod}|${item.x_fant}|${item.descricao_do_produto}|${item.u_com}|${item.invoice_id}|${item.item_sequence_number}`;
+
+      if (!aggregationMap.has(key)) {
+        // Inicializa o item agregado
+        aggregationMap.set(key, {
+          // Chave de agregação
+          user_id: item.user_id,
+          c_prod: item.c_prod,
+          x_fant: item.x_fant,
+          descricao_do_produto: item.descricao_do_produto,
+          u_com: item.u_com,
+          invoice_id: item.invoice_id,
+          item_sequence_number: item.item_sequence_number,
+          // Campos agregados
+          ids: [item.id],
+          total_q_com: item.q_com,
+          // Inicializa com o primeiro valor
+          average_v_un_com: item.v_un_com,
+          count_v_un_com: 1,
+          earliest_invoice_emission_date: item.invoice_emission_date,
+          latest_created_at: item.created_at,
+          // Campos enriquecidos (serão preenchidos depois)
+          display_internal_product_name: item.descricao_do_produto || 'Não Mapeado',
+          converted_quantity: item.q_com,
+          internal_unit_display: item.u_com,
+        });
       } else {
+        // Atualiza o item agregado existente
+        const aggregatedItem = aggregationMap.get(key)!;
+        aggregatedItem.ids.push(item.id);
+        aggregatedItem.total_q_com += item.q_com;
+        // Atualiza média incremental
+        aggregatedItem.count_v_un_com += 1;
+        aggregatedItem.average_v_un_com += (item.v_un_com - aggregatedItem.average_v_un_com) / aggregatedItem.count_v_un_com;
+        // Atualiza datas
+        if (item.invoice_emission_date && (!aggregatedItem.earliest_invoice_emission_date || item.invoice_emission_date < aggregatedItem.earliest_invoice_emission_date)) {
+          aggregatedItem.earliest_invoice_emission_date = item.invoice_emission_date;
+        }
+        if (item.created_at > aggregatedItem.latest_created_at) {
+          aggregatedItem.latest_created_at = item.created_at;
+        }
+      }
+    });
+
+    // Converter Map para Array
+    const aggregatedItemsArray = Array.from(aggregationMap.values());
+
+    // 2. Enriquecer itens agregados com nomes e unidades internas
+    const enrichedItems = aggregatedItemsArray.map(item => {
+      // Determinar o nome interno de exibição
+      let displayInternalName = item.descricao_do_produto || 'Não Mapeado';
+      // Procurar mapeamento por internal_product_name direto no item (prioridade máxima)
+      const directMatch = purchasedItems.find(pi => 
+        item.ids.includes(pi.id) && pi.internal_product_name
+      );
+      if (directMatch?.internal_product_name) {
+        displayInternalName = directMatch.internal_product_name;
+      } else {
+        // Procurar mapeamento na tabela de conversões
         const mappedNameConversion = productNameConversions.find(conversion =>
           conversion.supplier_product_code === item.c_prod &&
           conversion.supplier_name === item.x_fant
@@ -316,16 +391,16 @@ const Estoque: React.FC = () => {
         }
       }
 
-      // 2. Determinar a quantidade convertida e a unidade interna de exibição
-      let convertedQuantity = item.q_com;
-      let internalUnitDisplay = item.u_com; // Default para unidade original
+      // Determinar a quantidade convertida e a unidade interna de exibição
+      let convertedQuantity = item.total_q_com; // Usar a quantidade total agregada
+      let internalUnitDisplay = item.u_com;
       const mappedUnitConversion = unitConversions.find(conversion =>
         conversion.supplier_product_code === item.c_prod &&
         conversion.supplier_name === item.x_fant &&
         conversion.supplier_unit === item.u_com
       );
       if (mappedUnitConversion) {
-        convertedQuantity = item.q_com * mappedUnitConversion.conversion_factor;
+        convertedQuantity = item.total_q_com * mappedUnitConversion.conversion_factor;
         internalUnitDisplay = mappedUnitConversion.internal_unit;
       }
 
@@ -337,11 +412,11 @@ const Estoque: React.FC = () => {
       };
     });
 
-    return items;
+    return enrichedItems;
   }, [purchasedItems, productNameConversions, unitConversions]);
 
   // Função para lidar com a ordenação da tabela de entradas detalhadas
-  const handleSortPurchasedItems = (key: keyof DisplayPurchasedItem) => {
+  const handleSortPurchasedItems = (key: keyof AggregatedAndEnrichedPurchasedItem) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfigPurchasedItems.key === key && sortConfigPurchasedItems.direction === 'asc') {
       direction = 'desc';
@@ -350,8 +425,8 @@ const Estoque: React.FC = () => {
   };
 
   // Lógica de filtragem e ordenação para as entradas detalhadas de estoque
-  const filteredEnrichedPurchasedItems = useMemo(() => {
-    let itemsToProcess = [...enrichedPurchasedItems];
+  const filteredAndSortedEnrichedPurchasedItems = useMemo(() => {
+    let itemsToProcess = [...aggregatedAndEnrichedPurchasedItems];
 
     // 1. Filtragem
     if (searchTerm) {
@@ -362,8 +437,8 @@ const Estoque: React.FC = () => {
         (item.descricao_do_produto?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (item.c_prod?.toLowerCase().includes(lowerCaseSearchTerm)) ||
         (item.invoice_number?.toLowerCase().includes(lowerCaseSearchTerm)) ||
-        (item.internal_unit_display?.toLowerCase().includes(lowerCaseSearchTerm)) || // Adicionado filtro por unidade interna
-        (String(item.converted_quantity).toLowerCase().includes(lowerCaseSearchTerm)) // Adicionado filtro por quantidade convertida
+        (item.internal_unit_display?.toLowerCase().includes(lowerCaseSearchTerm)) ||
+        (String(item.converted_quantity).toLowerCase().includes(lowerCaseSearchTerm))
       );
     }
 
@@ -377,15 +452,13 @@ const Estoque: React.FC = () => {
         if (bValue === null || bValue === undefined) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
 
         if (typeof aValue === 'string' && typeof bValue === 'string') {
-          // Para datas, parsear e comparar
-          if (sortConfigPurchasedItems.key === 'invoice_emission_date' || sortConfigPurchasedItems.key === 'created_at') {
+          if (sortConfigPurchasedItems.key === 'earliest_invoice_emission_date' || sortConfigPurchasedItems.key === 'latest_created_at') {
             const dateA = parseISO(aValue);
             const dateB = parseISO(bValue);
             if (dateA < dateB) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
             if (dateA > dateB) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
             return 0;
           }
-          // Para outras strings, comparação normal
           if (aValue < bValue) return sortConfigPurchasedItems.direction === 'asc' ? -1 : 1;
           if (aValue > bValue) return sortConfigPurchasedItems.direction === 'asc' ? 1 : -1;
           return 0;
@@ -399,7 +472,7 @@ const Estoque: React.FC = () => {
     }
 
     return itemsToProcess;
-  }, [enrichedPurchasedItems, searchTerm, sortConfigPurchasedItems]);
+  }, [aggregatedAndEnrichedPurchasedItems, searchTerm, sortConfigPurchasedItems]);
 
   // Função para lidar com a ordenação da tabela de resumo de estoque
   const handleSortStock = (key: keyof CurrentStockSummary | 'stock_value') => {
@@ -465,7 +538,7 @@ const Estoque: React.FC = () => {
       'Qtd. Comprada (Convertida)',
       'Qtd. Consumida (Vendas)',
       'Valor Total Comprado',
-      'Valor em Estoque', // Adicionado
+      'Valor em Estoque',
     ];
 
     const formattedData = sortedStockData.map(item => {
@@ -478,7 +551,7 @@ const Estoque: React.FC = () => {
         'Qtd. Comprada (Convertida)': item.total_purchased_quantity_converted,
         'Qtd. Consumida (Vendas)': item.total_consumed_quantity_from_sales,
         'Valor Total Comprado': item.total_purchased_value,
-        'Valor em Estoque': itemStockValue, // Incluído no export
+        'Valor em Estoque': itemStockValue,
       };
     });
 
@@ -494,7 +567,7 @@ const Estoque: React.FC = () => {
     showSuccess('Resumo do estoque atual exportado para Excel com sucesso!');
   };
 
-  const hasData = (stockData && stockData.length > 0) || (enrichedPurchasedItems && enrichedPurchasedItems.length > 0);
+  const hasData = (stockData && stockData.length > 0) || (aggregatedAndEnrichedPurchasedItems && aggregatedAndEnrichedPurchasedItems.length > 0);
 
   if (isLoading) {
     return (
@@ -509,7 +582,7 @@ const Estoque: React.FC = () => {
       <div className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md text-center text-red-600 dark:text-red-400">
         <p>Ocorreu um erro ao carregar os dados: {error?.message}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">Por favor, tente novamente mais tarde.</p>
-      </div>
+    </div>
     );
   }
 
@@ -754,12 +827,12 @@ const Estoque: React.FC = () => {
           </Card>
 
           {/* CORREÇÃO: Card de Entradas Detalhadas - só aparece se houver itens comprados E enriquecidos */}
-          {enrichedPurchasedItems && enrichedPurchasedItems.length > 0 && (
+          {aggregatedAndEnrichedPurchasedItems && aggregatedAndEnrichedPurchasedItems.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Entradas Detalhadas de Estoque</CardTitle>
                 <CardDescription>
-                  Lista completa de todos os itens de produtos comprados, com seus nomes internos e data de emissão da nota fiscal.
+                  Lista agregada de todos os itens de produtos comprados, com seus nomes internos e data de emissão da nota fiscal. Cada linha representa um item único comprado, mesmo que tenha vindo de múltiplas notas.
                 </CardDescription>
                 <Input
                   placeholder="Filtrar por nome interno, fornecedor, descrição, código ou número da nota..."
@@ -776,11 +849,11 @@ const Estoque: React.FC = () => {
                         <TableHead>
                           <Button
                             variant="ghost"
-                            onClick={() => handleSortPurchasedItems('invoice_emission_date')}
+                            onClick={() => handleSortPurchasedItems('earliest_invoice_emission_date')}
                             className="px-0 py-0 h-auto"
                           >
                             Data de Emissão da NF
-                            {sortConfigPurchasedItems.key === 'invoice_emission_date' && (
+                            {sortConfigPurchasedItems.key === 'earliest_invoice_emission_date' && (
                               <ArrowUpDown
                                 className={cn(
                                   "ml-2 h-4 w-4 transition-transform",
@@ -878,11 +951,11 @@ const Estoque: React.FC = () => {
                         <TableHead className="text-right">
                           <Button
                             variant="ghost"
-                            onClick={() => handleSortPurchasedItems('v_un_com')}
+                            onClick={() => handleSortPurchasedItems('average_v_un_com')}
                             className="px-0 py-0 h-auto justify-end w-full"
                           >
-                            Valor Unitário
-                            {sortConfigPurchasedItems.key === 'v_un_com' && (
+                            Valor Unitário Médio
+                            {sortConfigPurchasedItems.key === 'average_v_un_com' && (
                               <ArrowUpDown
                                 className={cn(
                                   "ml-2 h-4 w-4 transition-transform",
@@ -895,24 +968,24 @@ const Estoque: React.FC = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredEnrichedPurchasedItems.length === 0 ? (
+                      {filteredAndSortedEnrichedPurchasedItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="h-24 text-center">
                             Nenhum resultado encontrado para o filtro.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        filteredEnrichedPurchasedItems.map((item, index) => (
-                          <TableRow key={item.id || index}>
+                        filteredAndSortedEnrichedPurchasedItems.map((item, index) => (
+                          <TableRow key={`${item.user_id}-${item.c_prod}-${item.x_fant}-${item.descricao_do_produto}-${item.u_com}-${item.invoice_id}-${item.item_sequence_number}` || index}>
                             <TableCell className="font-medium">
-                              {item.invoice_emission_date ? format(parseISO(item.invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
+                              {item.earliest_invoice_emission_date ? format(parseISO(item.earliest_invoice_emission_date), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}
                             </TableCell>
                             <TableCell>{item.display_internal_product_name}</TableCell>
                             <TableCell>{item.x_fant || 'N/A'}</TableCell>
                             <TableCell>{item.descricao_do_produto}</TableCell>
                             <TableCell>{item.internal_unit_display}</TableCell>
                             <TableCell className="text-right">{item.converted_quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell className="text-right">{item.v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">{item.average_v_un_com.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                           </TableRow>
                         ))
                       )}
