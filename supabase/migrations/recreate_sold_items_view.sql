@@ -7,6 +7,7 @@ SELECT
     sdhd.subgroup_name,
     sdhd.additional_code,
     sdhd.product_name,
+    sdhd.product_name AS base_product_name, -- Adicionado: base_product_name
     sdhd.total_quantity_sold AS quantity_sold,
     CASE
         WHEN sdhd.total_quantity_sold > 0 THEN sdhd.total_value_sold / sdhd.total_quantity_sold
