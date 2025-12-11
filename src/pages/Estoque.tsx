@@ -28,13 +28,7 @@ interface InternalProductUsage {
   quantity_needed: number;
 }
 
-// Nova interface para os dados de produtos vendidos agregados
-interface SoldProductTotalQuantity {
-  product_name: string;
-  total_quantity_sold: number;
-}
-
-// Interfaces para os novos dados de entrada de estoque
+// Nova interface para os novos dados de entrada de estoque
 interface PurchasedItem {
   id: string;
   user_id: string;
@@ -109,7 +103,6 @@ const Estoque: React.FC = () => {
         .from('current_stock_summary')
         .select('*')
         .eq('user_id', user.id);
-      
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -131,7 +124,6 @@ const Estoque: React.FC = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('internal_product_name', { ascending: true });
-
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -144,7 +136,7 @@ const Estoque: React.FC = () => {
   });
 
   // Query para buscar as quantidades totais vendidas de cada produto final
-  const { data: soldProductTotals, isLoading: isLoadingSoldProductTotals, isError: isErrorSoldProductTotals, error: errorSoldProductTotals } = useQuery<SoldProductTotalQuantity[], Error>({
+  const { data: soldProductTotals, isLoading: isLoadingSoldProductTotals, isError: isErrorSoldProductTotals, error: errorSoldProductTotals } = useQuery<{ product_name: string; total_quantity_sold: number }[], Error>({
     queryKey: ['sold_product_total_quantities', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -152,17 +144,13 @@ const Estoque: React.FC = () => {
       // Precisamos agregar ainda mais por 'product_name' para obter o total geral.
       const { data, error } = await supabase
         .from('sold_items')
-        .select('product_name, quantity_sold')
-        .eq('user_id', user.id);
-
+        .select('product_name, quantity_sold');
       if (error) throw error;
-
       // Agrega as quantidades vendidas por product_name
       const aggregated = data.reduce((acc, item) => {
         acc[item.product_name] = (acc[item.product_name] || 0) + item.quantity_sold;
         return acc;
       }, {} as Record<string, number>);
-
       return Object.keys(aggregated).map(product_name => ({
         product_name,
         total_quantity_sold: aggregated[product_name],
@@ -186,7 +174,6 @@ const Estoque: React.FC = () => {
         .eq('user_id', user.id)
         .order('invoice_emission_date', { ascending: false })
         .order('created_at', { ascending: false });
-      
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
@@ -280,10 +267,14 @@ const Estoque: React.FC = () => {
         acc[usage.internal_product_name] = [];
       }
       const totalSold = soldTotalsMap[usage.sold_product_name] || 0;
-      acc[usage.internal_product_name].push({ ...usage, total_sold_product_quantity: totalSold });
+      acc[usage.internal_product_name].push({
+        ...usage,
+        total_sold_product_quantity: totalSold
+      });
       return acc;
     }, {} as Record<string, (InternalProductUsage & { total_sold_product_quantity: number })[]>);
   }, [internalProductUsage, soldProductTotals]);
+
 
   const handleToggleRow = (productName: string) => {
     setOpenRows(prev => ({
@@ -328,13 +319,11 @@ const Estoque: React.FC = () => {
       // 2. Determinar a quantidade convertida e a unidade interna de exibição
       let convertedQuantity = item.q_com;
       let internalUnitDisplay = item.u_com; // Default para unidade original
-
       const mappedUnitConversion = unitConversions.find(conversion =>
         conversion.supplier_product_code === item.c_prod &&
         conversion.supplier_name === item.x_fant &&
         conversion.supplier_unit === item.u_com
       );
-
       if (mappedUnitConversion) {
         convertedQuantity = item.q_com * mappedUnitConversion.conversion_factor;
         internalUnitDisplay = mappedUnitConversion.internal_unit;
@@ -424,6 +413,7 @@ const Estoque: React.FC = () => {
   // Dados de resumo de estoque ordenados
   const sortedStockData = useMemo(() => {
     if (!stockData) return [];
+
     let sortableStockItems = [...stockData];
 
     if (sortConfigStock.key) {
@@ -457,8 +447,10 @@ const Estoque: React.FC = () => {
         return 0;
       });
     }
+
     return sortableStockItems;
   }, [stockData, sortConfigStock]);
+
 
   const handleExportStockSummaryToExcel = () => {
     if (!sortedStockData || sortedStockData.length === 0) {
@@ -527,17 +519,14 @@ const Estoque: React.FC = () => {
         Gestão de Estoque
       </h2>
       <p className="text-gray-700 dark:text-gray-300 mb-6">
-        Aqui você pode visualizar o estoque atual dos seus produtos internos,
-        calculado a partir das compras (com unidades convertidas) e do consumo via vendas (com base nas fichas técnicas).
-        Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
+        Aqui você pode visualizar o estoque atual dos seus produtos internos, calculado a partir das compras (com unidades convertidas) e do consumo via vendas (com base nas fichas técnicas). Expanda cada linha para ver em quais produtos vendidos a matéria-prima é utilizada.
       </p>
 
       {!hasData ? (
         <div className="text-center text-gray-600 dark:text-gray-400 py-8">
           <p className="text-lg">Nenhum dado de estoque ou entrada de produto encontrado.</p>
           <p className="text-sm mt-2">
-            Certifique-se de ter carregado dados de compras, vendas, fichas técnicas e conversões de unidades
-            nas páginas "Carga de Dados" e "Mapeamento de Produtos".
+            Certifique-se de ter carregado dados de compras, vendas, fichas técnicas e conversões de unidades nas páginas "Carga de Dados" e "Mapeamento de Produtos".
           </p>
         </div>
       ) : (
@@ -728,7 +717,9 @@ const Estoque: React.FC = () => {
                                 className="w-9 p-0"
                                 onClick={() => handleToggleRow(item.internal_product_name)}
                               >
-                                <ChevronDown className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")} />
+                                <ChevronDown
+                                  className={cn("h-4 w-4 transition-transform", openRows[item.internal_product_name] && "rotate-180")}
+                                />
                                 <span className="sr-only">Toggle detalhes de uso</span>
                               </Button>
                             </TableCell>
@@ -762,8 +753,8 @@ const Estoque: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* NOVO CARD: Entradas Detalhadas de Estoque */}
-          {filteredEnrichedPurchasedItems.length > 0 && (
+          {/* CORREÇÃO: Card de Entradas Detalhadas - só aparece se houver itens comprados E enriquecidos */}
+          {enrichedPurchasedItems && enrichedPurchasedItems.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Entradas Detalhadas de Estoque</CardTitle>
