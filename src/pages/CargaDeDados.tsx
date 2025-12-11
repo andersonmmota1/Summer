@@ -96,7 +96,7 @@ interface HourlySoldItemData {
   '21': number;
   '22': number;
   '23': number;
-  Total: number;
+  Total: number; // Adicionado para ler a coluna Total
 }
 
 // NOVO: Estrutura de dados combinada para inserção na tabela sold_daily_hourly_data
@@ -155,6 +155,8 @@ interface CombinedHourlySoldItem {
   value_21: number;
   value_22: number;
   value_23: number;
+  total_quantity_sold: number; // NOVO: Total de quantidade vendida do Excel
+  total_value_sold: number;   // NOVO: Total de valor vendido do Excel
 }
 
 
@@ -254,7 +256,7 @@ const CargaDeDados: React.FC = () => {
       const { data, error } = await supabase
         .from('purchased_items')
         .select('descricao_do_produto', { distinct: true })
-        .eq('user_id', user.id);
+        .eq('user.id', user.id);
       if (error) throw error;
       // Filtrar null/undefined, remover espaços e garantir unicidade com Set
       const uniqueValues = Array.from(new Set(
@@ -514,11 +516,15 @@ const CargaDeDados: React.FC = () => {
             value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
             value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
             value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+            total_quantity_sold: 0, // Inicializa o novo campo
+            total_value_sold: 0,     // Inicializa o novo campo
           });
         }
+        const currentItem = combinedDataMap.get(key)!;
         for (let i = 0; i <= 23; i++) {
-          combinedDataMap.get(key)![`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
+          currentItem[`quantity_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
+        currentItem.total_quantity_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
       });
 
       // --- Process Value File ---
@@ -552,12 +558,15 @@ const CargaDeDados: React.FC = () => {
             value_6: 0, value_7: 0, value_8: 0, value_9: 0, value_10: 0, value_11: 0,
             value_12: 0, value_13: 0, value_14: 0, value_15: 0, value_16: 0, value_17: 0,
             value_18: 0, value_19: 0, value_20: 0, value_21: 0, value_22: 0, value_23: 0,
+            total_quantity_sold: 0, // Inicializa o novo campo
+            total_value_sold: 0,     // Inicializa o novo campo
           });
         }
         const combinedItem = combinedDataMap.get(key)!;
         for (let i = 0; i <= 23; i++) {
           combinedItem[`value_${i}` as keyof CombinedHourlySoldItem] = parseBrazilianFloat(row[String(i)] || 0);
         }
+        combinedItem.total_value_sold = parseBrazilianFloat(row['Total'] || 0); // Usa a coluna 'Total'
       });
 
       const finalDataToInsert = Array.from(combinedDataMap.values());
@@ -1066,18 +1075,16 @@ const CargaDeDados: React.FC = () => {
           'Codigo': item.additional_code || '',
           'Produto': item.product_name,
         };
-        let totalQuantity = 0;
-        let totalValue = 0;
+        // Usa os novos campos total_quantity_sold e total_value_sold
+        row['Total Qtd'] = item.total_quantity_sold; 
+        row['Total Valor'] = item.total_value_sold; 
+
         for (let i = 0; i <= 23; i++) {
           const quantityKey = `quantity_${i}` as keyof CombinedHourlySoldItem;
           const valueKey = `value_${i}` as keyof CombinedHourlySoldItem;
           row[`Qtd_${i}`] = item[quantityKey] as number; // Passa o número puro
           row[`Valor_${i}`] = item[valueKey] as number; // Passa o número puro
-          totalQuantity += (item[quantityKey] as number);
-          totalValue += (item[valueKey] as number);
         }
-        row['Total Qtd'] = totalQuantity; // Passa o número puro
-        row['Total Valor'] = totalValue; // Passa o número puro
         return row;
       });
 
