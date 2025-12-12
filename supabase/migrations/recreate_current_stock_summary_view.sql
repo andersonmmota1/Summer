@@ -1,5 +1,4 @@
--- Recriando a View current_stock_summary com agregação prévia definitiva.
--- Esta view calcula o estoque atual de cada produto interno.
+-- Recriando a View current_stock_summary com base na nova tabela sold_items.
 
 DROP VIEW IF EXISTS current_stock_summary;
 
@@ -22,9 +21,10 @@ consumed_from_sales AS (
   SELECT
     si.user_id,
     pr.internal_product_name,
-    si.quantity_sold * pr.quantity_needed AS consumed_quantity
-  FROM sold_items si
+    SUM(si.quantity_sold * pr.quantity_needed) AS consumed_quantity -- Agregado por segurança
+  FROM sold_items si -- Usando a nova tabela
   JOIN product_recipes pr ON si.user_id = pr.user_id AND si.product_name = pr.sold_product_name
+  GROUP BY si.user_id, pr.internal_product_name -- Agrega para evitar repetições
 ),
 -- Agregando os dados de compra por produto (UMA LINHA POR PRODUTO)
 aggregated_purchased AS (

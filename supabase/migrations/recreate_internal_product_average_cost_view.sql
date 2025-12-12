@@ -1,7 +1,4 @@
--- Recriando a View internal_product_average_cost com GROUP BY definitivamente correto.
--- Esta view calcula o custo total e quantidade total comprada de cada produto interno.
--- Ela NÃO deve envolver product_recipes nesta etapa.
--- O GROUP BY é feito APENAS por user_id e internal_product_name.
+-- Recriando a View internal_product_average_cost com base na nova estrutura.
 
 DROP VIEW IF EXISTS internal_product_average_cost;
 
