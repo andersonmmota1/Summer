@@ -1,4 +1,4 @@
--- Recriando a View current_stock_summary com base na tabela sold_items.
+-- Recriando a View current_stock_summary com base na nova tabela sold_items.
 
 DROP VIEW IF EXISTS current_stock_summary;
 
@@ -23,7 +23,7 @@ consumed_from_sales AS (
     pr.internal_product_name,
     -- Agrega aqui para garantir que cada produto interno tenha uma única linha de consumo por venda
     SUM(si.total_quantity_sold * pr.quantity_needed) AS consumed_quantity
-  FROM sold_items si -- Usando a tabela real
+  FROM sold_items si -- Usando a tabela real (agora renomeada)
   JOIN product_recipes pr ON si.user_id = pr.user_id AND si.product_name = pr.sold_product_name
   GROUP BY si.user_id, pr.internal_product_name -- Agrupa para evitar repetições
 ),

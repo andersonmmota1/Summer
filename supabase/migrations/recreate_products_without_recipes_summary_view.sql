@@ -1,4 +1,4 @@
--- Recriando a View products_without_recipes_summary com base na tabela sold_items.
+-- Recriando a View products_without_recipes_summary com base na nova tabela sold_items.
 
 DROP VIEW IF EXISTS products_without_recipes_summary;
 
