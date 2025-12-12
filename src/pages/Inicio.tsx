@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 interface SoldItemRaw {
   sale_date: string;
   product_name: string;
-  quantity_sold: number;
+  total_quantity_sold: number; // Alterado de quantity_sold
   total_value_sold: number | null;
   group_name: string | null;
   subgroup_name: string | null;
@@ -65,7 +65,7 @@ const Inicio: React.FC = () => {
     while (hasMore) {
       let query = supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold, group_name, subgroup_name, additional_code')
+        .select('sale_date, product_name, total_quantity_sold, total_value_sold, group_name, subgroup_name, additional_code') // Alterado para total_quantity_sold
         .eq('user_id', user.id);
 
       const { data, error } = await query
@@ -151,7 +151,7 @@ const Inicio: React.FC = () => {
     rawSoldItems.forEach(item => {
       const groupName = item.group_name || 'Sem Grupo';
       const itemTotalValue = item.total_value_sold ?? 0;
-      const itemQuantity = item.quantity_sold ?? 0;
+      const itemQuantity = item.total_quantity_sold ?? 0; // Alterado para total_quantity_sold
       if (!aggregatedData[groupName]) {
         aggregatedData[groupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
@@ -186,7 +186,7 @@ const Inicio: React.FC = () => {
     rawSoldItems.forEach(item => {
       const subgroupName = item.subgroup_name || 'Sem Subgrupo';
       const itemTotalValue = item.total_value_sold ?? 0;
-      const itemQuantity = item.quantity_sold ?? 0;
+      const itemQuantity = item.total_quantity_sold ?? 0; // Alterado para total_quantity_sold
       if (!aggregatedData[subgroupName]) {
         aggregatedData[subgroupName] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
@@ -233,7 +233,7 @@ const Inicio: React.FC = () => {
     const aggregatedSales = new Map<string, { total_quantity_sold: number; total_value_sold: number }>();
     rawSoldItems.forEach(item => {
       const current = aggregatedSales.get(item.product_name) || { total_quantity_sold: 0, total_value_sold: 0 };
-      current.total_quantity_sold += item.quantity_sold;
+      current.total_quantity_sold += item.total_quantity_sold; // Alterado para total_quantity_sold
       current.total_value_sold += (item.total_value_sold ?? 0);
       aggregatedSales.set(item.product_name, current);
     });

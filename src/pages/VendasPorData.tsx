@@ -18,8 +18,8 @@ interface SoldItemRaw {
   id: string;
   sale_date: string;
   product_name: string;
-  quantity_sold: number;
-  unit_price: number;
+  total_quantity_sold: number; // Alterado de quantity_sold
+  // unit_price: number; // Removido
   total_value_sold: number | null;
   group_name: string | null;
   subgroup_name: string | null;
@@ -62,7 +62,7 @@ const VendasPorData: React.FC = () => {
 
     let query = supabase
       .from('sold_items')
-      .select('id, sale_date, product_name, quantity_sold, unit_price, total_value_sold, group_name, subgroup_name, additional_code')
+      .select('id, sale_date, product_name, total_quantity_sold, total_value_sold, group_name, subgroup_name, additional_code') // Alterado para total_quantity_sold e removido unit_price
       .eq('user_id', user.id)
       .in('sale_date', formattedSelectedDates);
 
@@ -97,11 +97,12 @@ const VendasPorData: React.FC = () => {
     rawSoldItems.forEach(item => {
       const dateKey = item.sale_date;
       const itemTotalValue = item.total_value_sold ?? 0;
+      const itemQuantity = item.total_quantity_sold ?? 0; // Alterado para total_quantity_sold
 
       if (!aggregatedData[dateKey]) {
         aggregatedData[dateKey] = { total_quantity_sold: 0, total_value_sold: 0, itemCount: 0 };
       }
-      aggregatedData[dateKey].total_quantity_sold += item.quantity_sold;
+      aggregatedData[dateKey].total_quantity_sold += itemQuantity;
       aggregatedData[dateKey].total_value_sold += itemTotalValue;
       aggregatedData[dateKey].itemCount++;
     });
@@ -130,7 +131,7 @@ const VendasPorData: React.FC = () => {
     rawSoldItems.forEach(item => {
       const productName = item.product_name;
       const current = productMap.get(productName) || { product_name: productName, total_quantity_sold: 0, total_value_sold: 0 };
-      current.total_quantity_sold += item.quantity_sold;
+      current.total_quantity_sold += item.total_quantity_sold; // Alterado para total_quantity_sold
       current.total_value_sold += (item.total_value_sold ?? 0);
       productMap.set(productName, current);
     });

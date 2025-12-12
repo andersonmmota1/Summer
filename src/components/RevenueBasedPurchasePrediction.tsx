@@ -14,7 +14,7 @@ import { createExcelFile } from '@/utils/excel';
 interface SoldItemRaw {
   sale_date: string;
   product_name: string;
-  quantity_sold: number;
+  total_quantity_sold: number; // Alterado de quantity_sold
   total_value_sold: number | null;
 }
 
@@ -103,7 +103,7 @@ const RevenueBasedPurchasePrediction: React.FC<RevenueBasedPurchasePredictionPro
 
     const totalHistoricalQuantitySoldPerProduct: Record<string, number> = {};
     rawSoldItems.forEach(item => {
-      totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.quantity_sold;
+      totalHistoricalQuantitySoldPerProduct[item.product_name] = (totalHistoricalQuantitySoldPerProduct[item.product_name] || 0) + item.total_quantity_sold; // Alterado para total_quantity_sold
     });
 
     const historicalInternalDemand: Record<string, number> = {};

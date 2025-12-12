@@ -22,7 +22,7 @@ import RevenueBasedPurchasePrediction from '@/components/RevenueBasedPurchasePre
 interface SoldItemRaw {
   sale_date: string;
   product_name: string;
-  quantity_sold: number;
+  total_quantity_sold: number; // Alterado de quantity_sold
   total_value_sold: number | null; 
 }
 
@@ -72,7 +72,7 @@ const PrevisaoDeCompras: React.FC = () => {
 
       const { data, error } = await supabase
         .from('sold_items')
-        .select('sale_date, product_name, quantity_sold, total_value_sold')
+        .select('sale_date, product_name, total_quantity_sold, total_value_sold') // Alterado para total_quantity_sold
         .eq('user_id', user.id)
         .in('sale_date', formattedHistoricalDates);
 
@@ -158,7 +158,7 @@ const PrevisaoDeCompras: React.FC = () => {
       // --- Lógica de Média de Vendas por Quantidade (Original) ---
       const dailySalesQuantity: Record<string, number> = {};
       rawSoldItems.forEach(item => {
-        dailySalesQuantity[item.product_name] = (dailySalesQuantity[item.product_name] || 0) + item.quantity_sold;
+        dailySalesQuantity[item.product_name] = (dailySalesQuantity[item.product_name] || 0) + item.total_quantity_sold; // Alterado para total_quantity_sold
       });
 
       const averageDailySales: Record<string, number> = {};

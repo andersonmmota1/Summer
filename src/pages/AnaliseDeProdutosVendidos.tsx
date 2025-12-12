@@ -19,10 +19,10 @@ interface SoldItemDetailed {
   group_name: string | null;
   subgroup_name: string | null;
   additional_code: string | null;
-  base_product_name: string | null;
+  // base_product_name: string | null; // Removido, pois product_name já serve
   product_name: string;
-  quantity_sold: number;
-  unit_price: number;
+  total_quantity_sold: number; // Alterado de quantity_sold
+  // unit_price: number; // Removido
   total_value_sold: number | null;
   created_at: string;
 }
@@ -64,7 +64,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('sold_items')
-        .select('id, user_id, sale_date, group_name, subgroup_name, additional_code, base_product_name, product_name, quantity_sold, unit_price, total_value_sold, created_at')
+        .select('id, user_id, sale_date, group_name, subgroup_name, additional_code, product_name, total_quantity_sold, total_value_sold, created_at') // Alterado para total_quantity_sold e total_value_sold, removido unit_price e base_product_name
         .eq('user_id', user?.id)
         .order('sale_date', { ascending: false });
 
@@ -101,7 +101,7 @@ const AnaliseDeProdutosVendidos: React.FC = () => {
         });
       }
       const aggregatedItem = aggregationMap.get(key)!;
-      aggregatedItem.total_quantity_sold += item.quantity_sold;
+      aggregatedItem.total_quantity_sold += item.total_quantity_sold; // Alterado para total_quantity_sold
       aggregatedItem.total_value_sold += (item.total_value_sold ?? 0);
     });
 
