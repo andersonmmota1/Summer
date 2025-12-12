@@ -85,6 +85,7 @@ interface AggregatedAndEnrichedPurchasedItem {
   ids: string[]; // IDs das linhas originais
   total_q_com: number; // Soma das quantidades
   average_v_un_com: number; // Média dos valores unitários
+  count_v_un_com: number; // Adicionado para cálculo da média
   earliest_invoice_emission_date: string | null; // Data mais antiga
   latest_created_at: string; // Data de criação mais recente
   // Campos enriquecidos
@@ -299,16 +300,17 @@ const Estoque: React.FC = () => {
     }));
   };
 
-  // Lógica atualizada para o cálculo do Valor Total do Estoque
+  // Lógica ATUALIZADA para o cálculo do Valor Total do Estoque
   const totalStockValue = useMemo(() => {
     return stockData?.reduce((sum, item) => {
-      let itemStockValue = 0;
-      // Verifica se a quantidade comprada convertida é maior que zero para evitar divisão por zero
-      // E se o estoque atual não é negativo
-      if (item.current_stock_quantity >= 0 && item.total_purchased_quantity_converted > 0) {
-        const averageUnitCost = item.total_purchased_value / item.total_purchased_quantity_converted;
-        itemStockValue = averageUnitCost * item.current_stock_quantity;
-      }
+      // Calcula o custo unitário médio. Se a quantidade convertida for zero, o custo médio é zero.
+      const averageUnitCost = item.total_purchased_quantity_converted !== 0
+        ? item.total_purchased_value / item.total_purchased_quantity_converted
+        : 0;
+
+      // Calcula o valor em estoque para o item. Pode ser negativo se o custo médio for negativo.
+      const itemStockValue = averageUnitCost * item.current_stock_quantity;
+      
       return sum + itemStockValue;
     }, 0) || 0;
   }, [stockData]);
@@ -495,8 +497,8 @@ const Estoque: React.FC = () => {
         const bValue = b[sortConfigStock.key!];
 
         if (sortConfigStock.key === 'stock_value') {
-          const aAvgCost = a.total_purchased_quantity_converted > 0 ? a.total_purchased_value / a.total_purchased_quantity_converted : 0;
-          const bAvgCost = b.total_purchased_quantity_converted > 0 ? b.total_purchased_value / b.total_purchased_quantity_converted : 0;
+          const aAvgCost = a.total_purchased_quantity_converted !== 0 ? a.total_purchased_value / a.total_purchased_quantity_converted : 0;
+          const bAvgCost = b.total_purchased_quantity_converted !== 0 ? b.total_purchased_value / b.total_purchased_quantity_converted : 0;
           const aStockValue = aAvgCost * a.current_stock_quantity;
           const bStockValue = bAvgCost * b.current_stock_quantity;
 
@@ -542,7 +544,7 @@ const Estoque: React.FC = () => {
     ];
 
     const formattedData = sortedStockData.map(item => {
-      const averageUnitCost = item.total_purchased_quantity_converted > 0 ? item.total_purchased_value / item.total_purchased_quantity_converted : 0;
+      const averageUnitCost = item.total_purchased_quantity_converted !== 0 ? item.total_purchased_value / item.total_purchased_quantity_converted : 0;
       const itemStockValue = averageUnitCost * item.current_stock_quantity;
       return {
         'Nome Interno do Produto': item.internal_product_name,
@@ -771,7 +773,11 @@ const Estoque: React.FC = () => {
                   </TableHeader>
                   <TableBody>
                     {sortedStockData?.map((item, index) => {
-                      const averageUnitCost = item.total_purchased_quantity_converted > 0 ? item.total_purchased_value / item.total_purchased_quantity_converted : 0;
+                      // Calcula o custo unitário médio. Se a quantidade convertida for zero, o custo médio é zero.
+                      const averageUnitCost = item.total_purchased_quantity_converted !== 0
+                        ? item.total_purchased_value / item.total_purchased_quantity_converted
+                        : 0;
+                      // Calcula o valor em estoque para o item. Pode ser negativo se o custo médio for negativo.
                       const itemStockValue = averageUnitCost * item.current_stock_quantity;
                       return (
                         <React.Fragment key={index}>
