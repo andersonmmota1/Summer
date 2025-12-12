@@ -1,4 +1,4 @@
--- Recriando a View internal_product_average_cost com base na nova estrutura.
+-- Recriando a View internal_product_average_cost com GROUP BY definitivamente correto.
 
 DROP VIEW IF EXISTS internal_product_average_cost;
 
