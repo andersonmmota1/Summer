@@ -662,11 +662,11 @@ const CargaDeDados: React.FC = () => {
         return;
       }
 
-      // --- Deletion Logic for sold_daily_hourly_data ---
+      // --- Deletion Logic for sold_items ---
       for (const dateString of datesToProcess) {
         console.log("Verificando/excluindo dados existentes para a data:", dateString);
         const { count, error: countError } = await supabase
-          .from('sold_daily_hourly_data')
+          .from('sold_items') // ATUALIZADO: Usando a nova tabela sold_items
           .select('id', { count: 'exact' })
           .eq('user_id', user.id)
           .eq('sale_date', dateString);
@@ -678,7 +678,7 @@ const CargaDeDados: React.FC = () => {
         }
         if (count && count > 0) {
           const { error: deleteError } = await supabase
-            .from('sold_daily_hourly_data')
+            .from('sold_items') // ATUALIZADO: Usando a nova tabela sold_items
             .delete()
             .eq('user_id', user.id)
             .eq('sale_date', dateString);
@@ -691,10 +691,10 @@ const CargaDeDados: React.FC = () => {
         }
       }
 
-      // --- Insertion Logic for sold_daily_hourly_data ---
+      // --- Insertion Logic for sold_items ---
       console.log("Inserindo novos dados...");
       const { error: insertError } = await supabase
-        .from('sold_daily_hourly_data')
+        .from('sold_items') // ATUALIZADO: Usando a nova tabela sold_items
         .insert(finalDataToInsert);
 
       if (insertError) {
@@ -1102,7 +1102,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading('Baixando todos os produtos vendidos...');
     try {
       const { data, error } = await supabase
-        .from('sold_daily_hourly_data') // Query a nova tabela
+        .from('sold_items') // Query a nova tabela
         .select('*')
         .eq('user_id', user.id)
         .order('sale_date', { ascending: false });
@@ -1390,7 +1390,7 @@ const CargaDeDados: React.FC = () => {
     const loadingToastId = showLoading('Limpando todos os produtos vendidos...');
     try {
       const { error } = await supabase
-        .from('sold_daily_hourly_data') // Deleta da nova tabela
+        .from('sold_items') // Deleta da nova tabela
         .delete()
         .eq('user_id', user.id);
       if (error) throw error;

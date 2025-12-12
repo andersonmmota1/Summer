@@ -15,7 +15,7 @@ export const readXmlFile = (file: File): Promise<any[]> => {
         const errorNode = xmlDoc.querySelector('parsererror');
         if (errorNode) {
           console.error('XML parsing error:', errorNode.textContent);
-          reject(new Error('Erro ao analisar o arquivo XML. Verifique a estrutura do XML.'));
+          reject(new Error(`Erro ao analisar o arquivo XML "${file.name}". Verifique a estrutura do XML. Detalhes: ${errorNode.textContent}`));
           return;
         }
 
@@ -138,14 +138,14 @@ export const readXmlFile = (file: File): Promise<any[]> => {
         }
         
         if (items.length === 0) {
-          reject(new Error('Nenhum item de produto válido foi extraído do arquivo XML.'));
+          reject(new Error(`Nenhum item de produto válido foi extraído do arquivo XML "${file.name}". Verifique se o arquivo está correto.`));
           return;
         }
 
         resolve(items);
       } catch (error) {
         console.error('Erro inesperado ao processar XML:', error);
-        reject(new Error('Erro ao ler o arquivo XML. Certifique-se de que é um arquivo XML válido e bem formatado.'));
+        reject(new Error(`Erro ao ler o arquivo XML "${file.name}". Certifique-se de que é um arquivo XML válido e bem formatado. Detalhes: ${error}`));
       }
     };
 
