@@ -1,9 +1,7 @@
--- Recriando a View internal_product_average_cost com GROUP BY corrigido.
+-- Recriando a View internal_product_average_cost com GROUP BY definitivamente correto.
 -- Esta view calcula o custo total e quantidade total comprada de cada produto interno.
 -- Ela NÃO deve envolver product_recipes nesta etapa.
-
--- A correção principal é garantir que o GROUP BY seja feito apenas por user_id e internal_product_name
--- e não por internal_unit, que pode variar e causar linhas duplicadas.
+-- O GROUP BY é feito APENAS por user_id e internal_product_name.
 
 DROP VIEW IF EXISTS internal_product_average_cost;
 
@@ -13,7 +11,7 @@ SELECT
   -- Determina o nome interno: primeiro o da purchased_items (se mapeado manualmente), depois o da conversão
   COALESCE(pi.internal_product_name, pnc.internal_product_name, pi.descricao_do_produto) AS internal_product_name,
   -- Determina a unidade interna: primeiro a da conversão, senão usa a original
-  -- Para garantir um único registro por produto, agregamos a unidade (assumindo que seja consistente)
+  -- MAX para garantir um único valor por grupo, assumindo consistência
   COALESCE(MAX(uc.internal_unit), MAX(pi.u_com)) AS internal_unit,
   -- Calcula o valor total comprado
   SUM(pi.q_com * pi.v_un_com) AS total_value_purchased,

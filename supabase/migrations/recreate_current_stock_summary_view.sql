@@ -1,4 +1,4 @@
--- Recriando a View current_stock_summary com lógica correta para evitar multiplicação de valores de compra.
+-- Recriando a View current_stock_summary com agregação prévia definitiva.
 -- Esta view calcula o estoque atual de cada produto interno.
 
 DROP VIEW IF EXISTS current_stock_summary;
@@ -26,7 +26,7 @@ consumed_from_sales AS (
   FROM sold_items si
   JOIN product_recipes pr ON si.user_id = pr.user_id AND si.product_name = pr.sold_product_name
 ),
--- Agregando os dados de compra por produto
+-- Agregando os dados de compra por produto (UMA LINHA POR PRODUTO)
 aggregated_purchased AS (
   SELECT
     pc.user_id,
@@ -38,7 +38,7 @@ aggregated_purchased AS (
   FROM purchased_converted pc
   GROUP BY pc.user_id, pc.internal_product_name
 ),
--- Agregando os dados de consumo por produto
+-- Agregando os dados de consumo por produto (UMA LINHA POR PRODUTO)
 aggregated_consumed AS (
   SELECT
     cs.user_id,
@@ -47,7 +47,7 @@ aggregated_consumed AS (
   FROM consumed_from_sales cs
   GROUP BY cs.user_id, cs.internal_product_name
 )
--- SELECT FINAL
+-- SELECT FINAL: JOIN entre agregados
 SELECT
   COALESCE(ap.user_id, ac.user_id) AS user_id,
   COALESCE(ap.internal_product_name, ac.internal_product_name) AS internal_product_name,
