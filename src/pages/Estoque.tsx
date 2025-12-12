@@ -156,15 +156,15 @@ const Estoque: React.FC = () => {
     queryKey: ['sold_product_total_quantities', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // A view 'sold_items' já agrega as quantidades diárias.
-      // Precisamos agregar ainda mais por 'product_name' para obter o total geral.
+      // A tabela 'sold_items' agora contém as quantidades totais vendidas por produto por dia.
+      // Precisamos agregar por 'product_name' para obter o total geral.
       const { data, error } = await supabase
         .from('sold_items')
-        .select('product_name, quantity_sold');
+        .select('product_name, total_quantity_sold'); // Corrected column name
       if (error) throw error;
       // Agrega as quantidades vendidas por product_name
       const aggregated = data.reduce((acc, item) => {
-        acc[item.product_name] = (acc[item.product_name] || 0) + item.quantity_sold;
+        acc[item.product_name] = (acc[item.product_name] || 0) + item.total_quantity_sold; // Corrected column name
         return acc;
       }, {} as Record<string, number>);
       return Object.keys(aggregated).map(product_name => ({
